@@ -136,9 +136,10 @@ func save_game() -> void:
 		"perm_exp_mult": perm_exp_mult,
 		"perm_thrall_health": perm_thrall_health,
 	}
+	var json_string := JSON.stringify(data)
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
-		file.store_var(data)
+		file.store_string(json_string)
 
 func load_game() -> void:
 	if not FileAccess.file_exists(SAVE_PATH):
@@ -146,34 +147,40 @@ func load_game() -> void:
 	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if file == null:
 		return
-	var data = file.get_var()
+	var json_string := file.get_as_text()
+	var json := JSON.new()
+	if json.parse(json_string) != OK:
+		return
+	var data = json.data
 	if data is not Dictionary:
 		return
-	coins = data.get("coins", 0)
-	exp_points = data.get("exp_points", 0)
-	player_level = data.get("player_level", 1)
-	exp_to_next_level = data.get("exp_to_next_level", 100)
-	highest_world_unlocked = data.get("highest_world_unlocked", 0)
-	total_runs = data.get("total_runs", 0)
-	total_kills = data.get("total_kills", 0)
-	total_bosses_killed = data.get("total_bosses_killed", 0)
+	coins = clampi(int(data.get("coins", 0)), 0, 9999999)
+	exp_points = clampi(int(data.get("exp_points", 0)), 0, 9999999)
+	player_level = clampi(int(data.get("player_level", 1)), 1, 999)
+	exp_to_next_level = clampi(int(data.get("exp_to_next_level", 100)), 100, 99999)
+	highest_world_unlocked = clampi(int(data.get("highest_world_unlocked", 0)), 0, 10)
+	total_runs = maxi(int(data.get("total_runs", 0)), 0)
+	total_kills = maxi(int(data.get("total_kills", 0)), 0)
+	total_bosses_killed = maxi(int(data.get("total_bosses_killed", 0)), 0)
 	var saved_levels = data.get("shop_levels", [])
-	for i in range(min(saved_levels.size(), shop_levels.size())):
-		shop_levels[i] = saved_levels[i]
+	if saved_levels is Array:
+		for i in range(mini(saved_levels.size(), shop_levels.size())):
+			shop_levels[i] = clampi(int(saved_levels[i]), 0, 20)
 	var wc = data.get("worlds_completed", [])
 	worlds_completed = []
-	for w in wc:
-		worlds_completed.append(int(w))
-	perm_max_health = data.get("perm_max_health", 0.0)
-	perm_attack_mult = data.get("perm_attack_mult", 0.0)
-	perm_speed_mult = data.get("perm_speed_mult", 0.0)
-	perm_thrall_damage = data.get("perm_thrall_damage", 0.0)
-	perm_extraction_bonus = data.get("perm_extraction_bonus", 0.0)
-	perm_dash_cooldown = data.get("perm_dash_cooldown", 0.0)
-	perm_regen = data.get("perm_regen", 0.0)
-	perm_coin_mult = data.get("perm_coin_mult", 0.0)
-	perm_exp_mult = data.get("perm_exp_mult", 0.0)
-	perm_thrall_health = data.get("perm_thrall_health", 0.0)
+	if wc is Array:
+		for w in wc:
+			worlds_completed.append(clampi(int(w), 0, 10))
+	perm_max_health = clampf(float(data.get("perm_max_health", 0.0)), 0.0, 500.0)
+	perm_attack_mult = clampf(float(data.get("perm_attack_mult", 0.0)), 0.0, 5.0)
+	perm_speed_mult = clampf(float(data.get("perm_speed_mult", 0.0)), 0.0, 3.0)
+	perm_thrall_damage = clampf(float(data.get("perm_thrall_damage", 0.0)), 0.0, 5.0)
+	perm_extraction_bonus = clampf(float(data.get("perm_extraction_bonus", 0.0)), 0.0, 1.0)
+	perm_dash_cooldown = clampf(float(data.get("perm_dash_cooldown", 0.0)), 0.0, 2.0)
+	perm_regen = clampf(float(data.get("perm_regen", 0.0)), 0.0, 20.0)
+	perm_coin_mult = clampf(float(data.get("perm_coin_mult", 0.0)), 0.0, 5.0)
+	perm_exp_mult = clampf(float(data.get("perm_exp_mult", 0.0)), 0.0, 5.0)
+	perm_thrall_health = clampf(float(data.get("perm_thrall_health", 0.0)), 0.0, 200.0)
 
 func reset_save() -> void:
 	coins = 0

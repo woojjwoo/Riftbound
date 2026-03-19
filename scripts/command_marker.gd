@@ -31,7 +31,7 @@ func _draw() -> void:
 	# Count thralls heading here
 	var count := 0
 	for thrall in get_tree().get_nodes_in_group("thralls"):
-		if thrall.get("mode") == 1:  # ThrallMode.COMMANDED = 1
+		if thrall.get("mode") == thrall.ThrallMode.COMMANDED:
 			count += 1
 	if count > 0:
 		var font := ThemeDB.fallback_font

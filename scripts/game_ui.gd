@@ -125,8 +125,8 @@ func _process(delta: float) -> void:
 	else:
 		command_hint.text = "RMB: Command Thralls  |  R: Recall"
 
-func _on_health_changed(_current: float, _max_hp: float) -> void:
-	pass
+func _on_health_changed(current: float, _max_hp: float) -> void:
+	health_display = current
 
 func _on_game_over() -> void:
 	game_over_panel.visible = true
@@ -182,10 +182,16 @@ func _on_process_changed(new_process: Game.GameProcess) -> void:
 
 func _on_upgrade_available() -> void:
 	current_upgrades = Game.get_random_upgrades(3)
+	if current_upgrades.is_empty():
+		return
 	upgrade_title.text = "RIFT SEALED — CHOOSE AN UPGRADE"
-	upgrade_btn1.text = "%s\n%s" % [current_upgrades[0]["name"], current_upgrades[0]["desc"]]
-	upgrade_btn2.text = "%s\n%s" % [current_upgrades[1]["name"], current_upgrades[1]["desc"]]
-	upgrade_btn3.text = "%s\n%s" % [current_upgrades[2]["name"], current_upgrades[2]["desc"]]
+	var buttons := [upgrade_btn1, upgrade_btn2, upgrade_btn3]
+	for i in range(3):
+		if i < current_upgrades.size():
+			buttons[i].text = "%s\n%s" % [current_upgrades[i]["name"], current_upgrades[i]["desc"]]
+			buttons[i].visible = true
+		else:
+			buttons[i].visible = false
 
 	upgrade_panel.visible = true
 	upgrade_panel.modulate.a = 0.0

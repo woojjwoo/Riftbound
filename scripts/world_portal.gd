@@ -13,7 +13,7 @@ func setup(next_world: int) -> void:
 	next_world_id = next_world
 	if next_world < WorldData.get_world_count():
 		var config := WorldData.get_config(next_world)
-		portal_color = config["rift_color"]
+		portal_color = config.get("rift_color", Color(0.4, 0.8, 1.0))
 
 func _ready() -> void:
 	add_to_group("world_portal")

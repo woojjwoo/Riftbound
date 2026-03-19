@@ -7,10 +7,6 @@ var duration: float = 0.8
 var max_scale: float = 3.0
 var timer: float = 0.0
 
-# Secondary ring
-var ring2_delay: float = 0.15
-var ring2_scale: float = 0.0
-
 func _ready() -> void:
 	scale = Vector2.ZERO
 	modulate = Color(0.2, 0.8, 1.0, 1.0)  # teal/cyan glow

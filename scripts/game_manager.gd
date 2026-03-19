@@ -87,7 +87,7 @@ var ALL_UPGRADES: Array[Dictionary] = [
 ]
 
 func _ready() -> void:
-	_set_process(GameProcess.EARLY_GAME)
+	_transition_to(GameProcess.EARLY_GAME)
 
 func _process(delta: float) -> void:
 	if _freeze_timer > 0.0:
@@ -109,7 +109,7 @@ func on_boss_killed() -> void:
 	Audio.play_boss_enrage()
 
 func on_boss_spawned() -> void:
-	_set_process(GameProcess.BOSS_FIGHT)
+	_transition_to(GameProcess.BOSS_FIGHT)
 
 func on_thrall_gained() -> void:
 	thrall_count += 1
@@ -123,7 +123,7 @@ func on_rift_closed(rift_number: int) -> void:
 	rift_closed_signal.emit(rift_number)
 
 	if rifts_closed >= total_rifts:
-		_set_process(GameProcess.VICTORY)
+		_transition_to(GameProcess.VICTORY)
 		Audio.play_victory()
 		victory.emit()
 		# Spawn world portal after a delay
@@ -136,7 +136,7 @@ func on_rift_closed(rift_number: int) -> void:
 
 		var mid_threshold := ceili(total_rifts / 2.0)
 		if rifts_closed >= mid_threshold:
-			_set_process(GameProcess.MID_GAME)
+			_transition_to(GameProcess.MID_GAME)
 
 func _spawn_world_portal() -> void:
 	var players := get_tree().get_nodes_in_group("player")
@@ -224,7 +224,7 @@ func spawn_boss_drops(pos: Vector2) -> void:
 
 func trigger_game_over() -> void:
 	is_game_over = true
-	_set_process(GameProcess.GAME_OVER)
+	_transition_to(GameProcess.GAME_OVER)
 	# Save progress even on death
 	SaveData.total_runs += 1
 	SaveData.total_kills += kill_count
@@ -351,12 +351,12 @@ func get_enemy_count_mult() -> float:
 func _apply_health_upgrade() -> void:
 	var players := get_tree().get_nodes_in_group("player")
 	if players.size() > 0:
-		var p = players[0]
+		var p := players[0] as CharacterBody2D
 		p.max_health += 30.0
 		p.current_health += 30.0
 		p.health_changed.emit(p.current_health, p.max_health)
 
-func _set_process(new_process: GameProcess) -> void:
+func _transition_to(new_process: GameProcess) -> void:
 	if current_process == new_process:
 		return
 	current_process = new_process
