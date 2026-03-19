@@ -8,6 +8,9 @@ var timer: float = 0.0
 var damage_text: String = ""
 var text_color: Color = Color.WHITE
 var font_size: int = 10
+var drift_x: float = 0.0
+var punch_scale: float = 1.0
+var base_scale: float = 1.0
 
 func setup(amount: float, col: Color = Color.WHITE) -> void:
 	if amount <= 0:
@@ -16,15 +19,24 @@ func setup(amount: float, col: Color = Color.WHITE) -> void:
 	else:
 		damage_text = str(int(amount))
 	text_color = col
+	# Wider horizontal random offset to prevent vertical stacking
+	drift_x = randf_range(-25, 25)
 	position += Vector2(randf_range(-8, 8), -12)
 	if amount >= 20:
 		font_size = 14
-		scale = Vector2(1.2, 1.2)
+		base_scale = 1.2
+	# Spawn punch: scale up then back down
+	punch_scale = 1.6
+	var tween := create_tween()
+	tween.tween_property(self, "punch_scale", 1.0, 0.2).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
 
 func _process(delta: float) -> void:
 	timer += delta
 	position.y -= rise_speed * delta
+	# Horizontal drift: ease out over lifetime
+	position.x += drift_x * delta * (1.0 - timer / lifetime)
 	modulate.a = 1.0 - (timer / lifetime)
+	scale = Vector2.ONE * base_scale * punch_scale
 	if timer >= lifetime:
 		queue_free()
 		return

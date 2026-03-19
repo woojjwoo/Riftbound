@@ -49,17 +49,30 @@ const MAX_LEVEL: int = 15
 const SACRIFICE_BONUS_PER_THRALL: float = 0.03
 const MAX_SACRIFICE_BONUS: float = 0.30
 
-## Upgrade cost formula: base_cost * (level + 1) * rarity_cost_mult
+## Upgrade cost formula: base_cost * (level+1)^1.5 * rarity_cost_mult
+## Scales aggressively so early upgrades stay cheap but late upgrades are a real investment.
 const BASE_UPGRADE_COST: int = 25
 
 ## Enemy drop rates by rarity [common, uncommon, rare, epic]
-## Base rates — world multiplier increases them in later worlds
+## ---------------------------------------------------------------
+## Design intent:
+##   - Melee enemies are the most common enemy type, so they have the
+##     highest base common/uncommon rates to keep loot flowing.
+##   - Rare and Epic base rates are 0.0 for ALL enemy types. These
+##     rarities are unlocked via the world gate in roll_enemy_drop():
+##     Rare requires world 2+, Epic requires world 4+. This prevents
+##     early-game players from lucking into gear they should earn.
+##   - The world_bonus multiplier (1.0 + world_id * 0.15) scales all
+##     rates upward in later worlds, rewarding progression.
+##   - Tanks have the highest overall rates as a reward for the extra
+##     effort required to kill them.
+## ---------------------------------------------------------------
 const DROP_RATES: Dictionary = {
-	"melee": [0.03, 0.005, 0.0, 0.0],
-	"ranged": [0.04, 0.008, 0.001, 0.0],
-	"tank": [0.05, 0.01, 0.002, 0.0],
-	"flying": [0.04, 0.008, 0.001, 0.0],
-	"exploder": [0.04, 0.008, 0.001, 0.0],
+	"melee": [0.05, 0.008, 0.0, 0.0],
+	"ranged": [0.04, 0.008, 0.0, 0.0],
+	"tank": [0.05, 0.01, 0.0, 0.0],
+	"flying": [0.04, 0.008, 0.0, 0.0],
+	"exploder": [0.04, 0.008, 0.0, 0.0],
 }
 
 ## Boss guaranteed drops
@@ -102,7 +115,7 @@ func get_stat_bonus(equip: Dictionary) -> float:
 func get_upgrade_cost(equip: Dictionary) -> int:
 	var rarity_data: Dictionary = RARITY_INFO[equip["rarity"]]
 	var cost_mult: float = rarity_data["cost_mult"]
-	return int(BASE_UPGRADE_COST * (equip["level"] + 1) * cost_mult)
+	return int(BASE_UPGRADE_COST * pow(equip["level"] + 1, 1.5) * cost_mult)
 
 ## Get base success rate for upgrading to the next level
 func get_base_success_rate(current_level: int) -> float:
@@ -133,9 +146,23 @@ func roll_enemy_drop(enemy_type: String, world_id: int) -> Dictionary:
 	# Later worlds increase drop rates
 	var world_bonus := 1.0 + world_id * 0.15
 
+	# World-gated rarity: Rare requires world 2+, Epic requires world 4+
+	var max_rarity := Rarity.UNCOMMON
+	if world_id >= 4:
+		max_rarity = Rarity.EPIC
+	elif world_id >= 2:
+		max_rarity = Rarity.RARE
+
+	# Effective rates: inject rare/epic chances only when world-gated threshold is met
+	var effective_rates: Array[float] = [rates[0], rates[1], 0.0, 0.0]
+	if max_rarity >= Rarity.RARE:
+		effective_rates[Rarity.RARE] = 0.002 + world_id * 0.001
+	if max_rarity >= Rarity.EPIC:
+		effective_rates[Rarity.EPIC] = 0.001
+
 	# Roll from epic down to common (higher rarity checked first)
 	for rarity_idx in range(Rarity.EPIC, -1, -1):
-		var rate: float = rates[rarity_idx] * world_bonus
+		var rate: float = effective_rates[rarity_idx] * world_bonus
 		if rate > 0.0 and randf() < rate:
 			var slot := randi() % SLOT_INFO.size()
 			return create_equipment(slot, rarity_idx)

@@ -306,3 +306,89 @@ func _update_boss_health_bar() -> void:
 	else:
 		boss_health_bar.visible = false
 		boss_name_label.visible = false
+
+# --- Equipment HUD Overlay ---
+
+func _setup_equip_hud() -> void:
+	equip_hud = Control.new()
+	equip_hud.name = "EquipHUD"
+	equip_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	equip_hud.set_anchors_preset(Control.PRESET_FULL_RECT)
+	equip_hud.draw.connect(_draw_equip_hud)
+	add_child(equip_hud)
+
+func _on_equipment_changed() -> void:
+	if equip_hud:
+		equip_hud.queue_redraw()
+
+func _draw_equip_hud() -> void:
+	# Layout: 2 columns x 3 rows of equipment slots, bottom-right corner
+	var slot_size := 20.0      # diamond radius
+	var cell_w := 50.0         # horizontal spacing per slot
+	var cell_h := 28.0         # vertical spacing per slot
+	var cols := 3
+	var rows := 2
+	var panel_w := cols * cell_w + 12.0
+	var panel_h := rows * cell_h + 28.0
+	var margin := 10.0
+	var screen_w := equip_hud.get_viewport_rect().size.x
+	var screen_h := equip_hud.get_viewport_rect().size.y
+	var panel_x := screen_w - panel_w - margin
+	var panel_y := screen_h - panel_h - margin
+
+	# Panel background
+	var bg_rect := Rect2(panel_x, panel_y, panel_w, panel_h)
+	equip_hud.draw_rect(bg_rect, Color(0.0, 0.0, 0.0, 0.3))
+	equip_hud.draw_rect(bg_rect, Color(0.5, 0.5, 0.5, 0.15), false, 1.0)
+
+	# Title
+	var title_pos := Vector2(panel_x + 6.0, panel_y + 12.0)
+	equip_hud.draw_string(ThemeDB.fallback_font, title_pos, "Equip", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.7, 0.7, 0.7, 0.6))
+
+	# Slot layout: top row [0,1,2], bottom row [3,4,5]
+	# Slots: GRIMOIRE, ROBES, AMULET, RING, BOOTS, CROWN
+	var slot_names := ["Grm", "Rbs", "Aml", "Rng", "Bts", "Crn"]
+	var start_x := panel_x + 6.0 + cell_w * 0.5
+	var start_y := panel_y + 24.0 + cell_h * 0.5
+
+	for i in range(6):
+		var col := i % cols
+		var row := i / cols
+		var cx := start_x + col * cell_w
+		var cy := start_y + row * cell_h
+		var center := Vector2(cx, cy)
+		var item: Dictionary = SaveData.equipped[i]
+
+		if item.is_empty():
+			# Empty slot: dim diamond outline
+			_draw_diamond_outline(center, 7.0, Color(0.4, 0.4, 0.4, 0.3))
+		else:
+			# Filled slot: colored diamond by rarity
+			var rarity_color: Color = Equipment.get_rarity_color(item["rarity"])
+			_draw_diamond_filled(center, 7.0, rarity_color)
+			# Upgrade level text
+			var level: int = item["level"]
+			var level_text := "+%d" % level
+			var level_color := Color(1.0, 1.0, 1.0, 0.7) if level == 0 else Color(1.0, 0.9, 0.4, 0.9)
+			equip_hud.draw_string(ThemeDB.fallback_font, Vector2(cx + 9.0, cy + 4.0), level_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, level_color)
+
+func _draw_diamond_filled(center: Vector2, size: float, color: Color) -> void:
+	var pts := PackedVector2Array([
+		center + Vector2(0, -size),
+		center + Vector2(size * 0.7, 0),
+		center + Vector2(0, size),
+		center + Vector2(-size * 0.7, 0),
+	])
+	equip_hud.draw_colored_polygon(pts, Color(color.r, color.g, color.b, 0.75))
+	# Small highlight
+	equip_hud.draw_circle(center + Vector2(-1, -2), 2.0, Color(1.0, 1.0, 1.0, 0.35))
+
+func _draw_diamond_outline(center: Vector2, size: float, color: Color) -> void:
+	var pts := PackedVector2Array([
+		center + Vector2(0, -size),
+		center + Vector2(size * 0.7, 0),
+		center + Vector2(0, size),
+		center + Vector2(-size * 0.7, 0),
+		center + Vector2(0, -size),  # close the loop
+	])
+	equip_hud.draw_polyline(pts, color, 1.0)
