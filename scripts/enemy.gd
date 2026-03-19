@@ -23,6 +23,9 @@ var contact_timer: float = 0.0
 var ranged_timer: float = 0.0
 var is_dying: bool = false
 
+# Knockback
+var knockback_velocity: Vector2 = Vector2.ZERO
+
 @onready var sprite: Sprite2D = $Sprite
 
 func _ready() -> void:
@@ -58,7 +61,9 @@ func _physics_process(delta: float) -> void:
 		shoot_at_player()
 		ranged_timer = ranged_cooldown
 
-	velocity = dir * move_speed
+	# Apply knockback decay
+	knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
+	velocity = dir * move_speed + knockback_velocity
 	move_and_slide()
 
 	# Animate
@@ -77,9 +82,12 @@ func _physics_process(delta: float) -> void:
 			var collision := get_slide_collision(i)
 			var collider := collision.get_collider()
 			if collider.is_in_group("player") and collider.has_method("take_damage"):
-				collider.take_damage(contact_damage)
+				collider.take_damage(contact_damage, global_position)
 				contact_timer = 1.0
 				break
+
+	# Redraw health bar
+	queue_redraw()
 
 func shoot_at_player() -> void:
 	if projectile_scene == null or player == null:
@@ -94,10 +102,21 @@ func take_damage(amount: float) -> void:
 	if is_dying:
 		return
 	current_health -= amount
+
+	# Knockback away from player
+	if player:
+		var kb_dir := player.global_position.direction_to(global_position)
+		knockback_velocity = kb_dir * 150.0
+
 	# Flash white
 	sprite.modulate = Color(3, 3, 3)
 	var tween := create_tween()
 	tween.tween_property(sprite, "modulate", Color.WHITE, 0.1)
+
+	# Squash and stretch on hit
+	sprite.scale = Vector2(1.3, 0.7)
+	var scale_tween := create_tween()
+	scale_tween.tween_property(sprite, "scale", Vector2(1.0, 1.0), 0.15).set_ease(Tween.EASE_OUT)
 
 	if current_health <= 0.0:
 		die()
@@ -105,6 +124,9 @@ func take_damage(amount: float) -> void:
 func die() -> void:
 	is_dying = true
 	Game.on_enemy_killed()
+
+	# Screen shake on kill
+	Game.request_shake(3.0)
 
 	# Play death animation
 	if sprite_death:
@@ -120,10 +142,27 @@ func die() -> void:
 		else:
 			p.try_extract(self, extraction_chance)
 
-	# Brief death animation then remove
+	# Death effect: scale up + spin + fade
 	var tween := create_tween()
-	tween.tween_property(sprite, "modulate:a", 0.0, 0.3)
-	tween.tween_callback(queue_free)
+	tween.set_parallel(true)
+	tween.tween_property(sprite, "modulate:a", 0.0, 0.4)
+	tween.tween_property(sprite, "scale", Vector2(1.5, 1.5), 0.4).set_ease(Tween.EASE_OUT)
+	tween.tween_property(sprite, "rotation", randf_range(-0.5, 0.5), 0.4)
+	tween.chain().tween_callback(queue_free)
 
 func get_enemy_type() -> String:
 	return enemy_type
+
+func _draw() -> void:
+	if is_dying or current_health >= max_health:
+		return
+	# Draw health bar above sprite
+	var bar_width: float = 24.0
+	var bar_height: float = 3.0
+	var bar_y: float = -20.0
+	var health_ratio := current_health / max_health
+	# Background
+	draw_rect(Rect2(-bar_width / 2, bar_y, bar_width, bar_height), Color(0.2, 0.2, 0.2, 0.8))
+	# Health fill
+	var fill_color := Color(0.2, 0.8, 0.2) if health_ratio > 0.5 else Color(0.8, 0.2, 0.2)
+	draw_rect(Rect2(-bar_width / 2, bar_y, bar_width * health_ratio, bar_height), fill_color)

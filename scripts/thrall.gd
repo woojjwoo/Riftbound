@@ -126,3 +126,4 @@ func attack() -> void:
 	else:
 		if current_target.has_method("take_damage"):
 			current_target.take_damage(attack_damage)
+			Game.spawn_damage_number(attack_damage, current_target.global_position, Color(0.4, 1.0, 0.9))

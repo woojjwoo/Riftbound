@@ -20,6 +20,9 @@ var attack_timer: float = 0.0
 var facing: String = "down"  # down, side, up
 var facing_right: bool = true
 
+# Knockback
+var knockback_velocity: Vector2 = Vector2.ZERO
+
 # Sprite sheet references (loaded in _ready)
 var sprites: Dictionary = {}
 var current_anim: String = "idle"
@@ -61,7 +64,10 @@ func _physics_process(delta: float) -> void:
 	var input := Vector2.ZERO
 	input.x = Input.get_axis("move_left", "move_right")
 	input.y = Input.get_axis("move_up", "move_down")
-	velocity = input.normalized() * move_speed
+
+	# Apply knockback decay
+	knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
+	velocity = input.normalized() * move_speed + knockback_velocity
 	move_and_slide()
 
 	# Update facing direction
@@ -102,18 +108,29 @@ func try_attack() -> bool:
 
 	if closest_enemy and closest_enemy.has_method("take_damage"):
 		closest_enemy.take_damage(attack_damage)
+		Game.spawn_damage_number(attack_damage, closest_enemy.global_position, Color(1.0, 1.0, 0.4))
 		return true
 	return false
 
-func take_damage(amount: float) -> void:
+func take_damage(amount: float, from_pos: Vector2 = Vector2.ZERO) -> void:
 	current_health -= amount
 	current_health = max(current_health, 0.0)
 	health_changed.emit(current_health, max_health)
+
+	# Knockback away from damage source
+	if from_pos != Vector2.ZERO:
+		knockback_velocity = global_position.direction_to(global_position + (global_position - from_pos)) * 200.0
 
 	# Flash white
 	sprite.modulate = Color(3, 3, 3)
 	var tween := create_tween()
 	tween.tween_property(sprite, "modulate", Color.WHITE, 0.15)
+
+	# Screen shake
+	Game.request_shake(4.0)
+
+	# Damage number
+	Game.spawn_damage_number(amount, global_position, Color(1.0, 0.3, 0.3))
 
 	if current_health <= 0.0:
 		Game.trigger_game_over()
