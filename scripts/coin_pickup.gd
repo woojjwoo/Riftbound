@@ -10,6 +10,9 @@ const PICKUP_RANGE: float = 35.0
 const ATTRACT_RANGE: float = 120.0
 var collected: bool = false
 var initial_velocity: Vector2 = Vector2.ZERO
+var _trail: Array[Vector2] = []
+const TRAIL_COUNT: int = 3
+var _trail_timer: float = 0.0
 
 func setup(value: int = 1) -> void:
 	coin_value = value
@@ -43,6 +46,15 @@ func _process(delta: float) -> void:
 		var dir := global_position.direction_to(player.global_position)
 		var speed := 300.0 * (1.0 - dist / ATTRACT_RANGE)
 		global_position += dir * speed * delta
+		# Spawn trail particles while attracted
+		_trail_timer += delta
+		if _trail_timer >= 0.04:
+			_trail_timer = 0.0
+			_trail.append(global_position + Vector2(randf_range(-3, 3), randf_range(-3, 3)))
+			if _trail.size() > TRAIL_COUNT:
+				_trail.remove_at(0)
+	else:
+		_trail.clear()
 
 	if dist < PICKUP_RANGE:
 		collected = true
@@ -72,6 +84,14 @@ func _draw() -> void:
 	draw_circle(pos + Vector2(-1, -2), 2.5, Color(1.0, 1.0, 0.6, 0.6))
 	# Inner detail
 	draw_circle(pos, 2.0, Color(0.8, 0.6, 0.1, 0.5))
+
+	# Golden trail particles (drawn in local space)
+	for i in range(_trail.size()):
+		var trail_pos := _trail[i] - global_position
+		var t := float(i) / max(float(_trail.size()), 1.0)
+		var trail_alpha := 0.5 * t
+		var trail_size := 1.5 + 1.5 * t
+		draw_circle(trail_pos, trail_size, Color(1.0, 0.85, 0.2, trail_alpha))
 
 	if not collected and lifetime > MAX_LIFETIME - 2.0:
 		var blink := int(lifetime * 4.0) % 2

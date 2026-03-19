@@ -369,6 +369,25 @@ func get_power_level() -> float:
 	# Permanent upgrades from save
 	power += SaveData.perm_attack_mult * 0.3
 	power += SaveData.perm_thrall_damage * 0.2
+	# Equipment power — sum stat bonuses across all 6 equipped slots
+	for slot_idx in range(Equipment.SLOT_INFO.size()):
+		var equip_bonus := SaveData.get_equip_bonus(slot_idx)
+		if equip_bonus > 0.0:
+			# Normalize each slot's contribution so equipment matters but doesn't dominate.
+			# Damage/CDR slots (Grimoire, Ring, Crown) weighted higher than defensive/utility.
+			match slot_idx:
+				Equipment.Slot.GRIMOIRE:
+					power += equip_bonus * 2.0   # soul bolt damage %
+				Equipment.Slot.RING:
+					power += equip_bonus * 1.5   # thrall damage %
+				Equipment.Slot.CROWN:
+					power += equip_bonus * 1.5   # cooldown reduction %
+				Equipment.Slot.ROBES:
+					power += equip_bonus / 50.0  # max HP (large raw numbers)
+				Equipment.Slot.AMULET:
+					power += equip_bonus * 1.0   # extraction chance %
+				Equipment.Slot.BOOTS:
+					power += equip_bonus * 0.8   # move speed %
 	return power
 
 ## Get world-scaled difficulty multipliers

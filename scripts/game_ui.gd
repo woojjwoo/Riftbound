@@ -38,6 +38,7 @@ var arise_timer: float = 0.0
 var health_display: float = 120.0
 var boss_health_display: float = 0.0
 var is_paused: bool = false
+var inventory_open: bool = false
 
 var current_upgrades: Array[Dictionary] = []
 var controls_timer: float = 8.0  # show controls for 8 seconds
@@ -243,8 +244,17 @@ func _on_victory() -> void:
 	pass
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and event.keycode == KEY_TAB:
+		if not Game.is_game_over and not inventory_open:
+			if upgrade_panel.visible or victory_panel.visible:
+				return
+			_open_inventory()
+			return
+
 	if event.is_action_pressed("pause") and not Game.is_game_over:
 		if upgrade_panel.visible or victory_panel.visible:
+			return
+		if inventory_open:
 			return
 		if is_paused:
 			_on_resume()
@@ -263,6 +273,18 @@ func _on_pause() -> void:
 func _on_resume() -> void:
 	is_paused = false
 	pause_panel.visible = false
+	get_tree().paused = false
+
+func _open_inventory() -> void:
+	inventory_open = true
+	get_tree().paused = true
+	var inv_scene := load("res://scenes/inventory_screen.tscn")
+	var inv_instance := inv_scene.instantiate()
+	inv_instance.tree_exited.connect(_on_inventory_closed)
+	get_tree().current_scene.add_child(inv_instance)
+
+func _on_inventory_closed() -> void:
+	inventory_open = false
 	get_tree().paused = false
 
 func _on_upgrade_hover(btn: Button, hovered: bool) -> void:

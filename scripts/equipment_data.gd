@@ -168,20 +168,23 @@ func roll_enemy_drop(enemy_type: String, world_id: int) -> Dictionary:
 			return create_equipment(slot, rarity_idx)
 	return {}  # No drop
 
-## Roll for equipment drop from a boss kill (guaranteed at least uncommon)
+## Roll for equipment drop from a boss kill.
+## Minimum rarity scales with world: Uncommon (default), Rare (world 3+), Epic (world 5).
 func roll_boss_drop(world_id: int) -> Dictionary:
 	var roll := randf()
-	var rarity := Rarity.UNCOMMON  # Minimum
+	var rarity := Rarity.UNCOMMON  # Default minimum
 	if roll < BOSS_DROP_RATES[Rarity.EPIC]:
 		rarity = Rarity.EPIC
 	elif roll < BOSS_DROP_RATES[Rarity.EPIC] + BOSS_DROP_RATES[Rarity.RARE]:
 		rarity = Rarity.RARE
 
-	# Later worlds skew rarity upward
-	if world_id >= 3 and rarity == Rarity.UNCOMMON and randf() < 0.3:
-		rarity = Rarity.RARE
-	if world_id >= 5 and rarity == Rarity.RARE and randf() < 0.2:
-		rarity = Rarity.EPIC
+	# Enforce world-based minimum rarity floors
+	if world_id >= 5:
+		if rarity < Rarity.EPIC:
+			rarity = Rarity.EPIC
+	elif world_id >= 3:
+		if rarity < Rarity.RARE:
+			rarity = Rarity.RARE
 
 	var slot := randi() % SLOT_INFO.size()
 	return create_equipment(slot, rarity)

@@ -62,6 +62,12 @@ func _draw() -> void:
 	var pos := Vector2(0, bob)
 	var pulse := 0.6 + 0.4 * sin(float_time * 4.0)
 
+	# Pulsing glow circle behind the orb
+	var glow_pulse := 0.5 + 0.5 * sin(float_time * 2.5)
+	var glow_radius := 10.0 + 4.0 * glow_pulse
+	draw_circle(pos, glow_radius, Color(0.2, 0.4, 1.0, 0.08 * glow_pulse))
+	draw_circle(pos, glow_radius * 0.7, Color(0.3, 0.5, 1.0, 0.12 * glow_pulse))
+
 	# Glow
 	draw_circle(pos, 7.0, Color(0.2, 0.5, 1.0, 0.15 * pulse))
 	# Core
