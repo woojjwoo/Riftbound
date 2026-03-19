@@ -144,6 +144,14 @@ func _do_boss_spawn(pos: Vector2) -> void:
 	Game.on_boss_spawned()
 
 func get_spawn_position() -> Vector2:
+	# Spawn at edge of screen, never too close to player
+	var min_dist := 250.0
+	for attempt in range(5):
+		var angle := randf() * TAU
+		var dist := spawn_radius + randf_range(-50.0, 50.0)
+		var pos := player.global_position + Vector2(cos(angle), sin(angle)) * dist
+		if pos.distance_to(player.global_position) >= min_dist:
+			return pos
+	# Fallback
 	var angle := randf() * TAU
-	var offset := Vector2(cos(angle), sin(angle)) * spawn_radius
-	return player.global_position + offset
+	return player.global_position + Vector2(cos(angle), sin(angle)) * spawn_radius

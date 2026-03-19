@@ -10,7 +10,11 @@ var text_color: Color = Color.WHITE
 var font_size: int = 10
 
 func setup(amount: float, col: Color = Color.WHITE) -> void:
-	damage_text = str(int(amount))
+	if amount <= 0:
+		damage_text = "BLOCKED"
+		font_size = 8
+	else:
+		damage_text = str(int(amount))
 	text_color = col
 	position += Vector2(randf_range(-8, 8), -12)
 	if amount >= 20:

@@ -166,10 +166,17 @@ func _on_upgrade_selected(index: int) -> void:
 	get_tree().paused = false
 
 func _on_victory() -> void:
+	# Brief celebration before showing panel
+	var delay_timer := get_tree().create_timer(1.5)
+	delay_timer.timeout.connect(_show_victory_panel)
+
+func _show_victory_panel() -> void:
+	get_tree().paused = true
 	victory_panel.visible = true
 	victory_stats.text = "Enemies Slain: %d\nThralls Bound: %d\nThe Rift is sealed!" % [Game.kill_count, Game.thrall_count]
 	victory_panel.modulate.a = 0.0
 	var tween := create_tween()
+	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.tween_property(victory_panel, "modulate:a", 1.0, 0.8)
 
 func _update_boss_health_bar() -> void:

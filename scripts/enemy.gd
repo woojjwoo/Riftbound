@@ -3,6 +3,7 @@ extends CharacterBody2D
 ## Base enemy with animated sprite sheets.
 ## Supports: melee, ranged, tank, flying, exploder types.
 ## Any enemy can optionally have a shield.
+## Drops health orbs on death.
 
 @export_enum("melee", "ranged", "tank", "flying", "exploder") var enemy_type: String = "melee"
 @export var move_speed: float = 100.0
@@ -38,7 +39,7 @@ var fly_amplitude: float = 20.0
 
 # Exploder
 var explode_radius: float = 80.0
-var explode_damage: float = 25.0
+var explode_damage: float = 20.0
 
 @onready var sprite: Sprite2D = $Sprite
 
@@ -50,12 +51,11 @@ func _ready() -> void:
 		sprite.texture = sprite_idle
 		sprite.hframes = 6
 
-	# Type-specific setup
 	match enemy_type:
 		"flying":
-			sprite.modulate = Color(0.7, 0.5, 1.0)  # purple tint
+			sprite.modulate = Color(0.7, 0.5, 1.0)
 		"exploder":
-			sprite.modulate = Color(1.0, 0.5, 0.3)  # orange-red tint
+			sprite.modulate = Color(1.0, 0.5, 0.3)
 			scale *= 0.8
 
 func _find_player() -> void:
@@ -76,25 +76,21 @@ func _physics_process(delta: float) -> void:
 
 	sprite.flip_h = dir.x < 0
 
-	# Type-specific movement
 	match enemy_type:
 		"ranged":
 			if dist < attack_range * 0.5:
-				dir = -dir
+				dir = -dir  # retreat if too close
 			elif dist <= attack_range and ranged_timer <= 0.0:
 				shoot_at_player()
 				ranged_timer = ranged_cooldown
 		"flying":
-			# Sine wave movement + ranged attack
 			dir = dir.rotated(sin(fly_time * 3.0) * 0.5)
 			if dist <= attack_range and ranged_timer <= 0.0:
 				shoot_at_player()
 				ranged_timer = ranged_cooldown
-			# Float effect
 			sprite.position.y = sin(fly_time * 4.0) * fly_amplitude * 0.3
 		"exploder":
-			# Rush at 1.5x speed
-			dir = dir * 1.5
+			dir = dir * 1.5  # rush faster
 
 	knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
 	velocity = dir * move_speed + knockback_velocity
@@ -121,10 +117,12 @@ func _physics_process(delta: float) -> void:
 			var collision := get_slide_collision(i)
 			var collider := collision.get_collider()
 			if collider.is_in_group("player") and collider.has_method("take_damage"):
-				collider.take_damage(contact_damage, global_position)
-				contact_timer = 1.0
 				if enemy_type == "exploder":
-					die()  # exploder detonates on contact
+					# Exploder only does explosion damage on contact, not double-dipping
+					die()
+				else:
+					collider.take_damage(contact_damage, global_position)
+					contact_timer = 1.0
 				break
 
 	queue_redraw()
@@ -150,12 +148,10 @@ func take_damage(amount: float) -> void:
 			has_shield = false
 			Audio.play_shield_break()
 			Game.spawn_damage_number(0, global_position, Color(0.3, 0.6, 1.0))
-			# Shield break flash
 			sprite.modulate = Color(0.3, 0.6, 1.0)
 			var flash_tween := create_tween()
 			flash_tween.tween_property(sprite, "modulate", Color.WHITE, 0.2)
 		else:
-			# Shield absorb visual
 			sprite.modulate = Color(0.5, 0.8, 1.0)
 			var abs_tween := create_tween()
 			abs_tween.tween_property(sprite, "modulate", Color(0.6, 0.7, 1.0, 1.0), 0.1)
@@ -186,13 +182,17 @@ func die() -> void:
 	Game.request_shake(3.0)
 	Audio.play_kill()
 
-	# Exploder: AoE damage
+	# Exploder: AoE damage (only source of damage, no double-dip with contact)
 	if enemy_type == "exploder":
 		_explode()
 
 	if sprite_death:
 		sprite.texture = sprite_death
 		sprite.hframes = 6
+
+	# Health drop chance (20%)
+	if randf() < 0.2:
+		_spawn_health_orb()
 
 	var players := get_tree().get_nodes_in_group("player")
 	if players.size() > 0:
@@ -212,15 +212,13 @@ func die() -> void:
 func _explode() -> void:
 	Audio.play_explode()
 	Game.request_shake(8.0)
-	# Damage player if in radius
 	if player and global_position.distance_to(player.global_position) < explode_radius:
 		player.take_damage(explode_damage, global_position)
-	# Damage nearby enemies too (chain reaction!)
+	# Chain reaction on nearby enemies
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		if enemy != self and not enemy.is_dying:
 			if global_position.distance_to(enemy.global_position) < explode_radius:
 				enemy.take_damage(explode_damage * 0.5)
-	# Visual explosion
 	_spawn_explosion_vfx()
 
 func _spawn_explosion_vfx() -> void:
@@ -228,6 +226,12 @@ func _spawn_explosion_vfx() -> void:
 	vfx.global_position = global_position
 	vfx.set_script(preload("res://scripts/explosion_vfx.gd"))
 	get_tree().current_scene.add_child(vfx)
+
+func _spawn_health_orb() -> void:
+	var orb := Node2D.new()
+	orb.global_position = global_position
+	orb.set_script(preload("res://scripts/health_orb.gd"))
+	get_tree().current_scene.add_child(orb)
 
 func get_enemy_type() -> String:
 	return enemy_type
@@ -255,7 +259,7 @@ func _draw() -> void:
 		var shield_alpha := 0.3 + 0.1 * sin(Time.get_ticks_msec() * 0.005)
 		draw_arc(Vector2.ZERO, 16.0, 0, TAU, 16, Color(0.3, 0.6, 1.0, shield_alpha), 2.0)
 
-	# Health bar
+	# Health bar (only when damaged)
 	if current_health >= max_health:
 		return
 	var bar_width: float = 24.0

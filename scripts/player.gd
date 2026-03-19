@@ -1,11 +1,12 @@
 extends CharacterBody2D
 
 ## Player controller: WASD movement, auto-attack, dash ability.
+## Has damage invincibility frames to prevent getting melted.
 
 @export var move_speed: float = 200.0
 @export var attack_damage: float = 20.0
-@export var attack_range: float = 80.0
-@export var attack_cooldown: float = 0.5
+@export var attack_range: float = 100.0
+@export var attack_cooldown: float = 0.45
 
 @export var max_health: float = 100.0
 var current_health: float
@@ -25,12 +26,16 @@ var knockback_velocity: Vector2 = Vector2.ZERO
 # Dash
 var dash_speed: float = 600.0
 var dash_duration: float = 0.15
-var dash_cooldown: float = 1.2
+var dash_cooldown: float = 1.0
 var dash_timer: float = 0.0
 var dash_cooldown_timer: float = 0.0
 var is_dashing: bool = false
 var dash_direction: Vector2 = Vector2.ZERO
 var is_invincible: bool = false
+
+# Damage iframes
+var iframes_timer: float = 0.0
+const IFRAMES_DURATION: float = 0.4
 
 # Regen
 var regen_accumulator: float = 0.0
@@ -73,6 +78,16 @@ func _physics_process(delta: float) -> void:
 	if Game.is_game_over:
 		return
 
+	# Invincibility frames countdown
+	if iframes_timer > 0.0:
+		iframes_timer -= delta
+		# Flicker effect during iframes
+		sprite.visible = int(iframes_timer * 20.0) % 2 == 0
+		if iframes_timer <= 0.0:
+			sprite.visible = true
+			if not is_dashing:
+				is_invincible = false
+
 	# Health regen
 	if Game.upgrade_regen > 0.0 and current_health < max_health:
 		regen_accumulator += Game.upgrade_regen * delta
@@ -99,7 +114,6 @@ func _physics_process(delta: float) -> void:
 		else:
 			velocity = dash_direction * dash_speed
 			move_and_slide()
-			# Dash afterimage
 			_spawn_afterimage()
 			sprite.frame = int(Time.get_ticks_msec() / 100) % 6
 			return
@@ -150,17 +164,17 @@ func _start_dash(dir: Vector2) -> void:
 	dash_direction = dir
 	dash_timer = dash_duration
 	dash_cooldown_timer = dash_cooldown
-	# Dash visual
 	sprite.modulate = Color(1.5, 1.5, 2.0, 0.7)
 	Audio.play_dash()
 
 func _end_dash() -> void:
 	is_dashing = false
-	is_invincible = false
+	# Keep invincible if iframes are still active
+	if iframes_timer <= 0.0:
+		is_invincible = false
 	sprite.modulate = Color.WHITE
 
 func _spawn_afterimage() -> void:
-	# Spawn a fading ghost sprite
 	var ghost := Sprite2D.new()
 	ghost.texture = sprite.texture
 	ghost.hframes = sprite.hframes
@@ -179,29 +193,38 @@ func try_attack() -> bool:
 	var closest_dist: float = attack_range
 
 	for enemy in get_tree().get_nodes_in_group("enemies"):
-		var dist := global_position.distance_to(enemy.global_position)
-		if dist < closest_dist:
-			closest_dist = dist
-			closest_enemy = enemy
+		if enemy.has_method("take_damage") and not enemy.get("is_dying"):
+			var dist := global_position.distance_to(enemy.global_position)
+			if dist < closest_dist:
+				closest_dist = dist
+				closest_enemy = enemy
 
-	if closest_enemy and closest_enemy.has_method("take_damage"):
+	if closest_enemy:
 		var dmg := attack_damage * Game.upgrade_attack_mult
 		closest_enemy.take_damage(dmg)
 		Game.spawn_damage_number(dmg, closest_enemy.global_position, Color(1.0, 1.0, 0.4))
 		Audio.play_hit()
+
+		# Attack lunge — small push toward target for game feel
+		var lunge_dir := global_position.direction_to(closest_enemy.global_position)
+		knockback_velocity = lunge_dir * 60.0
 		return true
 	return false
 
 func take_damage(amount: float, from_pos: Vector2 = Vector2.ZERO) -> void:
-	if is_invincible:
+	if is_invincible or Game.boss_killed:
 		return
 
 	current_health -= amount
 	current_health = max(current_health, 0.0)
 	health_changed.emit(current_health, max_health)
 
+	# Start invincibility frames
+	is_invincible = true
+	iframes_timer = IFRAMES_DURATION
+
 	if from_pos != Vector2.ZERO:
-		knockback_velocity = (global_position - from_pos).normalized() * 200.0
+		knockback_velocity = (global_position - from_pos).normalized() * 250.0
 
 	sprite.modulate = Color(3, 3, 3)
 	var tween := create_tween()
@@ -216,6 +239,7 @@ func take_damage(amount: float, from_pos: Vector2 = Vector2.ZERO) -> void:
 func heal(amount: float) -> void:
 	current_health = min(current_health + amount, max_health)
 	health_changed.emit(current_health, max_health)
+	Game.spawn_damage_number(amount, global_position + Vector2(0, -10), Color(0.3, 1.0, 0.3))
 
 func try_extract(enemy: Node2D, chance: float) -> void:
 	var effective_chance := chance + Game.upgrade_extraction_bonus
