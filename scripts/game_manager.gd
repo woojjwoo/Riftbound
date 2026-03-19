@@ -60,6 +60,7 @@ var DamageNumber: GDScript = preload("res://scripts/damage_number.gd")
 var CoinPickup: GDScript = preload("res://scripts/coin_pickup.gd")
 var ExpOrb: GDScript = preload("res://scripts/exp_orb.gd")
 var WorldPortal: GDScript = preload("res://scripts/world_portal.gd")
+var EquipDrop: GDScript = preload("res://scripts/equip_drop.gd")
 
 # Chosen upgrades tracking — prevents duplicates, shown in HUD
 var chosen_upgrades: Array[String] = []
@@ -158,6 +159,17 @@ func _spawn_world_portal() -> void:
 	scene.add_child(portal)
 	world_portal_spawned.emit()
 
+## Spawn an equipment drop pickup at a position
+func spawn_equip_drop(pos: Vector2, equip: Dictionary) -> void:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	var drop := Node2D.new()
+	drop.set_script(EquipDrop)
+	drop.global_position = pos + Vector2(randf_range(-15, 15), randf_range(-15, 15))
+	drop.setup(equip)
+	scene.add_child(drop)
+
 ## Spawn coin and EXP drops at a position (called from enemy death)
 func spawn_drops(pos: Vector2, enemy_type: String) -> void:
 	var config := get_world_config()
@@ -204,6 +216,11 @@ func spawn_drops(pos: Vector2, enemy_type: String) -> void:
 	orb.setup(exp_val)
 	scene.add_child(orb)
 
+	# Equipment drop roll
+	var equip := Equipment.roll_enemy_drop(enemy_type, current_world)
+	if not equip.is_empty():
+		spawn_equip_drop(pos, equip)
+
 ## Spawn boss-tier drops (more coins, more EXP)
 func spawn_boss_drops(pos: Vector2) -> void:
 	var config := get_world_config()
@@ -226,6 +243,9 @@ func spawn_boss_drops(pos: Vector2) -> void:
 		orb.global_position = pos + Vector2(randf_range(-20, 20), randf_range(-20, 20))
 		orb.setup(int(20 * exp_mult))
 		scene.add_child(orb)
+	# Boss guaranteed equipment drop
+	var boss_equip := Equipment.roll_boss_drop(current_world)
+	spawn_equip_drop(pos, boss_equip)
 
 func trigger_game_over() -> void:
 	is_game_over = true

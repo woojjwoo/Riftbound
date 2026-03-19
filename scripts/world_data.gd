@@ -106,6 +106,92 @@ const WORLD_CONFIGS: Array[Dictionary] = [
 	},
 ]
 
+## Transition stories — shown when entering a new stage for the first time.
+## These explain the thrall sacrifice and the escalating threat.
+const TRANSITION_STORIES: Array[Dictionary] = [
+	{  # World 0 → entering for the first time
+		"title": "AWAKENING",
+		"lines": [
+			"You stir in the darkness, the first breath of undeath filling your lungs.",
+			"The rifts tore through your domain while you slept.",
+			"Your power is weak, but the dead answer your call.",
+			"Seal the rifts. Raise the fallen. Become what they fear.",
+		],
+	},
+	{  # World 0 → World 1
+		"title": "THE BURNING PASSAGE",
+		"lines": [
+			"The portal sears with desert heat. Your thralls recoil.",
+			"The undead you raised in the Dark Realm cannot survive these sands.",
+			"Their bones are too brittle, their bindings too weak.",
+			"You release them — their souls fuel your dark arts,",
+			"strengthening your weapons and armor for the trials ahead.",
+			"The Scorched Sands will forge new, stronger servants.",
+		],
+	},
+	{  # World 1 → World 2
+		"title": "INTO THE FROST",
+		"lines": [
+			"A wall of cold slams through the portal.",
+			"Your sand-born thralls crumble — the frost shatters their parched bones.",
+			"You gather their essence, channeling it into your equipment.",
+			"Each sacrifice makes you stronger. Each loss, a lesson.",
+			"In the Frozen Wastes, only the strongest survive.",
+			"The dead here are preserved perfectly... waiting for your command.",
+		],
+	},
+	{  # World 2 → World 3
+		"title": "THE ROTTING GATE",
+		"lines": [
+			"Toxic air seeps through the portal. Your frozen thralls dissolve.",
+			"Their ice-hardened forms melt in the poisonous mist.",
+			"You absorb their departing souls — cold energy flows into your gear.",
+			"The marsh consumes everything. Even death decays here.",
+			"But corruption breeds new horrors to command.",
+			"The swamp will test your resolve as much as your power.",
+		],
+	},
+	{  # World 3 → World 4
+		"title": "BETWEEN ALL THINGS",
+		"lines": [
+			"The portal opens onto... nothing. Absolute nothing.",
+			"Your marsh-touched thralls unravel — they cannot exist in the void.",
+			"Without form, without substance, they simply cease.",
+			"You draw their fading essence inward, forging it into power.",
+			"The Void is where rifts are born. The source of all corruption.",
+			"Here, even a Necromancer must tread carefully.",
+			"But here, too, lies the key to ending this.",
+		],
+	},
+	{  # World 4 → World 5
+		"title": "ASCENSION",
+		"lines": [
+			"Golden light. You shield your eyes — you had forgotten what light was.",
+			"Your void-touched thralls scream as divinity burns them away.",
+			"Their dark essence cannot survive in the realm of gods.",
+			"You take everything they were and pour it into your arsenal.",
+			"This is it. The Celestial Realm. Where the gods watch.",
+			"They created the rifts to test mortal ambition.",
+			"They did not expect a Necromancer to answer.",
+			"Show them what death can do.",
+		],
+	},
+]
+
+## Sacrifice flavor text — shown during the thrall sacrifice ritual
+const SACRIFICE_FLAVOR: Array[String] = [
+	"Your thralls cannot survive the next realm...",
+	"Their essence flows into your equipment.",
+	"Each soul strengthens your dark arsenal.",
+	"The old must fall so the new may rise.",
+	"Power demands sacrifice.",
+]
+
+func get_transition_story(world_id: int) -> Dictionary:
+	if world_id >= 0 and world_id < TRANSITION_STORIES.size():
+		return TRANSITION_STORIES[world_id]
+	return {"title": "ONWARD", "lines": ["The journey continues..."]}
+
 func get_config(world_id: int) -> Dictionary:
 	if world_id >= 0 and world_id < WORLD_CONFIGS.size():
 		return WORLD_CONFIGS[world_id]

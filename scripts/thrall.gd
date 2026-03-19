@@ -235,7 +235,8 @@ func _do_attack() -> void:
 	if current_target == null or not is_instance_valid(current_target):
 		return
 
-	var effective_damage := attack_damage * Game.upgrade_thrall_damage_mult * (1.0 + SaveData.perm_thrall_damage)
+	var ring_bonus := SaveData.get_equip_bonus(Equipment.Slot.RING)
+	var effective_damage := attack_damage * Game.upgrade_thrall_damage_mult * (1.0 + SaveData.perm_thrall_damage + ring_bonus)
 	attack_count += 1
 	var is_enemy := current_target.is_in_group("enemies")
 

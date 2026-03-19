@@ -62,6 +62,13 @@ func _ready() -> void:
 	bolt_damage *= (1.0 + SaveData.perm_attack_mult)
 	dash_cooldown = max(0.3, dash_cooldown - SaveData.perm_dash_cooldown)
 
+	# Apply equipment bonuses
+	bolt_damage += bolt_damage * SaveData.get_equip_bonus(Equipment.Slot.GRIMOIRE)  # Grimoire: +damage%
+	max_health += SaveData.get_equip_bonus(Equipment.Slot.ROBES)                    # Robes: +flat HP
+	extraction_range += extraction_range * SaveData.get_equip_bonus(Equipment.Slot.AMULET)  # Amulet: +extraction%
+	move_speed += move_speed * SaveData.get_equip_bonus(Equipment.Slot.BOOTS)       # Boots: +speed%
+	bolt_cooldown *= max(0.2, 1.0 - SaveData.get_equip_bonus(Equipment.Slot.CROWN)) # Crown: -cooldown%
+
 	current_health = max_health + Game.upgrade_health_bonus
 	max_health += Game.upgrade_health_bonus
 	add_to_group("player")

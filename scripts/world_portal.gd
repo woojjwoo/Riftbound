@@ -60,9 +60,12 @@ func _enter_portal() -> void:
 		get_tree().change_scene_to_file("res://scenes/title_screen.tscn")
 		return
 
-	# Transition to next world
-	Game.current_world = next_world_id
-	Game.restart_for_next_world()
+	# Show sacrifice/story screen before transitioning
+	var sacrifice := Node2D.new()
+	sacrifice.set_script(preload("res://scripts/sacrifice_screen.gd"))
+	sacrifice.z_index = 100
+	sacrifice.setup(next_world_id, Game.thrall_count)
+	get_tree().current_scene.add_child(sacrifice)
 
 func _draw() -> void:
 	var t := time

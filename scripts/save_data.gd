@@ -30,6 +30,15 @@ var perm_coin_mult: float = 0.0        # bonus coin gain %
 var perm_exp_mult: float = 0.0         # bonus exp gain %
 var perm_thrall_health: float = 0.0    # bonus thrall health
 
+# Equipment inventory — 6 slots, one per Equipment.Slot
+# Each is a Dictionary or empty {} if no equipment in that slot
+var equipped: Array[Dictionary] = [{}, {}, {}, {}, {}, {}]
+# Equipment inventory (unequipped items waiting to be used)
+var inventory: Array[Dictionary] = []
+const MAX_INVENTORY: int = 30
+# Track which world transition stories have been seen
+var stories_seen: Array[int] = []
+
 # Shop upgrade definitions — cost scales with level
 const SHOP_UPGRADES: Array[Dictionary] = [
 	{"key": "perm_max_health", "name": "Vitality", "desc": "+20 Max HP", "value": 20.0,
@@ -58,6 +67,7 @@ var shop_levels: Array[int] = []
 
 signal coins_changed(new_amount: int)
 signal exp_changed(new_exp: int, level: int, to_next: int)
+signal equipment_changed
 
 func _ready() -> void:
 	shop_levels.resize(SHOP_UPGRADES.size())
@@ -107,6 +117,73 @@ func buy_upgrade(upgrade_index: int) -> bool:
 	save_game()
 	return true
 
+## Equip an item from inventory to a slot. Returns the old item (or {} if empty).
+func equip_item(item: Dictionary) -> Dictionary:
+	var slot: int = item["slot"]
+	var old := equipped[slot]
+	equipped[slot] = item
+	# Remove from inventory if present
+	var idx := inventory.find(item)
+	if idx >= 0:
+		inventory.remove_at(idx)
+	# Put old item in inventory
+	if not old.is_empty():
+		if inventory.size() < MAX_INVENTORY:
+			inventory.append(old)
+	equipment_changed.emit()
+	save_game()
+	return old
+
+## Add an equipment drop to inventory. Returns false if full.
+func add_to_inventory(item: Dictionary) -> bool:
+	if inventory.size() >= MAX_INVENTORY:
+		return false
+	inventory.append(item)
+	equipment_changed.emit()
+	return true
+
+## Auto-equip if better than current slot, otherwise add to inventory
+func try_auto_equip(item: Dictionary) -> String:
+	var slot: int = item["slot"]
+	var current := equipped[slot]
+	if current.is_empty():
+		equipped[slot] = item
+		equipment_changed.emit()
+		save_game()
+		return "equipped"
+	# Compare: higher rarity or higher level wins
+	var item_power := item["rarity"] * 100 + item["level"]
+	var current_power := current["rarity"] * 100 + current["level"]
+	if item_power > current_power:
+		inventory.append(current)
+		equipped[slot] = item
+		equipment_changed.emit()
+		save_game()
+		return "upgraded"
+	else:
+		if inventory.size() < MAX_INVENTORY:
+			inventory.append(item)
+			equipment_changed.emit()
+			return "inventory"
+		return "full"
+
+## Get total equipment stat bonus for a given slot
+func get_equip_bonus(slot: int) -> float:
+	var item := equipped[slot]
+	if item.is_empty():
+		return 0.0
+	return Equipment.get_stat_bonus(item)
+
+## Check if a world transition story has been seen
+func has_seen_story(world_id: int) -> bool:
+	return world_id in stories_seen
+
+## Mark a world transition story as seen
+func mark_story_seen(world_id: int) -> void:
+	if world_id not in stories_seen:
+		stories_seen.append(world_id)
+		save_game()
+
 func complete_world(world_id: int) -> void:
 	if world_id not in worlds_completed:
 		worlds_completed.append(world_id)
@@ -135,6 +212,9 @@ func save_game() -> void:
 		"perm_coin_mult": perm_coin_mult,
 		"perm_exp_mult": perm_exp_mult,
 		"perm_thrall_health": perm_thrall_health,
+		"equipped": _serialize_equipment(equipped),
+		"inventory": _serialize_equipment(inventory),
+		"stories_seen": stories_seen,
 	}
 	var json_string := JSON.stringify(data)
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -181,6 +261,33 @@ func load_game() -> void:
 	perm_coin_mult = clampf(float(data.get("perm_coin_mult", 0.0)), 0.0, 5.0)
 	perm_exp_mult = clampf(float(data.get("perm_exp_mult", 0.0)), 0.0, 5.0)
 	perm_thrall_health = clampf(float(data.get("perm_thrall_health", 0.0)), 0.0, 200.0)
+	# Equipment
+	var saved_equipped = data.get("equipped", [])
+	equipped = [{}, {}, {}, {}, {}, {}]
+	if saved_equipped is Array:
+		for i in range(mini(saved_equipped.size(), 6)):
+			if saved_equipped[i] is Dictionary and not saved_equipped[i].is_empty():
+				equipped[i] = Equipment.dict_to_equip(saved_equipped[i])
+	var saved_inventory = data.get("inventory", [])
+	inventory = []
+	if saved_inventory is Array:
+		for item in saved_inventory:
+			if item is Dictionary and not item.is_empty():
+				inventory.append(Equipment.dict_to_equip(item))
+	var saved_stories = data.get("stories_seen", [])
+	stories_seen = []
+	if saved_stories is Array:
+		for s in saved_stories:
+			stories_seen.append(clampi(int(s), 0, 20))
+
+func _serialize_equipment(items: Array) -> Array:
+	var result := []
+	for item in items:
+		if item is Dictionary and not item.is_empty():
+			result.append(Equipment.equip_to_dict(item))
+		else:
+			result.append({})
+	return result
 
 func reset_save() -> void:
 	coins = 0
@@ -203,4 +310,7 @@ func reset_save() -> void:
 	perm_coin_mult = 0.0
 	perm_exp_mult = 0.0
 	perm_thrall_health = 0.0
+	equipped = [{}, {}, {}, {}, {}, {}]
+	inventory = []
+	stories_seen = []
 	save_game()
