@@ -45,6 +45,8 @@ func _process(delta: float) -> void:
 	if dist < PICKUP_RANGE:
 		collected = true
 		SaveData.add_exp(exp_value)
+		Audio.play_hit()
+		Game.spawn_damage_number(exp_value, global_position, Color(0.3, 0.6, 1.0))
 		_fade_out()
 		return
 

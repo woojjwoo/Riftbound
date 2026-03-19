@@ -15,9 +15,10 @@ func _draw() -> void:
 	var cam_pos := camera.global_position
 	var zoom := camera.zoom
 
+	var rift_color: Color = Game.get_world_config().get("rift_color", Color(0.6, 0.2, 0.9))
 	for rift in get_tree().get_nodes_in_group("rifts"):
 		_draw_indicator(rift.global_position, cam_pos, zoom, viewport_size, screen_center,
-			Color(0.6, 0.2, 0.9, 0.9))
+			Color(rift_color.r, rift_color.g, rift_color.b, 0.9))
 
 func _draw_indicator(world_pos: Vector2, cam_pos: Vector2, zoom: Vector2,
 	viewport_size: Vector2, screen_center: Vector2, color: Color) -> void:
@@ -58,4 +59,4 @@ func _draw_indicator(world_pos: Vector2, cam_pos: Vector2, zoom: Vector2,
 	var font := ThemeDB.fallback_font
 	var label_offset := -dir * 20.0 + Vector2(-8, 4)
 	draw_string(font, clamped + label_offset, "%dm" % int(dist / 10.0),
-		HORIZONTAL_ALIGNMENT_CENTER, 20, 8, c)
+		HORIZONTAL_ALIGNMENT_CENTER, 30, 11, c)

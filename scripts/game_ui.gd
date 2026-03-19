@@ -31,6 +31,7 @@ extends CanvasLayer
 @onready var coin_label: Label = $CoinLabel
 @onready var exp_label: Label = $ExpLabel
 @onready var world_label: Label = $WorldLabel
+@onready var damage_vignette: ColorRect = $DamageVignette
 
 var player: Node2D = null
 var arise_timer: float = 0.0
@@ -139,6 +140,11 @@ func _process(delta: float) -> void:
 		command_hint.text = "RMB: Command Thralls  |  R: Recall"
 
 func _on_health_changed(current: float, _max_hp: float) -> void:
+	# Damage vignette flash when health decreases
+	if current < health_display:
+		damage_vignette.color = Color(0.8, 0.0, 0.0, 0.25)
+		var vignette_tween := create_tween()
+		vignette_tween.tween_property(damage_vignette, "color:a", 0.0, 0.4)
 	health_display = current
 
 func _on_game_over() -> void:

@@ -133,13 +133,13 @@ func _draw() -> void:
 	draw_string(font, Vector2(cx - 90, sel_y), "World %d: %s" % [selected_world + 1, world_name],
 		HORIZONTAL_ALIGNMENT_CENTER, 180, 14, Color(rc.r, rc.g, rc.b))
 	draw_string(font, Vector2(cx - 80, sel_y + 18), world_sub,
-		HORIZONTAL_ALIGNMENT_CENTER, 160, 9, Color(0.5, 0.4, 0.6))
+		HORIZONTAL_ALIGNMENT_CENTER, 160, 11, Color(0.5, 0.4, 0.6))
 
 	# Player stats
 	var stats_y := sel_y + 45
-	draw_string(font, Vector2(cx - 100, stats_y), "Level %d  |  Coins: %d  |  Worlds: %d/%d" % [
+	draw_string(font, Vector2(cx - 110, stats_y), "Level %d  |  Coins: %d  |  Worlds: %d/%d" % [
 		SaveData.player_level, SaveData.coins, SaveData.worlds_completed.size(), WorldData.get_world_count()],
-		HORIZONTAL_ALIGNMENT_CENTER, 200, 9, Color(0.5, 0.45, 0.6))
+		HORIZONTAL_ALIGNMENT_CENTER, 220, 11, Color(0.5, 0.45, 0.6))
 
 	# Click to start
 	var blink := 0.4 + 0.6 * sin(time * 3.0)
@@ -154,7 +154,7 @@ func _draw() -> void:
 		HORIZONTAL_ALIGNMENT_CENTER, 60, 12, Color(1.0, 0.9, 0.4))
 
 	# Controls preview
-	draw_string(font, Vector2(cx - 120, cy + 240), "A/D: Select World  |  WASD: Move  |  LMB: Attack",
-		HORIZONTAL_ALIGNMENT_CENTER, 240, 8, Color(0.4, 0.3, 0.5, 0.6))
-	draw_string(font, Vector2(cx - 120, cy + 255), "RMB: Command Thralls  |  SPACE: Dash  |  R: Recall",
-		HORIZONTAL_ALIGNMENT_CENTER, 240, 8, Color(0.4, 0.3, 0.5, 0.6))
+	draw_string(font, Vector2(cx - 140, cy + 240), "A/D: Select World  |  WASD: Move  |  LMB: Attack",
+		HORIZONTAL_ALIGNMENT_CENTER, 280, 11, Color(0.5, 0.4, 0.6, 0.7))
+	draw_string(font, Vector2(cx - 140, cy + 258), "RMB: Command Thralls  |  SPACE: Dash  |  R: Recall",
+		HORIZONTAL_ALIGNMENT_CENTER, 280, 11, Color(0.5, 0.4, 0.6, 0.7))

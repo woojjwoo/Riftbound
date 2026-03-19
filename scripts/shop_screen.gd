@@ -32,6 +32,15 @@ func _unhandled_input(event: InputEvent) -> void:
 				if selected_index >= 0:
 					_try_buy(selected_index)
 
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			scroll_offset = max(0, scroll_offset - 1)
+			return
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			scroll_offset = min(SaveData.SHOP_UPGRADES.size() - VISIBLE_ITEMS, scroll_offset + 1)
+			scroll_offset = max(0, scroll_offset)
+			return
+
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var vp := get_viewport_rect().size
 		var start_y := 160.0
@@ -166,9 +175,9 @@ func _draw() -> void:
 
 	# Stats
 	var stats_y := start_y + VISIBLE_ITEMS * item_h + 35
-	draw_string(font, Vector2(cx - 100, stats_y), "Total Runs: %d  |  Total Kills: %d  |  Bosses: %d" % [
+	draw_string(font, Vector2(cx - 120, stats_y), "Total Runs: %d  |  Total Kills: %d  |  Bosses: %d" % [
 		SaveData.total_runs, SaveData.total_kills, SaveData.total_bosses_killed],
-		HORIZONTAL_ALIGNMENT_CENTER, 200, 9, Color(0.5, 0.4, 0.6))
+		HORIZONTAL_ALIGNMENT_CENTER, 240, 11, Color(0.5, 0.4, 0.6))
 
 	# Back button
 	var back_y := vp.y - 50
@@ -178,5 +187,5 @@ func _draw() -> void:
 		HORIZONTAL_ALIGNMENT_LEFT, 100, 12, Color(0.7, 0.6, 0.9))
 
 	# Controls hint
-	draw_string(font, Vector2(cx - 120, vp.y - 20), "W/S: Navigate  |  Enter: Buy  |  ESC: Back",
-		HORIZONTAL_ALIGNMENT_CENTER, 240, 9, Color(0.4, 0.35, 0.5))
+	draw_string(font, Vector2(cx - 150, vp.y - 20), "W/S: Navigate  |  Enter/Double-Click: Buy  |  Scroll: Mouse Wheel  |  ESC: Back",
+		HORIZONTAL_ALIGNMENT_CENTER, 300, 11, Color(0.5, 0.45, 0.6))

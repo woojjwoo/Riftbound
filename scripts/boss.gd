@@ -21,6 +21,8 @@ var enraged: bool = false
 var base_speed: float
 var is_dying: bool = false
 var knockback_velocity: Vector2 = Vector2.ZERO
+var world_color: Color = Color.WHITE
+var enrage_color: Color = Color(1.0, 0.3, 0.3)
 
 # Attack pattern state machine
 enum BossState { CHASE, CHARGE_WINDUP, CHARGING, SLAM_WINDUP, SLAMMING, SUMMON, COOLDOWN }
@@ -57,9 +59,26 @@ func _ready() -> void:
 	base_speed = move_speed
 	add_to_group("enemies")
 	add_to_group("boss")
+
+	# World-colored tint for boss identity
+	var rift_color: Color = world_config.get("rift_color", Color(0.6, 0.2, 0.9))
+	world_color = Color(
+		lerp(1.0, rift_color.r, 0.3),
+		lerp(1.0, rift_color.g, 0.3),
+		lerp(1.0, rift_color.b, 0.3))
+	enrage_color = Color(
+		lerp(1.0, rift_color.r, 0.5),
+		lerp(0.3, rift_color.g * 0.5, 0.3),
+		lerp(0.3, rift_color.b * 0.5, 0.3))
+
+	# Scale boss size per world for visual progression
+	var boss_scale := 1.0 + Game.current_world * 0.08
+	scale *= boss_scale
+
 	if sprite_idle:
 		sprite.texture = sprite_idle
 		sprite.hframes = 6
+	sprite.modulate = world_color
 
 	var players := get_tree().get_nodes_in_group("player")
 	if players.size() > 0:
@@ -122,7 +141,7 @@ func _physics_process(delta: float) -> void:
 			if state_timer <= 0.0:
 				state = BossState.COOLDOWN
 				state_timer = 1.0
-				sprite.modulate = Color.WHITE if not enraged else Color(1.0, 0.3, 0.3)
+				sprite.modulate = world_color if not enraged else enrage_color
 
 		BossState.SLAM_WINDUP:
 			velocity = Vector2.ZERO
@@ -151,7 +170,7 @@ func _physics_process(delta: float) -> void:
 				_do_summon()
 				state = BossState.COOLDOWN
 				state_timer = 1.5
-				sprite.modulate = Color.WHITE if not enraged else Color(1.0, 0.3, 0.3)
+				sprite.modulate = world_color if not enraged else enrage_color
 
 		BossState.COOLDOWN:
 			# Slowly approach player
@@ -172,7 +191,7 @@ func _physics_process(delta: float) -> void:
 
 	if enraged and state == BossState.CHASE:
 		var pulse := 0.3 + 0.15 * sin(Time.get_ticks_msec() * 0.008)
-		sprite.modulate = Color(1.0, pulse, pulse)
+		sprite.modulate = Color(enrage_color.r, enrage_color.g * pulse / 0.3, enrage_color.b * pulse / 0.3)
 
 	# Contact damage during chase
 	if state == BossState.CHASE and contact_timer <= 0.0:
@@ -260,10 +279,7 @@ func take_damage(amount: float) -> void:
 
 	sprite.modulate = Color.RED
 	var tween := create_tween()
-	if enraged:
-		tween.tween_property(sprite, "modulate", Color(1.0, 0.3, 0.3), 0.15)
-	else:
-		tween.tween_property(sprite, "modulate", Color.WHITE, 0.15)
+	tween.tween_property(sprite, "modulate", enrage_color if enraged else world_color, 0.15)
 
 	sprite.scale = Vector2(1.2, 0.8)
 	var scale_tween := create_tween()
@@ -276,7 +292,7 @@ func take_damage(amount: float) -> void:
 		enraged = true
 		move_speed = base_speed * enrage_speed_mult
 		charge_speed *= 1.3
-		sprite.modulate = Color(1.0, 0.3, 0.3)
+		sprite.modulate = enrage_color
 		Game.request_shake(10.0)
 		Game.hit_freeze(0.12)
 		Audio.play_boss_enrage()
@@ -332,14 +348,14 @@ func _draw() -> void:
 		var t := 1.0 - state_timer / 0.6
 		var shadow_radius := slam_radius * t
 		draw_circle(Vector2.ZERO, shadow_radius, Color(0.0, 0.0, 0.0, 0.2 * t))
-		draw_arc(Vector2.ZERO, shadow_radius, 0, TAU, 24, Color(1.0, 0.2, 0.1, 0.4 * t), 2.0)
+		draw_arc(Vector2.ZERO, shadow_radius, 0, TAU, 24, Color(enrage_color.r, enrage_color.g, enrage_color.b, 0.4 * t), 2.0)
 
 	# Charge windup line
 	if state == BossState.CHARGE_WINDUP and player:
 		var dir := global_position.direction_to(player.global_position)
 		var end := dir * 200.0
 		var alpha := 0.3 + 0.3 * sin(state_timer * 15.0)
-		draw_line(Vector2.ZERO, end, Color(1.0, 0.3, 0.1, alpha), 2.0)
+		draw_line(Vector2.ZERO, end, Color(enrage_color.r, enrage_color.g, enrage_color.b, alpha), 2.0)
 
 	# Health bar
 	var bar_width: float = 40.0
