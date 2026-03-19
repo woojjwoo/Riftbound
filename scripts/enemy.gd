@@ -1,9 +1,8 @@
 extends CharacterBody2D
 
-## Base enemy with animated sprite sheets.
-## Supports: melee, ranged, tank, flying, exploder types.
-## Any enemy can optionally have a shield.
-## Drops health orbs on death.
+## Base enemy. Supports: melee, ranged, tank, flying, exploder types.
+## Can target player OR thralls. Defends rifts from thralls.
+## Drops health orbs on death. Proximity extraction for thrall raising.
 
 @export_enum("melee", "ranged", "tank", "flying", "exploder") var enemy_type: String = "melee"
 @export var move_speed: float = 100.0
@@ -24,6 +23,11 @@ var player: Node2D = null
 var contact_timer: float = 0.0
 var ranged_timer: float = 0.0
 var is_dying: bool = false
+
+# Targeting
+var target_node: Node2D = null
+var retarget_timer: float = 0.0
+const RETARGET_INTERVAL: float = 1.5
 
 # Knockback
 var knockback_velocity: Vector2 = Vector2.ZERO
@@ -47,6 +51,7 @@ func _ready() -> void:
 	current_health = max_health
 	add_to_group("enemies")
 	_find_player()
+	target_node = player
 	if sprite_idle:
 		sprite.texture = sprite_idle
 		sprite.hframes = 6
@@ -70,27 +75,35 @@ func _physics_process(delta: float) -> void:
 	contact_timer -= delta
 	ranged_timer -= delta
 	fly_time += delta
+	retarget_timer -= delta
 
-	var dir := global_position.direction_to(player.global_position)
-	var dist := global_position.distance_to(player.global_position)
+	# Retarget periodically
+	if retarget_timer <= 0.0:
+		_retarget()
+		retarget_timer = RETARGET_INTERVAL
+
+	# Use target_node for movement direction
+	var chase_target: Node2D = target_node if (target_node and is_instance_valid(target_node)) else player
+	var dir := global_position.direction_to(chase_target.global_position)
+	var dist := global_position.distance_to(chase_target.global_position)
 
 	sprite.flip_h = dir.x < 0
 
 	match enemy_type:
 		"ranged":
 			if dist < attack_range * 0.5:
-				dir = -dir  # retreat if too close
+				dir = -dir
 			elif dist <= attack_range and ranged_timer <= 0.0:
-				shoot_at_player()
+				_shoot_at(chase_target)
 				ranged_timer = ranged_cooldown
 		"flying":
 			dir = dir.rotated(sin(fly_time * 3.0) * 0.5)
 			if dist <= attack_range and ranged_timer <= 0.0:
-				shoot_at_player()
+				_shoot_at(chase_target)
 				ranged_timer = ranged_cooldown
 			sprite.position.y = sin(fly_time * 4.0) * fly_amplitude * 0.3
 		"exploder":
-			dir = dir * 1.5  # rush faster
+			dir = dir * 1.5
 
 	knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
 	velocity = dir * move_speed + knockback_velocity
@@ -106,33 +119,65 @@ func _physics_process(delta: float) -> void:
 	sprite.hframes = 6
 	sprite.frame = int(Time.get_ticks_msec() / 120) % 6
 
-	# Exploder pulsing glow as it gets closer
 	if enemy_type == "exploder" and dist < explode_radius * 2:
 		var pulse := 0.5 + 0.5 * sin(fly_time * 10.0)
 		sprite.modulate = Color(1.0, 0.3 + 0.4 * pulse, 0.2)
 
-	# Contact damage
+	# Contact damage — hits player AND thralls
 	if contact_timer <= 0.0:
 		for i in get_slide_collision_count():
 			var collision := get_slide_collision(i)
 			var collider := collision.get_collider()
-			if collider.is_in_group("player") and collider.has_method("take_damage"):
-				if enemy_type == "exploder":
-					# Exploder only does explosion damage on contact, not double-dipping
-					die()
-				else:
-					collider.take_damage(contact_damage, global_position)
-					contact_timer = 1.0
-				break
+			if collider.has_method("take_damage"):
+				if collider.is_in_group("player"):
+					if enemy_type == "exploder":
+						die()
+					else:
+						collider.take_damage(contact_damage, global_position)
+						contact_timer = 1.0
+					break
+				elif collider.is_in_group("thralls"):
+					# Deal reduced damage to thralls
+					collider.take_damage(contact_damage * 0.6, global_position)
+					contact_timer = 0.8
+					break
 
 	queue_redraw()
 
-func shoot_at_player() -> void:
-	if projectile_scene == null or player == null:
+func _retarget() -> void:
+	# Chance to target thralls instead of player
+	var thralls := get_tree().get_nodes_in_group("thralls")
+	if thralls.is_empty():
+		target_node = player
 		return
-	var dir := global_position.direction_to(player.global_position)
+
+	# Near a rift? Defend it — higher chance to target thralls
+	var thrall_chance := 0.25
+	for rift in get_tree().get_nodes_in_group("rifts"):
+		if global_position.distance_to(rift.global_position) < 150.0:
+			thrall_chance = 0.6
+			break
+
+	if randf() < thrall_chance:
+		# Target nearest thrall
+		var closest_thrall: Node2D = null
+		var closest_dist := 9999.0
+		for thrall in thralls:
+			var d := global_position.distance_to(thrall.global_position)
+			if d < closest_dist:
+				closest_dist = d
+				closest_thrall = thrall
+		target_node = closest_thrall
+	else:
+		target_node = player
+
+func _shoot_at(target: Node2D) -> void:
+	if projectile_scene == null or target == null:
+		return
+	var dir := global_position.direction_to(target.global_position)
 	var proj := projectile_scene.instantiate()
 	proj.global_position = global_position
+	# Always target "player" group for projectile collision since thralls are on a different layer
 	proj.setup(dir, contact_damage, "player")
 	get_tree().current_scene.add_child(proj)
 	Audio.play_shoot()
@@ -141,7 +186,6 @@ func take_damage(amount: float) -> void:
 	if is_dying:
 		return
 
-	# Shield absorbs hits
 	if has_shield:
 		shield_hits += 1
 		if shield_hits >= shield_max_hits:
@@ -182,7 +226,6 @@ func die() -> void:
 	Game.request_shake(3.0)
 	Audio.play_kill()
 
-	# Exploder: AoE damage (only source of damage, no double-dip with contact)
 	if enemy_type == "exploder":
 		_explode()
 
@@ -190,16 +233,14 @@ func die() -> void:
 		sprite.texture = sprite_death
 		sprite.hframes = 6
 
-	# Health drop chance (20%)
 	if randf() < 0.2:
 		_spawn_health_orb()
 
-	# Proximity-based extraction — must be near player
+	# Proximity-based extraction
 	var players := get_tree().get_nodes_in_group("player")
 	if players.size() > 0:
 		var p := players[0]
 		if Game.guaranteed_extractions > 0:
-			# First kills always extract to bootstrap thrall army
 			p.force_extract(self)
 			Game.guaranteed_extractions -= 1
 		else:
@@ -217,7 +258,11 @@ func _explode() -> void:
 	Game.request_shake(8.0)
 	if player and global_position.distance_to(player.global_position) < explode_radius:
 		player.take_damage(explode_damage, global_position)
-	# Chain reaction on nearby enemies
+	# Damage thralls in range too
+	for thrall in get_tree().get_nodes_in_group("thralls"):
+		if global_position.distance_to(thrall.global_position) < explode_radius:
+			if thrall.has_method("take_damage"):
+				thrall.take_damage(explode_damage * 0.5, global_position)
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		if enemy != self and not enemy.is_dying:
 			if global_position.distance_to(enemy.global_position) < explode_radius:
@@ -257,12 +302,10 @@ func _get_base_color() -> Color:
 func _draw() -> void:
 	if is_dying:
 		return
-	# Shield visual
 	if has_shield:
 		var shield_alpha := 0.3 + 0.1 * sin(Time.get_ticks_msec() * 0.005)
 		draw_arc(Vector2.ZERO, 16.0, 0, TAU, 16, Color(0.3, 0.6, 1.0, shield_alpha), 2.0)
 
-	# Health bar (only when damaged)
 	if current_health >= max_health:
 		return
 	var bar_width: float = 24.0

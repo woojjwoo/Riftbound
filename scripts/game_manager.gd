@@ -98,6 +98,9 @@ func on_thrall_gained() -> void:
 	thrall_count += 1
 	thrall_gained.emit()
 
+func on_thrall_lost() -> void:
+	thrall_count = max(thrall_count - 1, 0)
+
 func on_rift_closed(rift_number: int) -> void:
 	rifts_closed += 1
 	rift_closed_signal.emit(rift_number)

@@ -33,6 +33,7 @@ var current_upgrades: Array[Dictionary] = []
 var controls_timer: float = 8.0  # show controls for 8 seconds
 
 func _ready() -> void:
+	Audio.start_music()
 	game_over_panel.visible = false
 	arise_label.visible = false
 	boss_health_bar.visible = false

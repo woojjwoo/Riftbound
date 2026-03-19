@@ -1,6 +1,7 @@
 extends CharacterBody2D
 
-## Thrall with command system. FOLLOW player or move to COMMANDED position.
+## Thrall with command system, HP, and death.
+## FOLLOW player or move to COMMANDED position.
 ## Can attack rifts when commanded to them.
 ## Abilities: melee lifesteal, ranged AoE, tank taunt.
 
@@ -9,6 +10,12 @@ enum ThrallMode { FOLLOW, COMMANDED }
 var thrall_type: String = "melee"
 var leader: Node2D = null
 var mode: ThrallMode = ThrallMode.FOLLOW
+var is_dying: bool = false
+
+# HP
+var max_health: float = 30.0
+var current_health: float = 30.0
+var knockback_velocity_thrall: Vector2 = Vector2.ZERO
 
 # Command
 var command_target_pos: Vector2 = Vector2.ZERO
@@ -48,6 +55,7 @@ func setup(player: Node2D, type: String) -> void:
 			attack_damage = 15.0
 			attack_cooldown = 0.8
 			follow_speed = 190.0
+			max_health = 30.0
 			sprite_idle = load("res://sprites/skeleton/Idle-Sheet.png")
 			sprite_run = load("res://sprites/skeleton/Run-Sheet.png")
 		"ranged":
@@ -55,6 +63,7 @@ func setup(player: Node2D, type: String) -> void:
 			attack_damage = 10.0
 			attack_cooldown = 1.2
 			follow_speed = 160.0
+			max_health = 20.0
 			sprite_idle = load("res://sprites/skeleton_mage/Idle-Sheet.png")
 			sprite_run = load("res://sprites/skeleton_mage/Run-Sheet.png")
 		"tank":
@@ -62,17 +71,19 @@ func setup(player: Node2D, type: String) -> void:
 			attack_damage = 8.0
 			attack_cooldown = 1.5
 			follow_speed = 140.0
+			max_health = 50.0
 			scale *= 1.3
 			sprite_idle = load("res://sprites/skeleton_warrior/Idle-Sheet.png")
 			sprite_run = load("res://sprites/skeleton_warrior/Run-Sheet.png")
 		_:
-			# flying/exploder extracted as melee
 			attack_range = 50.0
 			attack_damage = 15.0
 			attack_cooldown = 0.8
 			follow_speed = 190.0
+			max_health = 30.0
 			sprite_idle = load("res://sprites/skeleton/Idle-Sheet.png")
 			sprite_run = load("res://sprites/skeleton/Run-Sheet.png")
+	current_health = max_health
 
 func _ready() -> void:
 	sprite.modulate = Color(0.4, 1.0, 0.9, 1.0)
@@ -91,8 +102,32 @@ func recall() -> void:
 	command_entity = null
 	sprite.modulate = Color(0.4, 1.0, 0.9)  # teal when following
 
+func take_damage(amount: float, from_pos: Vector2 = Vector2.ZERO) -> void:
+	if is_dying:
+		return
+	current_health -= amount
+	if from_pos != Vector2.ZERO:
+		knockback_velocity_thrall = (global_position - from_pos).normalized() * 100.0
+	sprite.modulate = Color(3, 3, 3)
+	var tween := create_tween()
+	var base_color := Color(1.0, 0.8, 0.4) if mode == ThrallMode.COMMANDED else Color(0.4, 1.0, 0.9)
+	tween.tween_property(sprite, "modulate", base_color, 0.1)
+	if current_health <= 0.0:
+		_die()
+
+func _die() -> void:
+	is_dying = true
+	remove_from_group("thralls")
+	Game.on_thrall_lost()
+	Audio.play_thrall_death()
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(sprite, "modulate:a", 0.0, 0.4)
+	tween.tween_property(sprite, "scale", Vector2(0.3, 0.3), 0.4)
+	tween.chain().tween_callback(queue_free)
+
 func _physics_process(delta: float) -> void:
-	if Game.is_game_over or leader == null:
+	if Game.is_game_over or leader == null or is_dying:
 		return
 
 	attack_timer -= delta
@@ -153,7 +188,8 @@ func _physics_process(delta: float) -> void:
 				if dist > 20.0:
 					move_dir = global_position.direction_to(command_target_pos)
 
-	velocity = move_dir * effective_speed
+	knockback_velocity_thrall = knockback_velocity_thrall.lerp(Vector2.ZERO, 8.0 * delta)
+	velocity = move_dir * effective_speed + knockback_velocity_thrall
 	move_and_slide()
 
 	# Animation
@@ -244,6 +280,9 @@ func _taunt() -> void:
 	tween.tween_property(sprite, "modulate", base_color, 0.3)
 
 func _draw() -> void:
+	if is_dying:
+		return
+
 	# Mode indicator
 	if mode == ThrallMode.COMMANDED:
 		draw_arc(Vector2.ZERO, 8.0, 0, TAU, 8, Color(1.0, 0.8, 0.3, 0.3), 1.0)
@@ -252,3 +291,12 @@ func _draw() -> void:
 	if thrall_type == "tank" and ability_timer <= 1.0 and ability_timer > 0.0:
 		var alpha := 0.15 * (1.0 - ability_timer)
 		draw_arc(Vector2.ZERO, taunt_radius / scale.x, 0, TAU, 24, Color(1.0, 0.8, 0.3, alpha), 1.5)
+
+	# Health bar (only when damaged)
+	if current_health < max_health:
+		var bar_w: float = 18.0
+		var bar_h: float = 2.0
+		var bar_y: float = -16.0
+		var ratio := current_health / max_health
+		draw_rect(Rect2(-bar_w / 2, bar_y, bar_w, bar_h), Color(0.2, 0.2, 0.2, 0.6))
+		draw_rect(Rect2(-bar_w / 2, bar_y, bar_w * ratio, bar_h), Color(0.3, 0.9, 0.8))
