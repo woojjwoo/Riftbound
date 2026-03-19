@@ -90,7 +90,7 @@ func _set_animation(anim_name: String) -> void:
 		current_anim = anim_name
 
 func _unhandled_input(event: InputEvent) -> void:
-	if Game.is_game_over or Game.boss_killed:
+	if Game.is_game_over:
 		return
 	if event is InputEventMouseButton and event.pressed:
 		match event.button_index:
@@ -339,8 +339,9 @@ func heal(amount: float) -> void:
 # --- Draw ---
 
 func _draw() -> void:
-	# Subtle extraction range indicator
-	draw_arc(Vector2.ZERO, extraction_range, 0, TAU, 32, Color(0.2, 0.6, 0.8, 0.08), 1.0)
+	# Subtle extraction range indicator (includes upgrades)
+	var effective_range := extraction_range + Game.upgrade_extraction_bonus * 100.0
+	draw_arc(Vector2.ZERO, effective_range, 0, TAU, 32, Color(0.2, 0.6, 0.8, 0.08), 1.0)
 
 	# Command line to target
 	if has_active_command:

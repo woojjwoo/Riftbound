@@ -147,7 +147,7 @@ func _draw() -> void:
 		return
 
 	var t := Time.get_ticks_msec() * 0.001
-	var ratio := current_health / max_health
+	var ratio := current_health / maxf(max_health, 0.01)
 	var rc: Color = Game.get_world_config().get("rift_color", Color(0.6, 0.2, 0.9))
 
 	# Background glow — pulsing

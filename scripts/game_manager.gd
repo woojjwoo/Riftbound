@@ -87,6 +87,8 @@ var ALL_UPGRADES: Array[Dictionary] = [
 ]
 
 func _ready() -> void:
+	# Set rift count from world config on first load
+	total_rifts = get_world_config().get("rifts", 5)
 	_transition_to(GameProcess.EARLY_GAME)
 
 func _process(delta: float) -> void:
@@ -106,7 +108,7 @@ func on_enemy_killed() -> void:
 func on_boss_killed() -> void:
 	boss_killed = true
 	SaveData.total_bosses_killed += 1
-	Audio.play_boss_enrage()
+	Audio.play_victory()
 
 func on_boss_spawned() -> void:
 	_transition_to(GameProcess.BOSS_FIGHT)
@@ -146,11 +148,14 @@ func _spawn_world_portal() -> void:
 	var angle := randf() * TAU
 	var pos := player.global_position + Vector2(cos(angle), sin(angle)) * 150.0
 
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
 	var portal := Node2D.new()
 	portal.set_script(WorldPortal)
 	portal.global_position = pos
 	portal.setup(current_world + 1)
-	get_tree().current_scene.add_child(portal)
+	scene.add_child(portal)
 	world_portal_spawned.emit()
 
 ## Spawn coin and EXP drops at a position (called from enemy death)

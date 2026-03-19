@@ -42,11 +42,13 @@ func _process(delta: float) -> void:
 
 func _enter_portal() -> void:
 	active = false
+	# Prevent game over from firing after portal entry
+	Game.is_game_over = true
 	Game.hit_freeze(0.1)
 	Game.request_shake(15.0)
 	Audio.play_victory()
 
-	# Save progress
+	# Save progress (guard against double-counting in trigger_game_over)
 	SaveData.complete_world(Game.current_world)
 	SaveData.total_runs += 1
 	SaveData.total_kills += Game.kill_count

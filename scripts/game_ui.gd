@@ -40,6 +40,8 @@ var is_paused: bool = false
 
 var current_upgrades: Array[Dictionary] = []
 var controls_timer: float = 8.0  # show controls for 8 seconds
+var narrative_timer: float = 0.0
+var narrative_text: String = ""
 
 func _ready() -> void:
 	Audio.start_music()
@@ -73,9 +75,10 @@ func _ready() -> void:
 		btn.mouse_entered.connect(_on_upgrade_hover.bind(btn, true))
 		btn.mouse_exited.connect(_on_upgrade_hover.bind(btn, false))
 
-	# Set world label
+	# Set world label and show intro narrative
 	var config := Game.get_world_config()
 	world_label.text = "World %d: %s" % [Game.current_world + 1, config.get("name", "Unknown")]
+	_show_narrative(config.get("intro", ""), 6.0)
 
 	await get_tree().process_frame
 	var players := get_tree().get_nodes_in_group("player")
@@ -119,6 +122,16 @@ func _process(delta: float) -> void:
 		if controls_timer <= 0.0:
 			controls_label.visible = false
 
+	# Narrative text fade
+	if narrative_timer > 0.0:
+		narrative_timer -= delta
+		arise_label.visible = true
+		arise_label.text = narrative_text
+		if narrative_timer <= 2.0:
+			arise_label.modulate.a = narrative_timer / 2.0
+		if narrative_timer <= 0.0:
+			arise_label.visible = false
+
 	# Command hint — show thrall count context
 	if Game.thrall_count == 0:
 		command_hint.text = "Kill enemies nearby to extract thralls"
@@ -156,13 +169,16 @@ func _on_process_changed(new_process: Game.GameProcess) -> void:
 		Game.GameProcess.MID_GAME:
 			flash_color = Color(0.6, 0.3, 0.9, 0.4)
 			Audio.play_phase_change()
+			_show_narrative(Game.get_world_config().get("mid_text", ""), 4.0)
 		Game.GameProcess.BOSS_FIGHT:
 			flash_color = Color(1.0, 0.2, 0.2, 0.5)
 			boss_health_bar.visible = true
 			boss_name_label.visible = true
 			boss_name_label.text = Game.get_world_config().get("boss_name", "Rift Guardian")
+			_show_narrative(Game.get_world_config().get("boss_taunt", ""), 5.0)
 		Game.GameProcess.VICTORY:
 			flash_color = Color(0.2, 1.0, 0.5, 0.4)
+			_show_narrative(Game.get_world_config().get("victory_text", ""), 5.0)
 		Game.GameProcess.GAME_OVER:
 			flash_color = Color(0.5, 0.0, 0.0, 0.6)
 		_:
@@ -247,6 +263,16 @@ func _on_upgrade_hover(btn: Button, hovered: bool) -> void:
 		tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 		tween.tween_property(btn, "scale", Vector2(1.0, 1.0), 0.1)
 		btn.modulate = Color.WHITE
+
+func _show_narrative(text: String, duration: float = 4.0) -> void:
+	if text.is_empty():
+		return
+	narrative_text = text
+	narrative_timer = duration
+	arise_label.visible = true
+	arise_label.text = text
+	arise_label.modulate.a = 1.0
+	arise_label.scale = Vector2(1.0, 1.0)
 
 func _update_active_upgrades() -> void:
 	if Game.chosen_upgrades.is_empty():

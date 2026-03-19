@@ -1,15 +1,15 @@
 extends Node
 
 ## World/stage definitions. Each world has unique environment theme,
-## enemy scaling, rift count, and a boss. Autoloaded as "WorldData".
+## enemy scaling, rift count, boss, and narrative text. Autoloaded as "WorldData".
 
 enum WorldID {
-	DARK_REALM,    # World 1 — tutorial/intro (current)
-	DESERT,        # World 2 — scorched sands
-	ICE,           # World 3 — frozen wastes
-	SWAMP,         # World 4 — toxic marshes
-	VOID,          # World 5 — the void between worlds
-	SPACE,         # World 6 — celestial realm, fight the gods
+	DARK_REALM,
+	DESERT,
+	ICE,
+	SWAMP,
+	VOID,
+	SPACE,
 }
 
 const WORLD_CONFIGS: Array[Dictionary] = [
@@ -22,6 +22,12 @@ const WORLD_CONFIGS: Array[Dictionary] = [
 		"accent_color": Color(0.2, 0.15, 0.25, 0.15),
 		"rift_color": Color(0.6, 0.2, 0.9),
 		"coin_mult": 1.0, "exp_mult": 1.0,
+		# Narrative
+		"intro": "The rifts have torn through your domain.\nSeal them before the dead world consumes the living.",
+		"mid_text": "The rifts grow unstable... something stirs within.",
+		"boss_intro": "The Guardian rises to protect its rift.",
+		"victory_text": "The Dark Realm is sealed. A portal shimmers ahead...\nBut the rifts have spread to other worlds.",
+		"boss_taunt": "You dare disturb the rift? Return to your grave, Necromancer.",
 	},
 	{
 		"id": 1, "name": "Scorched Sands",
@@ -32,6 +38,11 @@ const WORLD_CONFIGS: Array[Dictionary] = [
 		"accent_color": Color(0.3, 0.25, 0.1, 0.15),
 		"rift_color": Color(0.9, 0.6, 0.2),
 		"coin_mult": 1.5, "exp_mult": 1.3,
+		"intro": "Burning sands stretch endlessly.\nThe rifts have scorched this land beyond recognition.",
+		"mid_text": "The heat intensifies... the sand itself attacks.",
+		"boss_intro": "The dunes collapse. Something ancient rises from beneath.",
+		"victory_text": "The Colossus crumbles to dust.\nThrough the swirling sands, a frozen light beckons.",
+		"boss_taunt": "I have slept beneath these sands for a thousand years.\nYou will join the bones buried below.",
 	},
 	{
 		"id": 2, "name": "Frozen Wastes",
@@ -42,6 +53,11 @@ const WORLD_CONFIGS: Array[Dictionary] = [
 		"accent_color": Color(0.15, 0.2, 0.35, 0.15),
 		"rift_color": Color(0.3, 0.7, 1.0),
 		"coin_mult": 2.0, "exp_mult": 1.6,
+		"intro": "A deathless cold grips this world.\nYour thralls move slower here, but so do your enemies.",
+		"mid_text": "The ice cracks beneath your feet... something moves below.",
+		"boss_intro": "A shadow passes overhead. The Wyrm descends.",
+		"victory_text": "The Wyrm's frozen heart shatters.\nWarm, toxic air seeps through the next portal.",
+		"boss_taunt": "The cold preserves everything. Even your defeat will last forever.",
 	},
 	{
 		"id": 3, "name": "Toxic Marshes",
@@ -52,6 +68,11 @@ const WORLD_CONFIGS: Array[Dictionary] = [
 		"accent_color": Color(0.15, 0.25, 0.1, 0.2),
 		"rift_color": Color(0.3, 0.9, 0.2),
 		"coin_mult": 2.5, "exp_mult": 2.0,
+		"intro": "The air itself is poison.\nThe rifts here have corrupted everything they touch.",
+		"mid_text": "The marsh bubbles and writhes... it is alive.",
+		"boss_intro": "The swamp converges into a single, terrible form.",
+		"victory_text": "The Horror dissolves into the mire.\nAhead, reality itself begins to unravel.",
+		"boss_taunt": "I am the marsh. Every step you take feeds me.\nYour thralls will rot and become mine.",
 	},
 	{
 		"id": 4, "name": "The Void",
@@ -62,6 +83,11 @@ const WORLD_CONFIGS: Array[Dictionary] = [
 		"accent_color": Color(0.12, 0.06, 0.2, 0.2),
 		"rift_color": Color(0.8, 0.2, 1.0),
 		"coin_mult": 3.0, "exp_mult": 2.5,
+		"intro": "This is the space between worlds.\nThe rifts here are the source. Close them, and the others weaken.",
+		"mid_text": "Reality bends... your senses cannot be trusted.",
+		"boss_intro": "A presence fills the void. The Sovereign manifests.",
+		"victory_text": "The Sovereign's crown dissolves into nothing.\nAbove, golden light pierces the void. The gods have noticed you.",
+		"boss_taunt": "I am the emptiness between all things.\nYou cannot kill nothing, Necromancer.",
 	},
 	{
 		"id": 5, "name": "Celestial Realm",
@@ -72,6 +98,11 @@ const WORLD_CONFIGS: Array[Dictionary] = [
 		"accent_color": Color(0.1, 0.1, 0.3, 0.2),
 		"rift_color": Color(1.0, 0.9, 0.4),
 		"coin_mult": 5.0, "exp_mult": 3.0,
+		"intro": "You stand among the stars.\nThe gods opened these rifts to test mortal ambition.\nProve them wrong.",
+		"mid_text": "The heavens tremble at your defiance.",
+		"boss_intro": "The sky splits open. The Eternal One descends.",
+		"victory_text": "The Eternal One falls. The rifts across all worlds seal shut.\nYou have done what no mortal should.\nThe dead rest. For now.",
+		"boss_taunt": "We created the rifts. We created death itself.\nAnd you — a mere Necromancer — dare challenge eternity?",
 	},
 ]
 
