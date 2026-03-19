@@ -80,6 +80,7 @@ func spawn_boss() -> void:
 	var boss := boss_scene.instantiate()
 	boss.global_position = get_spawn_position()
 	get_tree().current_scene.add_child(boss)
+	Game.on_boss_spawned()
 
 func get_spawn_position() -> Vector2:
 	var angle := randf() * TAU

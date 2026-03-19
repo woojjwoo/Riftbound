@@ -5,6 +5,7 @@ extends CanvasLayer
 @onready var health_bar: ProgressBar = $HealthBar
 @onready var thrall_label: Label = $ThrallLabel
 @onready var kill_label: Label = $KillLabel
+@onready var process_label: Label = $ProcessLabel
 @onready var game_over_panel: Panel = $GameOverPanel
 @onready var game_over_stats: Label = $GameOverPanel/StatsLabel
 @onready var restart_button: Button = $GameOverPanel/RestartButton
@@ -32,6 +33,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	thrall_label.text = "Thralls: %d" % Game.thrall_count
 	kill_label.text = "Kills: %d" % Game.kill_count
+	process_label.text = "Phase: %s" % Game.get_process_name()
 
 	# Arise flash text
 	if arise_timer > 0.0:
