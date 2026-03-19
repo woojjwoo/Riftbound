@@ -44,6 +44,9 @@ var controls_timer: float = 8.0  # show controls for 8 seconds
 var narrative_timer: float = 0.0
 var narrative_text: String = ""
 
+# Equipment HUD overlay — draws equipped items in bottom-right corner
+var equip_hud: Control = null
+
 func _ready() -> void:
 	Audio.start_music()
 	game_over_panel.visible = false
@@ -80,6 +83,10 @@ func _ready() -> void:
 	var config := Game.get_world_config()
 	world_label.text = "World %d: %s" % [Game.current_world + 1, config.get("name", "Unknown")]
 	_show_narrative(config.get("intro", ""), 6.0)
+
+	# Equipment HUD overlay
+	_setup_equip_hud()
+	SaveData.equipment_changed.connect(_on_equipment_changed)
 
 	await get_tree().process_frame
 	var players := get_tree().get_nodes_in_group("player")

@@ -53,11 +53,22 @@ func _process(delta: float) -> void:
 		var slot_name := Equipment.get_slot_name(equip_data["slot"])
 		var notify_text := "%s %s" % [rarity_name, slot_name]
 		Game.spawn_damage_number(0, global_position + Vector2(0, -20), rarity_color)
-		# Show the name as a damage number (reusing the system)
-		_fade_out()
+		# Dramatic pickup: scale up + flash white then fade
+		_dramatic_pickup()
 		return
 
 	queue_redraw()
+
+func _dramatic_pickup() -> void:
+	# Scale up + flash white, then shrink and fade
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(self, "scale", Vector2(2.5, 2.5), 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tween.tween_property(self, "modulate", Color(3.0, 3.0, 3.0, 1.0), 0.08)
+	tween.set_parallel(false)
+	tween.tween_property(self, "scale", Vector2(0.01, 0.01), 0.18).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_BACK)
+	tween.tween_property(self, "modulate:a", 0.0, 0.1)
+	tween.tween_callback(queue_free)
 
 func _fade_out() -> void:
 	var tween := create_tween()
