@@ -297,7 +297,8 @@ func request_shake(intensity: float) -> void:
 	shake_camera.emit(intensity)
 
 func hit_freeze(duration: float = 0.05) -> void:
-	_freeze_prev_scale = 1.0
+	if _freeze_timer <= 0.0:
+		_freeze_prev_scale = Engine.time_scale
 	Engine.time_scale = 0.05
 	_freeze_timer = duration
 

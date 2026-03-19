@@ -73,7 +73,7 @@ func _draw() -> void:
 	# Inner detail
 	draw_circle(pos, 2.0, Color(0.8, 0.6, 0.1, 0.5))
 
-	if lifetime > MAX_LIFETIME - 2.0:
+	if not collected and lifetime > MAX_LIFETIME - 2.0:
 		var blink := int(lifetime * 4.0) % 2
 		if blink == 0:
 			modulate.a = 0.4

@@ -194,10 +194,13 @@ func _try_shoot() -> void:
 	bolt_timer = bolt_cooldown * max(Game.upgrade_cooldown_mult, 0.2)
 
 	var dir := (get_global_mouse_position() - global_position).normalized()
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
 	var proj := projectile_scene.instantiate()
 	proj.global_position = global_position
 	proj.setup(dir, bolt_damage * Game.upgrade_attack_mult, "enemies")
-	get_tree().current_scene.add_child(proj)
+	scene.add_child(proj)
 	Audio.play_shoot()
 	_set_animation("attack")
 

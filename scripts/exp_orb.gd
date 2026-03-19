@@ -69,7 +69,7 @@ func _draw() -> void:
 	# Highlight
 	draw_circle(pos + Vector2(-1, -1), 2.0, Color(0.6, 0.8, 1.0, 0.7))
 
-	if lifetime > MAX_LIFETIME - 2.0:
+	if not collected and lifetime > MAX_LIFETIME - 2.0:
 		var blink := int(lifetime * 4.0) % 2
 		if blink == 0:
 			modulate.a = 0.4
