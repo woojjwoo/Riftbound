@@ -227,7 +227,7 @@ func _recall_thralls() -> void:
 	has_active_command = false
 	for thrall in get_tree().get_nodes_in_group("thralls"):
 		thrall.recall()
-	Audio.play_phase_change()
+	Audio.play_recall()
 
 # --- Dash ---
 
@@ -267,9 +267,12 @@ func try_extract_nearby(enemy: Node2D, chance: float) -> void:
 	var effective_range := extraction_range + Game.upgrade_extraction_bonus * 100.0
 	if dist > effective_range:
 		return
-	var effective_chance := chance + Game.upgrade_extraction_bonus
+	var effective_chance := chance + Game.upgrade_extraction_bonus + Game.extraction_pity
 	if randf() <= effective_chance:
+		Game.extraction_pity = 0.0
 		extract(enemy)
+	else:
+		Game.extraction_pity += Game.PITY_PER_FAIL
 
 func force_extract(enemy: Node2D) -> void:
 	extract(enemy)

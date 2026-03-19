@@ -23,11 +23,15 @@ extends CanvasLayer
 @onready var victory_restart: Button = $VictoryPanel/VictoryRestart
 @onready var controls_label: Label = $ControlsLabel
 @onready var command_hint: Label = $CommandHint
+@onready var pause_panel: Panel = $PausePanel
+@onready var resume_button: Button = $PausePanel/ResumeButton
+@onready var pause_restart_button: Button = $PausePanel/PauseRestartButton
 
 var player: Node2D = null
 var arise_timer: float = 0.0
 var health_display: float = 120.0
 var boss_health_display: float = 0.0
+var is_paused: bool = false
 
 var current_upgrades: Array[Dictionary] = []
 var controls_timer: float = 8.0  # show controls for 8 seconds
@@ -44,8 +48,11 @@ func _ready() -> void:
 	controls_label.visible = true
 	controls_label.modulate.a = 1.0
 
+	pause_panel.visible = false
 	restart_button.pressed.connect(_on_restart)
 	victory_restart.pressed.connect(_on_restart)
+	resume_button.pressed.connect(_on_resume)
+	pause_restart_button.pressed.connect(_on_restart)
 	Game.game_over.connect(_on_game_over)
 	Game.thrall_gained.connect(_on_thrall_gained)
 	Game.process_changed.connect(_on_process_changed)
@@ -55,6 +62,11 @@ func _ready() -> void:
 	upgrade_btn1.pressed.connect(_on_upgrade_selected.bind(0))
 	upgrade_btn2.pressed.connect(_on_upgrade_selected.bind(1))
 	upgrade_btn3.pressed.connect(_on_upgrade_selected.bind(2))
+
+	# Hover effects for upgrade buttons
+	for btn in [upgrade_btn1, upgrade_btn2, upgrade_btn3]:
+		btn.mouse_entered.connect(_on_upgrade_hover.bind(btn, true))
+		btn.mouse_exited.connect(_on_upgrade_hover.bind(btn, false))
 
 	await get_tree().process_frame
 	var players := get_tree().get_nodes_in_group("player")
@@ -187,6 +199,41 @@ func _show_victory_panel() -> void:
 	var tween := create_tween()
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.tween_property(victory_panel, "modulate:a", 1.0, 0.8)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("pause") and not Game.is_game_over:
+		if upgrade_panel.visible or victory_panel.visible:
+			return
+		if is_paused:
+			_on_resume()
+		else:
+			_on_pause()
+
+func _on_pause() -> void:
+	is_paused = true
+	get_tree().paused = true
+	pause_panel.visible = true
+	pause_panel.modulate.a = 0.0
+	var tween := create_tween()
+	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	tween.tween_property(pause_panel, "modulate:a", 1.0, 0.2)
+
+func _on_resume() -> void:
+	is_paused = false
+	pause_panel.visible = false
+	get_tree().paused = false
+
+func _on_upgrade_hover(btn: Button, hovered: bool) -> void:
+	if hovered:
+		var tween := create_tween()
+		tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		tween.tween_property(btn, "scale", Vector2(1.05, 1.05), 0.1)
+		btn.modulate = Color(1.2, 1.2, 1.0)
+	else:
+		var tween := create_tween()
+		tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		tween.tween_property(btn, "scale", Vector2(1.0, 1.0), 0.1)
+		btn.modulate = Color.WHITE
 
 func _update_boss_health_bar() -> void:
 	if not boss_health_bar.visible:

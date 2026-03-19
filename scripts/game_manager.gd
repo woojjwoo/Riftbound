@@ -23,7 +23,11 @@ var rifts_closed: int = 0
 var total_rifts: int = 5
 
 # Guaranteed extractions for early game
-var guaranteed_extractions: int = 2
+var guaranteed_extractions: int = 3
+
+# Pity system: extraction chance increases with consecutive failures
+var extraction_pity: float = 0.0
+const PITY_PER_FAIL: float = 0.08
 
 signal thrall_gained
 signal enemy_killed
@@ -129,7 +133,8 @@ func restart() -> void:
 	thrall_count = 0
 	kill_count = 0
 	rifts_closed = 0
-	guaranteed_extractions = 2
+	guaranteed_extractions = 3
+	extraction_pity = 0.0
 	current_process = GameProcess.EARLY_GAME
 	Engine.time_scale = 1.0
 	upgrade_attack_mult = 1.0

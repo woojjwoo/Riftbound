@@ -100,7 +100,13 @@ func command_to(pos: Vector2, entity: Node2D = null) -> void:
 func recall() -> void:
 	mode = ThrallMode.FOLLOW
 	command_entity = null
-	sprite.modulate = Color(0.4, 1.0, 0.9)  # teal when following
+	# Flash + scale pulse on recall
+	sprite.modulate = Color(2.0, 2.0, 2.0)
+	sprite.scale = Vector2(1.3, 1.3)
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(sprite, "modulate", Color(0.4, 1.0, 0.9), 0.25)
+	tween.tween_property(sprite, "scale", Vector2(1.0, 1.0), 0.2).set_ease(Tween.EASE_OUT)
 
 func take_damage(amount: float, from_pos: Vector2 = Vector2.ZERO) -> void:
 	if is_dying:

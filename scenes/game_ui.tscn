@@ -52,7 +52,8 @@ offset_bottom = 100.0
 horizontal_alignment = 1
 text = "WASD: Move   |   LMB: Soul Bolt
 RMB: Command Thralls   |   R: Recall
-SPACE: Dash   |   Stay near kills to extract"
+SPACE: Dash   |   ESC: Pause
+Stay near kills to extract thralls"
 
 [node name="AriseLabel" type="Label" parent="."]
 offset_left = 490.0
@@ -184,6 +185,35 @@ offset_top = 240.0
 offset_right = 380.0
 offset_bottom = 280.0
 text = "Play Again"
+
+[node name="PausePanel" type="Panel" parent="."]
+visible = false
+offset_left = 440.0
+offset_top = 220.0
+offset_right = 840.0
+offset_bottom = 460.0
+
+[node name="PauseTitle" type="Label" parent="PausePanel"]
+offset_left = 120.0
+offset_top = 30.0
+offset_right = 280.0
+offset_bottom = 60.0
+horizontal_alignment = 1
+text = "PAUSED"
+
+[node name="ResumeButton" type="Button" parent="PausePanel"]
+offset_left = 120.0
+offset_top = 100.0
+offset_right = 280.0
+offset_bottom = 140.0
+text = "Resume"
+
+[node name="PauseRestartButton" type="Button" parent="PausePanel"]
+offset_left = 120.0
+offset_top = 160.0
+offset_right = 280.0
+offset_bottom = 200.0
+text = "Restart"
 
 [node name="OffscreenIndicator" type="Control" parent="."]
 anchors_preset = 15

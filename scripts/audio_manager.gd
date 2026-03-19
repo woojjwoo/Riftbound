@@ -114,6 +114,9 @@ func play_phase_change() -> void:
 func play_thrall_death() -> void:
 	_play_sweep(300.0, 80.0, 0.2, -5.0)
 
+func play_recall() -> void:
+	_play_sweep(600.0, 400.0, 0.1, -8.0)
+
 func _play_tone(freq: float, duration: float, volume_db: float, wave_type: String = "square") -> void:
 	var sample_rate := 22050
 	var num_samples := int(sample_rate * duration)

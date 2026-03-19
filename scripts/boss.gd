@@ -290,7 +290,10 @@ func die() -> void:
 
 func _on_death_complete() -> void:
 	Game.on_boss_killed()
-	# Victory is triggered by closing the final rift, not by killing the boss
+	# Boss death weakens the final rift — deal 40% of its max HP
+	for rift in get_tree().get_nodes_in_group("rifts"):
+		if rift.has_method("take_damage"):
+			rift.take_damage(rift.max_health * 0.4)
 	queue_free()
 
 func get_enemy_type() -> String:

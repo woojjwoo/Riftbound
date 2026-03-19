@@ -192,6 +192,13 @@ func take_damage(amount: float) -> void:
 			has_shield = false
 			Audio.play_shield_break()
 			Game.spawn_damage_number(0, global_position, Color(0.3, 0.6, 1.0))
+			Game.request_shake(4.0)
+			# Shield break VFX — expanding ring
+			var vfx := Node2D.new()
+			vfx.global_position = global_position
+			vfx.set_script(preload("res://scripts/explosion_vfx.gd"))
+			vfx.set("max_radius", 30.0)
+			get_tree().current_scene.add_child(vfx)
 			sprite.modulate = Color(0.3, 0.6, 1.0)
 			var flash_tween := create_tween()
 			flash_tween.tween_property(sprite, "modulate", Color.WHITE, 0.2)
