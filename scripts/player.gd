@@ -1,26 +1,28 @@
 extends CharacterBody2D
 
-## Player controller: WASD movement, auto-attack, dash ability.
-## Has damage invincibility frames to prevent getting melted.
+## Necromancer player: soul bolt ranged attack, thrall commanding, dash.
+## You're a commander, not a fighter. Stay near kills to extract thralls,
+## then command your undead army to close the rifts.
 
 @export var move_speed: float = 200.0
-@export var attack_damage: float = 20.0
-@export var attack_range: float = 100.0
-@export var attack_cooldown: float = 0.45
-
-@export var max_health: float = 100.0
+@export var max_health: float = 120.0
 var current_health: float
 
 @export var thrall_scene: PackedScene
 @export var arise_vfx_scene: PackedScene
 
+var projectile_scene: PackedScene = preload("res://scenes/projectile.tscn")
+
 signal health_changed(current: float, max_hp: float)
 
-var attack_timer: float = 0.0
-var facing: String = "down"
-var facing_right: bool = true
+# Soul bolt (left-click ranged attack)
+var bolt_damage: float = 8.0
+var bolt_cooldown: float = 0.25
+var bolt_timer: float = 0.0
 
-# Knockback
+# Movement
+var facing: String = "side"
+var facing_right: bool = true
 var knockback_velocity: Vector2 = Vector2.ZERO
 
 # Dash
@@ -40,7 +42,14 @@ const IFRAMES_DURATION: float = 0.4
 # Regen
 var regen_accumulator: float = 0.0
 
-# Sprite sheet references
+# Command system
+var command_position: Vector2 = Vector2.ZERO
+var has_active_command: bool = false
+
+# Extraction
+var extraction_range: float = 100.0
+
+# Sprites
 var sprites: Dictionary = {}
 var current_anim: String = "idle"
 
@@ -74,14 +83,23 @@ func _set_animation(anim_name: String) -> void:
 		sprite.hframes = 6
 		current_anim = anim_name
 
+func _unhandled_input(event: InputEvent) -> void:
+	if Game.is_game_over or Game.boss_killed:
+		return
+	if event is InputEventMouseButton and event.pressed:
+		match event.button_index:
+			MOUSE_BUTTON_LEFT:
+				_try_shoot()
+			MOUSE_BUTTON_RIGHT:
+				_command_thralls()
+
 func _physics_process(delta: float) -> void:
 	if Game.is_game_over:
 		return
 
-	# Invincibility frames countdown
+	# Invincibility frames
 	if iframes_timer > 0.0:
 		iframes_timer -= delta
-		# Flicker effect during iframes
 		sprite.visible = int(iframes_timer * 20.0) % 2 == 0
 		if iframes_timer <= 0.0:
 			sprite.visible = true
@@ -100,13 +118,20 @@ func _physics_process(delta: float) -> void:
 	input.x = Input.get_axis("move_left", "move_right")
 	input.y = Input.get_axis("move_up", "move_down")
 
-	# Dash input
+	# Dash
 	dash_cooldown_timer -= delta
 	if Input.is_action_just_pressed("dash") and dash_cooldown_timer <= 0.0 and not is_dashing:
 		var dash_dir := input.normalized() if input.length() > 0.1 else _get_facing_vector()
 		_start_dash(dash_dir)
 
-	# Dash logic
+	# Recall thralls
+	if Input.is_action_just_pressed("recall"):
+		_recall_thralls()
+
+	# Bolt cooldown
+	bolt_timer -= delta
+
+	# Dash movement
 	if is_dashing:
 		dash_timer -= delta
 		if dash_timer <= 0.0:
@@ -118,21 +143,23 @@ func _physics_process(delta: float) -> void:
 			sprite.frame = int(Time.get_ticks_msec() / 100) % 6
 			return
 
-	# Normal movement with upgrades
+	# Normal movement
 	knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
 	var effective_speed := move_speed * Game.upgrade_speed_mult
 	velocity = input.normalized() * effective_speed + knockback_velocity
 	move_and_slide()
 
-	# Update facing direction
+	# Face toward mouse cursor
+	var mouse_dir := (get_global_mouse_position() - global_position).normalized()
+	facing_right = mouse_dir.x >= 0
+	if abs(mouse_dir.x) > abs(mouse_dir.y):
+		facing = "side"
+	elif mouse_dir.y > 0:
+		facing = "down"
+	else:
+		facing = "up"
+
 	if input.length() > 0.1:
-		if abs(input.x) > abs(input.y):
-			facing = "side"
-			facing_right = input.x > 0
-		elif input.y > 0:
-			facing = "down"
-		else:
-			facing = "up"
 		_set_animation("run")
 	else:
 		_set_animation("idle")
@@ -140,13 +167,7 @@ func _physics_process(delta: float) -> void:
 	sprite.flip_h = not facing_right
 	sprite.frame = int(Time.get_ticks_msec() / 100) % 6
 
-	# Auto-attack with upgrade cooldown
-	attack_timer -= delta
-	var effective_cooldown := attack_cooldown * max(Game.upgrade_cooldown_mult, 0.2)
-	if attack_timer <= 0.0:
-		if try_attack():
-			_set_animation("attack")
-		attack_timer = effective_cooldown
+	queue_redraw()
 
 func _get_facing_vector() -> Vector2:
 	match facing:
@@ -157,6 +178,58 @@ func _get_facing_vector() -> Vector2:
 		"side":
 			return Vector2.RIGHT if facing_right else Vector2.LEFT
 	return Vector2.DOWN
+
+# --- Soul Bolt ---
+
+func _try_shoot() -> void:
+	if bolt_timer > 0.0 or is_dashing:
+		return
+	bolt_timer = bolt_cooldown * max(Game.upgrade_cooldown_mult, 0.2)
+
+	var dir := (get_global_mouse_position() - global_position).normalized()
+	var proj := projectile_scene.instantiate()
+	proj.global_position = global_position
+	proj.setup(dir, bolt_damage * Game.upgrade_attack_mult, "enemies")
+	get_tree().current_scene.add_child(proj)
+	Audio.play_shoot()
+	_set_animation("attack")
+
+# --- Thrall Commands ---
+
+func _command_thralls() -> void:
+	var world_pos := get_global_mouse_position()
+	command_position = world_pos
+	has_active_command = true
+
+	# Check if clicking on an enemy or rift
+	var target_entity: Node2D = null
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if not node.get("is_dying") and world_pos.distance_to(node.global_position) < 25.0:
+			target_entity = node
+			break
+	if target_entity == null:
+		for node in get_tree().get_nodes_in_group("rifts"):
+			if world_pos.distance_to(node.global_position) < 35.0:
+				target_entity = node
+				break
+
+	for thrall in get_tree().get_nodes_in_group("thralls"):
+		thrall.command_to(world_pos, target_entity)
+
+	# Spawn command marker
+	var marker := Node2D.new()
+	marker.set_script(preload("res://scripts/command_marker.gd"))
+	marker.global_position = world_pos
+	get_tree().current_scene.add_child(marker)
+	Audio.play_hit()
+
+func _recall_thralls() -> void:
+	has_active_command = false
+	for thrall in get_tree().get_nodes_in_group("thralls"):
+		thrall.recall()
+	Audio.play_phase_change()
+
+# --- Dash ---
 
 func _start_dash(dir: Vector2) -> void:
 	is_dashing = true
@@ -169,7 +242,6 @@ func _start_dash(dir: Vector2) -> void:
 
 func _end_dash() -> void:
 	is_dashing = false
-	# Keep invincible if iframes are still active
 	if iframes_timer <= 0.0:
 		is_invincible = false
 	sprite.modulate = Color.WHITE
@@ -188,60 +260,13 @@ func _spawn_afterimage() -> void:
 	tween.tween_property(ghost, "modulate:a", 0.0, 0.2)
 	tween.tween_callback(ghost.queue_free)
 
-func try_attack() -> bool:
-	var closest_enemy: Node2D = null
-	var closest_dist: float = attack_range
+# --- Extraction (proximity-based) ---
 
-	for enemy in get_tree().get_nodes_in_group("enemies"):
-		if enemy.has_method("take_damage") and not enemy.get("is_dying"):
-			var dist := global_position.distance_to(enemy.global_position)
-			if dist < closest_dist:
-				closest_dist = dist
-				closest_enemy = enemy
-
-	if closest_enemy:
-		var dmg := attack_damage * Game.upgrade_attack_mult
-		closest_enemy.take_damage(dmg)
-		Game.spawn_damage_number(dmg, closest_enemy.global_position, Color(1.0, 1.0, 0.4))
-		Audio.play_hit()
-
-		# Attack lunge — small push toward target for game feel
-		var lunge_dir := global_position.direction_to(closest_enemy.global_position)
-		knockback_velocity = lunge_dir * 60.0
-		return true
-	return false
-
-func take_damage(amount: float, from_pos: Vector2 = Vector2.ZERO) -> void:
-	if is_invincible or Game.boss_killed:
+func try_extract_nearby(enemy: Node2D, chance: float) -> void:
+	var dist := global_position.distance_to(enemy.global_position)
+	var effective_range := extraction_range + Game.upgrade_extraction_bonus * 100.0
+	if dist > effective_range:
 		return
-
-	current_health -= amount
-	current_health = max(current_health, 0.0)
-	health_changed.emit(current_health, max_health)
-
-	# Start invincibility frames
-	is_invincible = true
-	iframes_timer = IFRAMES_DURATION
-
-	if from_pos != Vector2.ZERO:
-		knockback_velocity = (global_position - from_pos).normalized() * 250.0
-
-	sprite.modulate = Color(3, 3, 3)
-	var tween := create_tween()
-	tween.tween_property(sprite, "modulate", Color.WHITE, 0.15)
-
-	Game.request_shake(4.0)
-	Game.spawn_damage_number(amount, global_position, Color(1.0, 0.3, 0.3))
-
-	if current_health <= 0.0:
-		Game.trigger_game_over()
-
-func heal(amount: float) -> void:
-	current_health = min(current_health + amount, max_health)
-	health_changed.emit(current_health, max_health)
-	Game.spawn_damage_number(amount, global_position + Vector2(0, -10), Color(0.3, 1.0, 0.3))
-
-func try_extract(enemy: Node2D, chance: float) -> void:
 	var effective_chance := chance + Game.upgrade_extraction_bonus
 	if randf() <= effective_chance:
 		extract(enemy)
@@ -269,3 +294,45 @@ func extract(enemy: Node2D) -> void:
 
 	Audio.play_arise()
 	Game.on_thrall_gained()
+
+# --- Damage ---
+
+func take_damage(amount: float, from_pos: Vector2 = Vector2.ZERO) -> void:
+	if is_invincible or Game.boss_killed:
+		return
+
+	current_health -= amount
+	current_health = max(current_health, 0.0)
+	health_changed.emit(current_health, max_health)
+
+	is_invincible = true
+	iframes_timer = IFRAMES_DURATION
+
+	if from_pos != Vector2.ZERO:
+		knockback_velocity = (global_position - from_pos).normalized() * 250.0
+
+	sprite.modulate = Color(3, 3, 3)
+	var tween := create_tween()
+	tween.tween_property(sprite, "modulate", Color.WHITE, 0.15)
+
+	Game.request_shake(4.0)
+	Game.spawn_damage_number(amount, global_position, Color(1.0, 0.3, 0.3))
+
+	if current_health <= 0.0:
+		Game.trigger_game_over()
+
+func heal(amount: float) -> void:
+	current_health = min(current_health + amount, max_health)
+	health_changed.emit(current_health, max_health)
+	Game.spawn_damage_number(amount, global_position + Vector2(0, -10), Color(0.3, 1.0, 0.3))
+
+# --- Draw ---
+
+func _draw() -> void:
+	# Subtle extraction range indicator
+	draw_arc(Vector2.ZERO, extraction_range, 0, TAU, 32, Color(0.2, 0.6, 0.8, 0.08), 1.0)
+
+	# Command line to target
+	if has_active_command:
+		var local_cmd := command_position - global_position
+		draw_dashed_line(Vector2.ZERO, local_cmd, Color(0.4, 0.8, 1.0, 0.2), 1.0, 6.0)

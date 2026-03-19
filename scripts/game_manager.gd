@@ -1,6 +1,7 @@
 extends Node
 
 ## Global game state. Autoloaded as "Game".
+## Rift-based progression: close 5 rifts to win.
 
 enum GameProcess {
 	INITIALIZING,
@@ -14,8 +15,15 @@ enum GameProcess {
 var thrall_count: int = 0
 var kill_count: int = 0
 var is_game_over: bool = false
-var current_process: GameProcess = GameProcess.INITIALIZING
 var boss_killed: bool = false
+var current_process: GameProcess = GameProcess.INITIALIZING
+
+# Rift tracking
+var rifts_closed: int = 0
+var total_rifts: int = 5
+
+# Guaranteed extractions for early game
+var guaranteed_extractions: int = 2
 
 signal thrall_gained
 signal enemy_killed
@@ -24,6 +32,7 @@ signal victory
 signal process_changed(new_process: GameProcess)
 signal shake_camera(intensity: float)
 signal upgrade_available
+signal rift_closed_signal(rift_number: int)
 
 # Hit freeze
 var _freeze_timer: float = 0.0
@@ -39,18 +48,13 @@ var upgrade_regen: float = 0.0
 var upgrade_cooldown_mult: float = 1.0
 var upgrade_thrall_speed_mult: float = 1.0
 
-# Upgrade tracking
-var upgrades_offered_at: Array[int] = []  # kill counts where upgrades were offered
-const UPGRADE_INTERVAL: int = 5  # offer upgrade every N kills
-
-# Damage number helper
 var DamageNumber: GDScript = preload("res://scripts/damage_number.gd")
 
-# All possible upgrades
+# Upgrades — tailored for necromancer + rift gameplay
 var ALL_UPGRADES: Array[Dictionary] = [
-	{"name": "Sharp Blade", "desc": "Attack damage +25%", "icon": "sword",
+	{"name": "Soul Pierce", "desc": "Soul bolt damage +25%", "icon": "bolt",
 	 "apply": func(): upgrade_attack_mult += 0.25},
-	{"name": "Swift Strikes", "desc": "Attack speed +20%", "icon": "speed",
+	{"name": "Rapid Fire", "desc": "Attack speed +20%", "icon": "speed",
 	 "apply": func(): upgrade_cooldown_mult -= 0.15},
 	{"name": "Fleet Foot", "desc": "Move speed +20%", "icon": "boot",
 	 "apply": func(): upgrade_speed_mult += 0.2},
@@ -58,14 +62,14 @@ var ALL_UPGRADES: Array[Dictionary] = [
 	 "apply": func():
 		upgrade_health_bonus += 30.0
 		_apply_health_upgrade()},
-	{"name": "Soul Grip", "desc": "Extraction chance +15%", "icon": "hand",
+	{"name": "Soul Reach", "desc": "Extraction range +50%", "icon": "hand",
 	 "apply": func(): upgrade_extraction_bonus += 0.15},
 	{"name": "Dark Pact", "desc": "Thrall damage +25%", "icon": "skull",
 	 "apply": func(): upgrade_thrall_damage_mult += 0.25},
 	{"name": "Life Siphon", "desc": "Regenerate 2 HP/sec", "icon": "heart",
 	 "apply": func(): upgrade_regen += 2.0},
-	{"name": "Rallying Cry", "desc": "Thrall speed +20%", "icon": "horn",
-	 "apply": func(): upgrade_thrall_speed_mult += 0.2},
+	{"name": "Rallying Cry", "desc": "Thrall speed +25%", "icon": "horn",
+	 "apply": func(): upgrade_thrall_speed_mult += 0.25},
 ]
 
 func _ready() -> void:
@@ -80,21 +84,35 @@ func _process(delta: float) -> void:
 func on_enemy_killed() -> void:
 	kill_count += 1
 	enemy_killed.emit()
-	_update_process()
-	_check_upgrade()
 
 func on_boss_killed() -> void:
 	boss_killed = true
-	_set_process(GameProcess.VICTORY)
-	Audio.play_victory()
-	victory.emit()
+	# Boss death is significant but doesn't trigger victory
+	# Victory comes from closing the final rift
+	Audio.play_boss_enrage()
+
+func on_boss_spawned() -> void:
+	_set_process(GameProcess.BOSS_FIGHT)
 
 func on_thrall_gained() -> void:
 	thrall_count += 1
 	thrall_gained.emit()
 
-func on_boss_spawned() -> void:
-	_set_process(GameProcess.BOSS_FIGHT)
+func on_rift_closed(rift_number: int) -> void:
+	rifts_closed += 1
+	rift_closed_signal.emit(rift_number)
+
+	if rifts_closed >= total_rifts:
+		_set_process(GameProcess.VICTORY)
+		Audio.play_victory()
+		victory.emit()
+	else:
+		# Upgrade reward for closing a rift
+		upgrade_available.emit()
+		Audio.play_upgrade()
+
+		if rifts_closed >= 3:
+			_set_process(GameProcess.MID_GAME)
 
 func trigger_game_over() -> void:
 	is_game_over = true
@@ -107,9 +125,10 @@ func restart() -> void:
 	boss_killed = false
 	thrall_count = 0
 	kill_count = 0
+	rifts_closed = 0
+	guaranteed_extractions = 2
 	current_process = GameProcess.EARLY_GAME
 	Engine.time_scale = 1.0
-	# Reset upgrades
 	upgrade_attack_mult = 1.0
 	upgrade_speed_mult = 1.0
 	upgrade_health_bonus = 0.0
@@ -118,25 +137,22 @@ func restart() -> void:
 	upgrade_regen = 0.0
 	upgrade_cooldown_mult = 1.0
 	upgrade_thrall_speed_mult = 1.0
-	upgrades_offered_at.clear()
 	get_tree().paused = false
 	get_tree().reload_current_scene()
 
 func get_process_name() -> String:
 	match current_process:
-		GameProcess.INITIALIZING:
-			return "Initializing"
 		GameProcess.EARLY_GAME:
-			return "Early Game"
+			return "The Rift Opens"
 		GameProcess.MID_GAME:
-			return "Mid Game"
+			return "Rifts Intensify"
 		GameProcess.BOSS_FIGHT:
-			return "Boss Fight"
+			return "Guardian Awakens"
 		GameProcess.VICTORY:
-			return "Victory"
+			return "Rifts Sealed"
 		GameProcess.GAME_OVER:
-			return "Game Over"
-	return "Unknown"
+			return "Fallen"
+	return ""
 
 func request_shake(intensity: float) -> void:
 	shake_camera.emit(intensity)
@@ -171,22 +187,6 @@ func _apply_health_upgrade() -> void:
 		p.max_health += 30.0
 		p.current_health += 30.0
 		p.health_changed.emit(p.current_health, p.max_health)
-
-func _check_upgrade() -> void:
-	if is_game_over or boss_killed:
-		return
-	var milestone := (kill_count / UPGRADE_INTERVAL) * UPGRADE_INTERVAL
-	if milestone > 0 and milestone == kill_count and not upgrades_offered_at.has(milestone):
-		upgrades_offered_at.append(milestone)
-		upgrade_available.emit()
-
-func _update_process() -> void:
-	if is_game_over or boss_killed:
-		return
-	if current_process == GameProcess.BOSS_FIGHT:
-		return
-	if kill_count >= 10:
-		_set_process(GameProcess.MID_GAME)
 
 func _set_process(new_process: GameProcess) -> void:
 	if current_process == new_process:

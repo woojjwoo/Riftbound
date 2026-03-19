@@ -11,8 +11,8 @@ offset_left = 20.0
 offset_top = 20.0
 offset_right = 220.0
 offset_bottom = 40.0
-max_value = 100.0
-value = 100.0
+max_value = 120.0
+value = 120.0
 show_percentage = false
 
 [node name="ThrallLabel" type="Label" parent="."]
@@ -22,26 +22,36 @@ offset_right = 220.0
 offset_bottom = 70.0
 text = "Thralls: 0"
 
-[node name="KillLabel" type="Label" parent="."]
+[node name="RiftLabel" type="Label" parent="."]
 offset_left = 20.0
 offset_top = 75.0
 offset_right = 220.0
 offset_bottom = 95.0
-text = "Kills: 0"
+text = "Rifts: 0 / 5"
 
 [node name="ProcessLabel" type="Label" parent="."]
 offset_left = 20.0
 offset_top = 100.0
-offset_right = 220.0
+offset_right = 300.0
 offset_bottom = 120.0
-text = "Phase: Early Game"
+text = "The Rift Opens"
 
-[node name="DashIndicator" type="Label" parent="."]
+[node name="CommandHint" type="Label" parent="."]
 offset_left = 20.0
-offset_top = 130.0
-offset_right = 220.0
-offset_bottom = 150.0
-text = "DASH [SPACE]"
+offset_top = 690.0
+offset_right = 500.0
+offset_bottom = 710.0
+text = "Kill enemies nearby to extract thralls"
+
+[node name="ControlsLabel" type="Label" parent="."]
+offset_left = 440.0
+offset_top = 20.0
+offset_right = 840.0
+offset_bottom = 100.0
+horizontal_alignment = 1
+text = "WASD: Move   |   LMB: Soul Bolt
+RMB: Command Thralls   |   R: Recall
+SPACE: Dash   |   Stay near kills to extract"
 
 [node name="AriseLabel" type="Label" parent="."]
 offset_left = 490.0
@@ -58,7 +68,7 @@ visible = false
 offset_left = 340.0
 offset_top = 200.0
 offset_right = 940.0
-offset_bottom = 500.0
+offset_bottom = 520.0
 
 [node name="TitleLabel" type="Label" parent="GameOverPanel"]
 offset_left = 200.0
@@ -66,22 +76,21 @@ offset_top = 30.0
 offset_right = 400.0
 offset_bottom = 60.0
 horizontal_alignment = 1
-text = "YOU HAVE FALLEN"
+text = "THE NECROMANCER FALLS"
 
 [node name="StatsLabel" type="Label" parent="GameOverPanel"]
-offset_left = 150.0
+offset_left = 100.0
 offset_top = 80.0
-offset_right = 450.0
-offset_bottom = 160.0
+offset_right = 500.0
+offset_bottom = 180.0
 horizontal_alignment = 1
-text = "Enemies Slain: 0
-Thralls Bound: 0"
+text = "Stats"
 
 [node name="RestartButton" type="Button" parent="GameOverPanel"]
 offset_left = 220.0
-offset_top = 200.0
+offset_top = 220.0
 offset_right = 380.0
-offset_bottom = 240.0
+offset_bottom = 260.0
 text = "Rise Again"
 
 [node name="BossHealthBar" type="ProgressBar" parent="."]
@@ -117,12 +126,12 @@ offset_right = 1040.0
 offset_bottom = 520.0
 
 [node name="UpgradeTitle" type="Label" parent="UpgradePanel"]
-offset_left = 250.0
+offset_left = 150.0
 offset_top = 20.0
-offset_right = 550.0
+offset_right = 650.0
 offset_bottom = 50.0
 horizontal_alignment = 1
-text = "CHOOSE AN UPGRADE"
+text = "RIFT SEALED — CHOOSE AN UPGRADE"
 
 [node name="UpgradeBtn1" type="Button" parent="UpgradePanel"]
 offset_left = 30.0
@@ -153,12 +162,12 @@ offset_right = 940.0
 offset_bottom = 520.0
 
 [node name="VictoryTitle" type="Label" parent="VictoryPanel"]
-offset_left = 200.0
+offset_left = 150.0
 offset_top = 30.0
-offset_right = 400.0
+offset_right = 450.0
 offset_bottom = 60.0
 horizontal_alignment = 1
-text = "VICTORY!"
+text = "ALL RIFTS SEALED!"
 
 [node name="VictoryStats" type="Label" parent="VictoryPanel"]
 offset_left = 150.0
@@ -166,8 +175,7 @@ offset_top = 80.0
 offset_right = 450.0
 offset_bottom = 180.0
 horizontal_alignment = 1
-text = "Enemies Slain: 0
-Thralls Bound: 0"
+text = "Stats"
 
 [node name="VictoryRestart" type="Button" parent="VictoryPanel"]
 offset_left = 220.0

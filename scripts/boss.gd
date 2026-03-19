@@ -290,6 +290,7 @@ func die() -> void:
 
 func _on_death_complete() -> void:
 	Game.on_boss_killed()
+	# Victory is triggered by closing the final rift, not by killing the boss
 	queue_free()
 
 func get_enemy_type() -> String:

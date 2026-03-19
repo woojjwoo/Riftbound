@@ -194,13 +194,16 @@ func die() -> void:
 	if randf() < 0.2:
 		_spawn_health_orb()
 
+	# Proximity-based extraction — must be near player
 	var players := get_tree().get_nodes_in_group("player")
 	if players.size() > 0:
 		var p := players[0]
-		if extraction_chance >= 1.0:
+		if Game.guaranteed_extractions > 0:
+			# First kills always extract to bootstrap thrall army
 			p.force_extract(self)
+			Game.guaranteed_extractions -= 1
 		else:
-			p.try_extract(self, extraction_chance)
+			p.try_extract_nearby(self, extraction_chance)
 
 	var tween := create_tween()
 	tween.set_parallel(true)

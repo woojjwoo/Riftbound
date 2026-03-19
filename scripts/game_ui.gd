@@ -1,10 +1,10 @@
 extends CanvasLayer
 
-## Game HUD with health bar, boss bar, upgrades, phase flash, victory screen.
+## Game HUD: health, rift progress, controls overlay, upgrades, victory/death.
 
 @onready var health_bar: ProgressBar = $HealthBar
 @onready var thrall_label: Label = $ThrallLabel
-@onready var kill_label: Label = $KillLabel
+@onready var rift_label: Label = $RiftLabel
 @onready var process_label: Label = $ProcessLabel
 @onready var game_over_panel: Panel = $GameOverPanel
 @onready var game_over_stats: Label = $GameOverPanel/StatsLabel
@@ -21,14 +21,16 @@ extends CanvasLayer
 @onready var victory_panel: Panel = $VictoryPanel
 @onready var victory_stats: Label = $VictoryPanel/VictoryStats
 @onready var victory_restart: Button = $VictoryPanel/VictoryRestart
-@onready var dash_indicator: Label = $DashIndicator
+@onready var controls_label: Label = $ControlsLabel
+@onready var command_hint: Label = $CommandHint
 
 var player: Node2D = null
 var arise_timer: float = 0.0
-var health_display: float = 100.0
+var health_display: float = 120.0
 var boss_health_display: float = 0.0
 
 var current_upgrades: Array[Dictionary] = []
+var controls_timer: float = 8.0  # show controls for 8 seconds
 
 func _ready() -> void:
 	game_over_panel.visible = false
@@ -38,6 +40,8 @@ func _ready() -> void:
 	upgrade_panel.visible = false
 	victory_panel.visible = false
 	phase_flash.color = Color(1, 1, 1, 0)
+	controls_label.visible = true
+	controls_label.modulate.a = 1.0
 
 	restart_button.pressed.connect(_on_restart)
 	victory_restart.pressed.connect(_on_restart)
@@ -62,8 +66,8 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	thrall_label.text = "Thralls: %d" % Game.thrall_count
-	kill_label.text = "Kills: %d" % Game.kill_count
-	process_label.text = "Phase: %s" % Game.get_process_name()
+	rift_label.text = "Rifts: %d / %d" % [Game.rifts_closed, Game.total_rifts]
+	process_label.text = Game.get_process_name()
 
 	# Smooth health bar
 	if player:
@@ -81,21 +85,27 @@ func _process(delta: float) -> void:
 	# Boss health bar
 	_update_boss_health_bar()
 
-	# Dash cooldown indicator
-	if player:
-		if player.dash_cooldown_timer > 0:
-			dash_indicator.text = "DASH [%.1fs]" % player.dash_cooldown_timer
-			dash_indicator.modulate = Color(0.5, 0.5, 0.5)
-		else:
-			dash_indicator.text = "DASH [SPACE]"
-			dash_indicator.modulate = Color(1.0, 1.0, 1.0)
+	# Controls overlay fade
+	if controls_timer > 0.0:
+		controls_timer -= delta
+		if controls_timer <= 2.0:
+			controls_label.modulate.a = controls_timer / 2.0
+		if controls_timer <= 0.0:
+			controls_label.visible = false
 
-func _on_health_changed(current: float, max_hp: float) -> void:
-	pass  # Handled by smooth lerp in _process
+	# Command hint — show thrall count context
+	if Game.thrall_count == 0:
+		command_hint.text = "Kill enemies nearby to extract thralls"
+	else:
+		command_hint.text = "RMB: Command Thralls  |  R: Recall"
+
+func _on_health_changed(_current: float, _max_hp: float) -> void:
+	pass
 
 func _on_game_over() -> void:
 	game_over_panel.visible = true
-	game_over_stats.text = "Enemies Slain: %d\nThralls Bound: %d" % [Game.kill_count, Game.thrall_count]
+	game_over_stats.text = "Rifts Sealed: %d / %d\nEnemies Slain: %d\nThralls Bound: %d" % [
+		Game.rifts_closed, Game.total_rifts, Game.kill_count, Game.thrall_count]
 	game_over_panel.modulate.a = 0.0
 	var tween := create_tween()
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
@@ -117,7 +127,7 @@ func _on_process_changed(new_process: Game.GameProcess) -> void:
 	var flash_color: Color
 	match new_process:
 		Game.GameProcess.MID_GAME:
-			flash_color = Color(1.0, 0.8, 0.2, 0.4)
+			flash_color = Color(0.6, 0.3, 0.9, 0.4)
 			Audio.play_phase_change()
 		Game.GameProcess.BOSS_FIGHT:
 			flash_color = Color(1.0, 0.2, 0.2, 0.5)
@@ -144,7 +154,7 @@ func _on_process_changed(new_process: Game.GameProcess) -> void:
 
 func _on_upgrade_available() -> void:
 	current_upgrades = Game.get_random_upgrades(3)
-
+	upgrade_title.text = "RIFT SEALED — CHOOSE AN UPGRADE"
 	upgrade_btn1.text = "%s\n%s" % [current_upgrades[0]["name"], current_upgrades[0]["desc"]]
 	upgrade_btn2.text = "%s\n%s" % [current_upgrades[1]["name"], current_upgrades[1]["desc"]]
 	upgrade_btn3.text = "%s\n%s" % [current_upgrades[2]["name"], current_upgrades[2]["desc"]]
@@ -157,8 +167,6 @@ func _on_upgrade_available() -> void:
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.tween_property(upgrade_panel, "modulate:a", 1.0, 0.3)
 
-	Audio.play_upgrade()
-
 func _on_upgrade_selected(index: int) -> void:
 	if index < current_upgrades.size():
 		current_upgrades[index]["apply"].call()
@@ -166,14 +174,14 @@ func _on_upgrade_selected(index: int) -> void:
 	get_tree().paused = false
 
 func _on_victory() -> void:
-	# Brief celebration before showing panel
 	var delay_timer := get_tree().create_timer(1.5)
 	delay_timer.timeout.connect(_show_victory_panel)
 
 func _show_victory_panel() -> void:
 	get_tree().paused = true
 	victory_panel.visible = true
-	victory_stats.text = "Enemies Slain: %d\nThralls Bound: %d\nThe Rift is sealed!" % [Game.kill_count, Game.thrall_count]
+	victory_stats.text = "All Rifts Sealed!\nEnemies Slain: %d\nThralls Bound: %d" % [
+		Game.kill_count, Game.thrall_count]
 	victory_panel.modulate.a = 0.0
 	var tween := create_tween()
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
