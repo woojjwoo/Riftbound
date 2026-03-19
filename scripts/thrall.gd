@@ -1,7 +1,10 @@
 extends CharacterBody2D
 
 ## Thrall (bound shadow). Follows the player, attacks enemies automatically.
-## Uses skeleton sprites — tinted cyan to show they're yours.
+## Special abilities by type:
+##   Melee: lifesteal — heals player on hit
+##   Ranged: AoE shot — every 3rd attack damages in area
+##   Tank: taunt — periodically pulls enemy aggro
 
 var thrall_type: String = "melee"
 var leader: Node2D = null
@@ -15,9 +18,14 @@ var attack_cooldown: float = 0.8
 var attack_timer: float = 0.0
 var current_target: Node2D = null
 
+# Ability tracking
+var attack_count: int = 0
+var ability_timer: float = 0.0
+var taunt_cooldown: float = 5.0
+var taunt_radius: float = 120.0
+
 @export var projectile_scene: PackedScene
 
-# Sprite sheets loaded based on type
 var sprite_idle: Texture2D
 var sprite_run: Texture2D
 
@@ -53,7 +61,6 @@ func setup(player: Node2D, type: String) -> void:
 			sprite_run = load("res://sprites/skeleton_warrior/Run-Sheet.png")
 
 func _ready() -> void:
-	# Tint thralls with a cyan glow to distinguish from enemies
 	sprite.modulate = Color(0.4, 1.0, 0.9, 1.0)
 	if sprite_idle:
 		sprite.texture = sprite_idle
@@ -64,6 +71,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	attack_timer -= delta
+	ability_timer -= delta
 	find_target()
 
 	if current_target and attack_timer <= 0.0:
@@ -72,7 +80,13 @@ func _physics_process(delta: float) -> void:
 			attack()
 			attack_timer = attack_cooldown
 
-	# Movement
+	# Tank taunt ability
+	if thrall_type == "tank" and ability_timer <= 0.0:
+		_taunt()
+		ability_timer = taunt_cooldown
+
+	# Movement with upgrade multiplier
+	var effective_speed := follow_speed * Game.upgrade_thrall_speed_mult
 	var move_dir := Vector2.ZERO
 
 	if current_target:
@@ -90,10 +104,9 @@ func _physics_process(delta: float) -> void:
 		if dist > follow_distance:
 			move_dir = global_position.direction_to(leader.global_position)
 
-	velocity = move_dir * follow_speed
+	velocity = move_dir * effective_speed
 	move_and_slide()
 
-	# Animate
 	if move_dir.length() > 0.1:
 		sprite.flip_h = move_dir.x < 0
 	if velocity.length() > 10 and sprite_run:
@@ -102,6 +115,8 @@ func _physics_process(delta: float) -> void:
 		sprite.texture = sprite_idle
 	sprite.hframes = 6
 	sprite.frame = int(Time.get_ticks_msec() / 100) % 6
+
+	queue_redraw()
 
 func find_target() -> void:
 	current_target = null
@@ -117,13 +132,63 @@ func attack() -> void:
 	if current_target == null:
 		return
 
+	var effective_damage := attack_damage * Game.upgrade_thrall_damage_mult
+	attack_count += 1
+
 	if thrall_type == "ranged" and projectile_scene:
 		var dir := global_position.direction_to(current_target.global_position)
 		var proj := projectile_scene.instantiate()
 		proj.global_position = global_position
-		proj.setup(dir, attack_damage, "enemies")
+		proj.setup(dir, effective_damage, "enemies")
 		get_tree().current_scene.add_child(proj)
+
+		# AoE every 3rd shot
+		if attack_count % 3 == 0:
+			_aoe_attack(effective_damage)
 	else:
 		if current_target.has_method("take_damage"):
-			current_target.take_damage(attack_damage)
-			Game.spawn_damage_number(attack_damage, current_target.global_position, Color(0.4, 1.0, 0.9))
+			current_target.take_damage(effective_damage)
+			Game.spawn_damage_number(effective_damage, current_target.global_position, Color(0.4, 1.0, 0.9))
+
+			# Melee lifesteal
+			if thrall_type == "melee" and leader and leader.has_method("heal"):
+				var heal_amount := effective_damage * 0.15
+				leader.heal(heal_amount)
+				Game.spawn_damage_number(heal_amount, leader.global_position, Color(0.3, 1.0, 0.3))
+
+func _aoe_attack(damage: float) -> void:
+	var aoe_range := 60.0
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if enemy == current_target:
+			continue
+		if global_position.distance_to(enemy.global_position) < aoe_range:
+			if enemy.has_method("take_damage"):
+				enemy.take_damage(damage * 0.5)
+				Game.spawn_damage_number(damage * 0.5, enemy.global_position, Color(0.6, 0.4, 1.0))
+	# AoE visual
+	var vfx := Node2D.new()
+	vfx.global_position = global_position
+	vfx.set_script(preload("res://scripts/explosion_vfx.gd"))
+	vfx.set("max_radius", aoe_range)
+	get_tree().current_scene.add_child(vfx)
+
+func _taunt() -> void:
+	# Pull nearby enemies toward this thrall
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if global_position.distance_to(enemy.global_position) < taunt_radius:
+			if enemy.has_method("take_damage") and not enemy.is_dying:
+				# Brief pull via knockback
+				var pull_dir := enemy.global_position.direction_to(global_position)
+				enemy.knockback_velocity = pull_dir * 80.0
+	# Taunt visual - pulse
+	sprite.modulate = Color(1.0, 0.8, 0.3)
+	var tween := create_tween()
+	tween.tween_property(sprite, "modulate", Color(0.4, 1.0, 0.9), 0.3)
+	# Draw taunt ring
+	queue_redraw()
+
+func _draw() -> void:
+	# Tank: show taunt range indicator when ability is about to activate
+	if thrall_type == "tank" and ability_timer <= 1.0 and ability_timer > 0.0:
+		var alpha := 0.15 * (1.0 - ability_timer)
+		draw_arc(Vector2.ZERO, taunt_radius / scale.x, 0, TAU, 24, Color(1.0, 0.8, 0.3, alpha), 1.5)

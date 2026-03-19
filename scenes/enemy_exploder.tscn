@@ -1,0 +1,30 @@
+[gd_scene load_steps=5 format=3 uid="uid://enemy_exploder001"]
+
+[ext_resource type="Script" path="res://scripts/enemy.gd" id="1"]
+[ext_resource type="Texture2D" path="res://sprites/orc/Idle-Sheet.png" id="2"]
+[ext_resource type="Texture2D" path="res://sprites/orc/Run-Sheet.png" id="3"]
+[ext_resource type="Texture2D" path="res://sprites/orc/Death-Sheet.png" id="4"]
+
+[sub_resource type="CircleShape2D" id="1"]
+radius = 10.0
+
+[node name="EnemyExploder" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("1")
+enemy_type = "exploder"
+move_speed = 130.0
+max_health = 20.0
+contact_damage = 8.0
+extraction_chance = 0.15
+sprite_idle = ExtResource("2")
+sprite_run = ExtResource("3")
+sprite_death = ExtResource("4")
+
+[node name="Sprite" type="Sprite2D" parent="."]
+texture = ExtResource("2")
+hframes = 6
+texture_filter = 0
+
+[node name="CollisionShape" type="CollisionShape2D" parent="."]
+shape = SubResource("1")

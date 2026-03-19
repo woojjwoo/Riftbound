@@ -1,7 +1,6 @@
 extends CharacterBody2D
 
-## Player controller: WASD movement + auto-attack nearest enemy.
-## Uses directional sprite sheets (Down, Side, Up) with 6 frames each.
+## Player controller: WASD movement, auto-attack, dash ability.
 
 @export var move_speed: float = 200.0
 @export var attack_damage: float = 20.0
@@ -17,20 +16,34 @@ var current_health: float
 signal health_changed(current: float, max_hp: float)
 
 var attack_timer: float = 0.0
-var facing: String = "down"  # down, side, up
+var facing: String = "down"
 var facing_right: bool = true
 
 # Knockback
 var knockback_velocity: Vector2 = Vector2.ZERO
 
-# Sprite sheet references (loaded in _ready)
+# Dash
+var dash_speed: float = 600.0
+var dash_duration: float = 0.15
+var dash_cooldown: float = 1.2
+var dash_timer: float = 0.0
+var dash_cooldown_timer: float = 0.0
+var is_dashing: bool = false
+var dash_direction: Vector2 = Vector2.ZERO
+var is_invincible: bool = false
+
+# Regen
+var regen_accumulator: float = 0.0
+
+# Sprite sheet references
 var sprites: Dictionary = {}
 var current_anim: String = "idle"
 
 @onready var sprite: Sprite2D = $Sprite
 
 func _ready() -> void:
-	current_health = max_health
+	current_health = max_health + Game.upgrade_health_bonus
+	max_health += Game.upgrade_health_bonus
 	add_to_group("player")
 	_load_sprites()
 	_set_animation("idle")
@@ -60,14 +73,41 @@ func _physics_process(delta: float) -> void:
 	if Game.is_game_over:
 		return
 
-	# Movement
+	# Health regen
+	if Game.upgrade_regen > 0.0 and current_health < max_health:
+		regen_accumulator += Game.upgrade_regen * delta
+		if regen_accumulator >= 1.0:
+			var heal_amount := floorf(regen_accumulator)
+			regen_accumulator -= heal_amount
+			heal(heal_amount)
+
 	var input := Vector2.ZERO
 	input.x = Input.get_axis("move_left", "move_right")
 	input.y = Input.get_axis("move_up", "move_down")
 
-	# Apply knockback decay
+	# Dash input
+	dash_cooldown_timer -= delta
+	if Input.is_action_just_pressed("dash") and dash_cooldown_timer <= 0.0 and not is_dashing:
+		var dash_dir := input.normalized() if input.length() > 0.1 else _get_facing_vector()
+		_start_dash(dash_dir)
+
+	# Dash logic
+	if is_dashing:
+		dash_timer -= delta
+		if dash_timer <= 0.0:
+			_end_dash()
+		else:
+			velocity = dash_direction * dash_speed
+			move_and_slide()
+			# Dash afterimage
+			_spawn_afterimage()
+			sprite.frame = int(Time.get_ticks_msec() / 100) % 6
+			return
+
+	# Normal movement with upgrades
 	knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
-	velocity = input.normalized() * move_speed + knockback_velocity
+	var effective_speed := move_speed * Game.upgrade_speed_mult
+	velocity = input.normalized() * effective_speed + knockback_velocity
 	move_and_slide()
 
 	# Update facing direction
@@ -83,18 +123,56 @@ func _physics_process(delta: float) -> void:
 	else:
 		_set_animation("idle")
 
-	# Flip sprite for left/right
 	sprite.flip_h = not facing_right
-
-	# Animate frames
 	sprite.frame = int(Time.get_ticks_msec() / 100) % 6
 
-	# Auto-attack
+	# Auto-attack with upgrade cooldown
 	attack_timer -= delta
+	var effective_cooldown := attack_cooldown * max(Game.upgrade_cooldown_mult, 0.2)
 	if attack_timer <= 0.0:
 		if try_attack():
 			_set_animation("attack")
-		attack_timer = attack_cooldown
+		attack_timer = effective_cooldown
+
+func _get_facing_vector() -> Vector2:
+	match facing:
+		"down":
+			return Vector2.DOWN
+		"up":
+			return Vector2.UP
+		"side":
+			return Vector2.RIGHT if facing_right else Vector2.LEFT
+	return Vector2.DOWN
+
+func _start_dash(dir: Vector2) -> void:
+	is_dashing = true
+	is_invincible = true
+	dash_direction = dir
+	dash_timer = dash_duration
+	dash_cooldown_timer = dash_cooldown
+	# Dash visual
+	sprite.modulate = Color(1.5, 1.5, 2.0, 0.7)
+	Audio.play_dash()
+
+func _end_dash() -> void:
+	is_dashing = false
+	is_invincible = false
+	sprite.modulate = Color.WHITE
+
+func _spawn_afterimage() -> void:
+	# Spawn a fading ghost sprite
+	var ghost := Sprite2D.new()
+	ghost.texture = sprite.texture
+	ghost.hframes = sprite.hframes
+	ghost.frame = sprite.frame
+	ghost.flip_h = sprite.flip_h
+	ghost.global_position = global_position
+	ghost.modulate = Color(0.3, 0.5, 1.0, 0.5)
+	ghost.z_index = -1
+	get_tree().current_scene.add_child(ghost)
+	var tween := ghost.create_tween()
+	tween.tween_property(ghost, "modulate:a", 0.0, 0.2)
+	tween.tween_callback(ghost.queue_free)
 
 func try_attack() -> bool:
 	var closest_enemy: Node2D = null
@@ -107,29 +185,29 @@ func try_attack() -> bool:
 			closest_enemy = enemy
 
 	if closest_enemy and closest_enemy.has_method("take_damage"):
-		closest_enemy.take_damage(attack_damage)
-		Game.spawn_damage_number(attack_damage, closest_enemy.global_position, Color(1.0, 1.0, 0.4))
+		var dmg := attack_damage * Game.upgrade_attack_mult
+		closest_enemy.take_damage(dmg)
+		Game.spawn_damage_number(dmg, closest_enemy.global_position, Color(1.0, 1.0, 0.4))
+		Audio.play_hit()
 		return true
 	return false
 
 func take_damage(amount: float, from_pos: Vector2 = Vector2.ZERO) -> void:
+	if is_invincible:
+		return
+
 	current_health -= amount
 	current_health = max(current_health, 0.0)
 	health_changed.emit(current_health, max_health)
 
-	# Knockback away from damage source
 	if from_pos != Vector2.ZERO:
-		knockback_velocity = global_position.direction_to(global_position + (global_position - from_pos)) * 200.0
+		knockback_velocity = (global_position - from_pos).normalized() * 200.0
 
-	# Flash white
 	sprite.modulate = Color(3, 3, 3)
 	var tween := create_tween()
 	tween.tween_property(sprite, "modulate", Color.WHITE, 0.15)
 
-	# Screen shake
 	Game.request_shake(4.0)
-
-	# Damage number
 	Game.spawn_damage_number(amount, global_position, Color(1.0, 0.3, 0.3))
 
 	if current_health <= 0.0:
@@ -140,7 +218,8 @@ func heal(amount: float) -> void:
 	health_changed.emit(current_health, max_health)
 
 func try_extract(enemy: Node2D, chance: float) -> void:
-	if randf() <= chance:
+	var effective_chance := chance + Game.upgrade_extraction_bonus
+	if randf() <= effective_chance:
 		extract(enemy)
 
 func force_extract(enemy: Node2D) -> void:
@@ -164,4 +243,5 @@ func extract(enemy: Node2D) -> void:
 		thrall.setup(self, thrall_type)
 		get_tree().current_scene.add_child(thrall)
 
+	Audio.play_arise()
 	Game.on_thrall_gained()

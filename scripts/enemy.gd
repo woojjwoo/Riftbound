@@ -1,8 +1,10 @@
 extends CharacterBody2D
 
 ## Base enemy with animated sprite sheets.
+## Supports: melee, ranged, tank, flying, exploder types.
+## Any enemy can optionally have a shield.
 
-@export_enum("melee", "ranged", "tank") var enemy_type: String = "melee"
+@export_enum("melee", "ranged", "tank", "flying", "exploder") var enemy_type: String = "melee"
 @export var move_speed: float = 100.0
 @export var max_health: float = 40.0
 @export var contact_damage: float = 10.0
@@ -12,7 +14,6 @@ extends CharacterBody2D
 @export var attack_range: float = 150.0
 @export var ranged_cooldown: float = 2.0
 
-# Sprite paths — set per scene
 @export var sprite_idle: Texture2D
 @export var sprite_run: Texture2D
 @export var sprite_death: Texture2D
@@ -26,6 +27,19 @@ var is_dying: bool = false
 # Knockback
 var knockback_velocity: Vector2 = Vector2.ZERO
 
+# Shield
+var has_shield: bool = false
+var shield_hits: int = 0
+var shield_max_hits: int = 3
+
+# Flying
+var fly_time: float = 0.0
+var fly_amplitude: float = 20.0
+
+# Exploder
+var explode_radius: float = 80.0
+var explode_damage: float = 25.0
+
 @onready var sprite: Sprite2D = $Sprite
 
 func _ready() -> void:
@@ -35,6 +49,14 @@ func _ready() -> void:
 	if sprite_idle:
 		sprite.texture = sprite_idle
 		sprite.hframes = 6
+
+	# Type-specific setup
+	match enemy_type:
+		"flying":
+			sprite.modulate = Color(0.7, 0.5, 1.0)  # purple tint
+		"exploder":
+			sprite.modulate = Color(1.0, 0.5, 0.3)  # orange-red tint
+			scale *= 0.8
 
 func _find_player() -> void:
 	var players := get_tree().get_nodes_in_group("player")
@@ -47,21 +69,33 @@ func _physics_process(delta: float) -> void:
 
 	contact_timer -= delta
 	ranged_timer -= delta
+	fly_time += delta
 
 	var dir := global_position.direction_to(player.global_position)
 	var dist := global_position.distance_to(player.global_position)
 
-	# Flip sprite based on movement direction
 	sprite.flip_h = dir.x < 0
 
-	# Ranged enemies keep distance
-	if enemy_type == "ranged" and dist < attack_range * 0.5:
-		dir = -dir
-	elif enemy_type == "ranged" and dist <= attack_range and ranged_timer <= 0.0:
-		shoot_at_player()
-		ranged_timer = ranged_cooldown
+	# Type-specific movement
+	match enemy_type:
+		"ranged":
+			if dist < attack_range * 0.5:
+				dir = -dir
+			elif dist <= attack_range and ranged_timer <= 0.0:
+				shoot_at_player()
+				ranged_timer = ranged_cooldown
+		"flying":
+			# Sine wave movement + ranged attack
+			dir = dir.rotated(sin(fly_time * 3.0) * 0.5)
+			if dist <= attack_range and ranged_timer <= 0.0:
+				shoot_at_player()
+				ranged_timer = ranged_cooldown
+			# Float effect
+			sprite.position.y = sin(fly_time * 4.0) * fly_amplitude * 0.3
+		"exploder":
+			# Rush at 1.5x speed
+			dir = dir * 1.5
 
-	# Apply knockback decay
 	knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
 	velocity = dir * move_speed + knockback_velocity
 	move_and_slide()
@@ -76,6 +110,11 @@ func _physics_process(delta: float) -> void:
 	sprite.hframes = 6
 	sprite.frame = int(Time.get_ticks_msec() / 120) % 6
 
+	# Exploder pulsing glow as it gets closer
+	if enemy_type == "exploder" and dist < explode_radius * 2:
+		var pulse := 0.5 + 0.5 * sin(fly_time * 10.0)
+		sprite.modulate = Color(1.0, 0.3 + 0.4 * pulse, 0.2)
+
 	# Contact damage
 	if contact_timer <= 0.0:
 		for i in get_slide_collision_count():
@@ -84,9 +123,10 @@ func _physics_process(delta: float) -> void:
 			if collider.is_in_group("player") and collider.has_method("take_damage"):
 				collider.take_damage(contact_damage, global_position)
 				contact_timer = 1.0
+				if enemy_type == "exploder":
+					die()  # exploder detonates on contact
 				break
 
-	# Redraw health bar
 	queue_redraw()
 
 func shoot_at_player() -> void:
@@ -97,23 +137,42 @@ func shoot_at_player() -> void:
 	proj.global_position = global_position
 	proj.setup(dir, contact_damage, "player")
 	get_tree().current_scene.add_child(proj)
+	Audio.play_shoot()
 
 func take_damage(amount: float) -> void:
 	if is_dying:
 		return
+
+	# Shield absorbs hits
+	if has_shield:
+		shield_hits += 1
+		if shield_hits >= shield_max_hits:
+			has_shield = false
+			Audio.play_shield_break()
+			Game.spawn_damage_number(0, global_position, Color(0.3, 0.6, 1.0))
+			# Shield break flash
+			sprite.modulate = Color(0.3, 0.6, 1.0)
+			var flash_tween := create_tween()
+			flash_tween.tween_property(sprite, "modulate", Color.WHITE, 0.2)
+		else:
+			# Shield absorb visual
+			sprite.modulate = Color(0.5, 0.8, 1.0)
+			var abs_tween := create_tween()
+			abs_tween.tween_property(sprite, "modulate", Color(0.6, 0.7, 1.0, 1.0), 0.1)
+			Game.spawn_damage_number(0, global_position, Color(0.5, 0.8, 1.0))
+		return
+
 	current_health -= amount
 
-	# Knockback away from player
 	if player:
 		var kb_dir := player.global_position.direction_to(global_position)
 		knockback_velocity = kb_dir * 150.0
 
-	# Flash white
 	sprite.modulate = Color(3, 3, 3)
 	var tween := create_tween()
-	tween.tween_property(sprite, "modulate", Color.WHITE, 0.1)
+	var base_color := _get_base_color()
+	tween.tween_property(sprite, "modulate", base_color, 0.1)
 
-	# Squash and stretch on hit
 	sprite.scale = Vector2(1.3, 0.7)
 	var scale_tween := create_tween()
 	scale_tween.tween_property(sprite, "scale", Vector2(1.0, 1.0), 0.15).set_ease(Tween.EASE_OUT)
@@ -124,16 +183,17 @@ func take_damage(amount: float) -> void:
 func die() -> void:
 	is_dying = true
 	Game.on_enemy_killed()
-
-	# Screen shake on kill
 	Game.request_shake(3.0)
+	Audio.play_kill()
 
-	# Play death animation
+	# Exploder: AoE damage
+	if enemy_type == "exploder":
+		_explode()
+
 	if sprite_death:
 		sprite.texture = sprite_death
 		sprite.hframes = 6
 
-	# Try extraction
 	var players := get_tree().get_nodes_in_group("player")
 	if players.size() > 0:
 		var p := players[0]
@@ -142,7 +202,6 @@ func die() -> void:
 		else:
 			p.try_extract(self, extraction_chance)
 
-	# Death effect: scale up + spin + fade
 	var tween := create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(sprite, "modulate:a", 0.0, 0.4)
@@ -150,19 +209,59 @@ func die() -> void:
 	tween.tween_property(sprite, "rotation", randf_range(-0.5, 0.5), 0.4)
 	tween.chain().tween_callback(queue_free)
 
+func _explode() -> void:
+	Audio.play_explode()
+	Game.request_shake(8.0)
+	# Damage player if in radius
+	if player and global_position.distance_to(player.global_position) < explode_radius:
+		player.take_damage(explode_damage, global_position)
+	# Damage nearby enemies too (chain reaction!)
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if enemy != self and not enemy.is_dying:
+			if global_position.distance_to(enemy.global_position) < explode_radius:
+				enemy.take_damage(explode_damage * 0.5)
+	# Visual explosion
+	_spawn_explosion_vfx()
+
+func _spawn_explosion_vfx() -> void:
+	var vfx := Node2D.new()
+	vfx.global_position = global_position
+	vfx.set_script(preload("res://scripts/explosion_vfx.gd"))
+	get_tree().current_scene.add_child(vfx)
+
 func get_enemy_type() -> String:
 	return enemy_type
 
+func enable_shield(hits: int = 3) -> void:
+	has_shield = true
+	shield_hits = 0
+	shield_max_hits = hits
+
+func _get_base_color() -> Color:
+	match enemy_type:
+		"flying":
+			return Color(0.7, 0.5, 1.0)
+		"exploder":
+			return Color(1.0, 0.5, 0.3)
+	if has_shield:
+		return Color(0.6, 0.7, 1.0)
+	return Color.WHITE
+
 func _draw() -> void:
-	if is_dying or current_health >= max_health:
+	if is_dying:
 		return
-	# Draw health bar above sprite
+	# Shield visual
+	if has_shield:
+		var shield_alpha := 0.3 + 0.1 * sin(Time.get_ticks_msec() * 0.005)
+		draw_arc(Vector2.ZERO, 16.0, 0, TAU, 16, Color(0.3, 0.6, 1.0, shield_alpha), 2.0)
+
+	# Health bar
+	if current_health >= max_health:
+		return
 	var bar_width: float = 24.0
 	var bar_height: float = 3.0
 	var bar_y: float = -20.0
 	var health_ratio := current_health / max_health
-	# Background
 	draw_rect(Rect2(-bar_width / 2, bar_y, bar_width, bar_height), Color(0.2, 0.2, 0.2, 0.8))
-	# Health fill
 	var fill_color := Color(0.2, 0.8, 0.2) if health_ratio > 0.5 else Color(0.8, 0.2, 0.2)
 	draw_rect(Rect2(-bar_width / 2, bar_y, bar_width * health_ratio, bar_height), fill_color)

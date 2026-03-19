@@ -1,6 +1,6 @@
 extends CharacterBody2D
 
-## Boss enemy with animated sprites. Guaranteed extraction. Enrages at low HP.
+## Boss enemy. Guaranteed extraction. Enrages at low HP. Triggers victory on death.
 
 @export var move_speed: float = 80.0
 @export var max_health: float = 300.0
@@ -19,8 +19,6 @@ var contact_timer: float = 0.0
 var enraged: bool = false
 var base_speed: float
 var is_dying: bool = false
-
-# Knockback
 var knockback_velocity: Vector2 = Vector2.ZERO
 
 @onready var sprite: Sprite2D = $Sprite
@@ -38,11 +36,11 @@ func _ready() -> void:
 	if players.size() > 0:
 		player = players[0]
 
-	# Dramatic entrance: big screen shake + hit freeze
+	# Dramatic entrance
 	Game.request_shake(12.0)
 	Game.hit_freeze(0.1)
+	Audio.play_boss_enter()
 
-	# Scale-in entrance animation
 	scale = Vector2(0.2, 0.2)
 	var entrance_tween := create_tween()
 	entrance_tween.tween_property(self, "scale", Vector2(1.0, 1.0), 0.5).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
@@ -55,12 +53,10 @@ func _physics_process(delta: float) -> void:
 	var dir := global_position.direction_to(player.global_position)
 	sprite.flip_h = dir.x < 0
 
-	# Apply knockback decay (boss resists more)
 	knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 8.0 * delta)
 	velocity = dir * move_speed + knockback_velocity
 	move_and_slide()
 
-	# Animate
 	if velocity.length() > 10 and sprite_run:
 		sprite.texture = sprite_run
 	elif sprite_idle:
@@ -68,12 +64,10 @@ func _physics_process(delta: float) -> void:
 	sprite.hframes = 6
 	sprite.frame = int(Time.get_ticks_msec() / 120) % 6
 
-	# Enrage pulsing glow
 	if enraged:
 		var pulse := 0.3 + 0.15 * sin(Time.get_ticks_msec() * 0.008)
 		sprite.modulate = Color(1.0, pulse, pulse)
 
-	# Contact damage
 	if contact_timer <= 0.0:
 		for i in get_slide_collision_count():
 			var collision := get_slide_collision(i)
@@ -85,7 +79,6 @@ func _physics_process(delta: float) -> void:
 				Game.hit_freeze(0.04)
 				break
 
-	# Redraw health bar
 	queue_redraw()
 
 func take_damage(amount: float) -> void:
@@ -93,12 +86,10 @@ func take_damage(amount: float) -> void:
 		return
 	current_health -= amount
 
-	# Knockback (boss is heavy, less knockback)
 	if player:
 		var kb_dir := player.global_position.direction_to(global_position)
 		knockback_velocity = kb_dir * 60.0
 
-	# Flash
 	sprite.modulate = Color.RED
 	var tween := create_tween()
 	if enraged:
@@ -106,21 +97,20 @@ func take_damage(amount: float) -> void:
 	else:
 		tween.tween_property(sprite, "modulate", Color.WHITE, 0.15)
 
-	# Squash on hit
 	sprite.scale = Vector2(1.2, 0.8)
 	var scale_tween := create_tween()
 	scale_tween.tween_property(sprite, "scale", Vector2(1.0, 1.0), 0.15).set_ease(Tween.EASE_OUT)
 
-	# Hit freeze on big damage
 	Game.hit_freeze(0.03)
+	Audio.play_hit_heavy()
 
 	if not enraged and current_health / max_health <= enrage_percent:
 		enraged = true
 		move_speed = base_speed * enrage_speed_mult
 		sprite.modulate = Color(1.0, 0.3, 0.3)
-		# Dramatic enrage
 		Game.request_shake(10.0)
 		Game.hit_freeze(0.12)
+		Audio.play_boss_enrage()
 
 	if current_health <= 0.0:
 		die()
@@ -129,7 +119,6 @@ func die() -> void:
 	is_dying = true
 	Game.on_enemy_killed()
 
-	# Big screen shake on boss death
 	Game.request_shake(15.0)
 	Game.hit_freeze(0.15)
 
@@ -141,13 +130,16 @@ func die() -> void:
 	if players.size() > 0:
 		players[0].force_extract(self)
 
-	# Epic death: scale up big + spin + fade
 	var tween := create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(sprite, "modulate:a", 0.0, 0.8)
 	tween.tween_property(sprite, "scale", Vector2(2.0, 2.0), 0.8).set_ease(Tween.EASE_OUT)
 	tween.tween_property(sprite, "rotation", PI, 0.8)
-	tween.chain().tween_callback(queue_free)
+	tween.chain().tween_callback(_on_death_complete)
+
+func _on_death_complete() -> void:
+	Game.on_boss_killed()
+	queue_free()
 
 func get_enemy_type() -> String:
 	return "tank"
@@ -155,15 +147,11 @@ func get_enemy_type() -> String:
 func _draw() -> void:
 	if is_dying:
 		return
-	# Draw boss health bar (larger than normal enemies)
 	var bar_width: float = 40.0
 	var bar_height: float = 4.0
 	var bar_y: float = -28.0
 	var health_ratio := current_health / max_health
-	# Background
 	draw_rect(Rect2(-bar_width / 2, bar_y, bar_width, bar_height), Color(0.2, 0.2, 0.2, 0.8))
-	# Border
 	draw_rect(Rect2(-bar_width / 2, bar_y, bar_width, bar_height), Color(0.8, 0.7, 0.2, 0.8), false, 1.0)
-	# Health fill
 	var fill_color := Color(0.8, 0.2, 0.2) if enraged else Color(0.8, 0.6, 0.1)
 	draw_rect(Rect2(-bar_width / 2, bar_y, bar_width * health_ratio, bar_height), fill_color)
