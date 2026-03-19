@@ -60,7 +60,7 @@ func take_damage(amount: float) -> void:
 
 	# Boss spawn on final rift — threshold scales with player power
 	# Stronger players face the boss earlier (at higher rift HP%)
-	if rift_number == 5 and not _boss_spawned:
+	if rift_number == Game.total_rifts and not _boss_spawned:
 		var power := Game.get_power_level()
 		var boss_threshold := 0.5 + clampf((power - 1.0) * 0.1, 0.0, 0.25)  # 50%-75%
 		if current_health <= max_health * boss_threshold:
@@ -148,11 +148,12 @@ func _draw() -> void:
 
 	var t := Time.get_ticks_msec() * 0.001
 	var ratio := current_health / max_health
+	var rc: Color = Game.get_world_config().get("rift_color", Color(0.6, 0.2, 0.9))
 
 	# Background glow — pulsing
 	var glow_size := 35.0 + sin(t * 2.0) * 5.0
-	draw_circle(Vector2.ZERO, glow_size, Color(0.4, 0.1, 0.6, 0.15))
-	draw_circle(Vector2.ZERO, glow_size * 0.6, Color(0.5, 0.15, 0.7, 0.1))
+	draw_circle(Vector2.ZERO, glow_size, Color(rc.r * 0.6, rc.g * 0.3, rc.b, 0.15))
+	draw_circle(Vector2.ZERO, glow_size * 0.6, Color(rc.r * 0.7, rc.g * 0.4, rc.b, 0.1))
 
 	# Swirling arcs
 	for i in range(3):
@@ -160,18 +161,18 @@ func _draw() -> void:
 		var radius := 12.0 + float(i) * 8.0
 		var arc_alpha := 0.5 - float(i) * 0.1
 		draw_arc(Vector2.ZERO, radius, angle_offset, angle_offset + PI * 1.5, 20,
-			Color(0.6, 0.2, 0.9, arc_alpha), 2.0)
+			Color(rc.r, rc.g, rc.b, arc_alpha), 2.0)
 
 	# Reverse arcs
 	for i in range(2):
 		var angle_offset := -t * (1.2 + float(i) * 0.8)
 		var radius := 18.0 + float(i) * 6.0
 		draw_arc(Vector2.ZERO, radius, angle_offset, angle_offset + PI, 16,
-			Color(0.8, 0.3, 0.5, 0.3), 1.5)
+			Color(rc.r * 1.2, rc.g * 0.8, rc.b * 0.8, 0.3), 1.5)
 
 	# Core
 	var core_pulse := 0.7 + 0.3 * sin(t * 4.0)
-	draw_circle(Vector2.ZERO, 8.0, Color(0.8, 0.3 * core_pulse, 1.0, 0.9))
+	draw_circle(Vector2.ZERO, 8.0, Color(rc.r, rc.g * core_pulse, rc.b, 0.9))
 	draw_circle(Vector2.ZERO, 4.0, Color(1.0, 0.8, 1.0, 0.6))
 
 	# Spawn particles
@@ -179,17 +180,17 @@ func _draw() -> void:
 		var angle := float(i) / 6.0 * TAU + t * 2.0
 		var dist := 25.0 + 10.0 * sin(t * 3.0 + float(i))
 		var pos := Vector2(cos(angle), sin(angle)) * dist
-		draw_circle(pos, 2.0, Color(0.7, 0.3, 0.9, 0.4))
+		draw_circle(pos, 2.0, Color(rc.r, rc.g, rc.b, 0.4))
 
 	# Health bar
 	var bar_w: float = 50.0
 	var bar_h: float = 5.0
 	var bar_y: float = -50.0
 	draw_rect(Rect2(-bar_w / 2, bar_y, bar_w, bar_h), Color(0.15, 0.05, 0.2, 0.8))
-	draw_rect(Rect2(-bar_w / 2, bar_y, bar_w * ratio, bar_h), Color(0.6, 0.2, 0.9))
-	draw_rect(Rect2(-bar_w / 2, bar_y, bar_w, bar_h), Color(0.8, 0.5, 1.0, 0.6), false, 1.0)
+	draw_rect(Rect2(-bar_w / 2, bar_y, bar_w * ratio, bar_h), rc)
+	draw_rect(Rect2(-bar_w / 2, bar_y, bar_w, bar_h), Color(rc.r * 1.2, rc.g * 1.2, rc.b * 1.2, 0.6), false, 1.0)
 
 	# Label
 	var font := ThemeDB.fallback_font
 	draw_string(font, Vector2(-20, bar_y - 4), "RIFT %d" % rift_number,
-		HORIZONTAL_ALIGNMENT_CENTER, 40, 8, Color(0.8, 0.6, 1.0))
+		HORIZONTAL_ALIGNMENT_CENTER, 40, 8, Color(rc.r, rc.g, rc.b, 0.9))

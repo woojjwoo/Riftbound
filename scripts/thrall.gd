@@ -83,6 +83,7 @@ func setup(player: Node2D, type: String) -> void:
 			max_health = 30.0
 			sprite_idle = load("res://sprites/skeleton/Idle-Sheet.png")
 			sprite_run = load("res://sprites/skeleton/Run-Sheet.png")
+	max_health += SaveData.perm_thrall_health
 	current_health = max_health
 
 func _ready() -> void:
@@ -234,7 +235,7 @@ func _do_attack() -> void:
 	if current_target == null or not is_instance_valid(current_target):
 		return
 
-	var effective_damage := attack_damage * Game.upgrade_thrall_damage_mult
+	var effective_damage := attack_damage * Game.upgrade_thrall_damage_mult * (1.0 + SaveData.perm_thrall_damage)
 	attack_count += 1
 	var is_enemy := current_target.is_in_group("enemies")
 

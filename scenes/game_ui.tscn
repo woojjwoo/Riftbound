@@ -223,6 +223,30 @@ offset_right = 280.0
 offset_bottom = 200.0
 text = "Restart"
 
+[node name="CoinLabel" type="Label" parent="."]
+offset_left = 1060.0
+offset_top = 20.0
+offset_right = 1260.0
+offset_bottom = 40.0
+horizontal_alignment = 2
+text = "Coins: 0"
+
+[node name="ExpLabel" type="Label" parent="."]
+offset_left = 1060.0
+offset_top = 45.0
+offset_right = 1260.0
+offset_bottom = 65.0
+horizontal_alignment = 2
+text = "Lv.1  EXP: 0/100"
+
+[node name="WorldLabel" type="Label" parent="."]
+offset_left = 1060.0
+offset_top = 70.0
+offset_right = 1260.0
+offset_bottom = 90.0
+horizontal_alignment = 2
+text = "World 1: The Dark Realm"
+
 [node name="OffscreenIndicator" type="Control" parent="."]
 anchors_preset = 15
 anchor_right = 1.0

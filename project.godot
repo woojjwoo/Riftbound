@@ -22,6 +22,8 @@ config/features=PackedStringArray("4.6")
 
 Game="*res://scripts/game_manager.gd"
 Audio="*res://scripts/audio_manager.gd"
+WorldData="*res://scripts/world_data.gd"
+SaveData="*res://scripts/save_data.gd"
 
 [display]
 

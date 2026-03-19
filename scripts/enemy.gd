@@ -240,6 +240,9 @@ func die() -> void:
 		sprite.texture = sprite_death
 		sprite.hframes = 6
 
+	# Spawn coin and EXP drops
+	Game.spawn_drops(global_position, enemy_type)
+
 	if randf() < 0.2:
 		_spawn_health_orb()
 

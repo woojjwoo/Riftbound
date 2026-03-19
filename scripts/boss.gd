@@ -36,11 +36,18 @@ var pattern_index: int = 0
 @onready var sprite: Sprite2D = $Sprite
 
 func _ready() -> void:
+	# Apply world-specific boss stats
+	var world_config := Game.get_world_config()
+	max_health = world_config.get("boss_hp", 300.0)
+	contact_damage = world_config.get("boss_dmg", 20.0)
+	boss_name = world_config.get("boss_name", "Rift Guardian")
+	slam_damage = contact_damage * 1.5
+
 	# Scale boss stats based on player power level
 	var power := Game.get_power_level()
 	if power > 1.0:
-		var hp_scale := 1.0 + (power - 1.0) * 0.5  # 50% of power surplus
-		var dmg_scale := 1.0 + (power - 1.0) * 0.3  # 30% of power surplus
+		var hp_scale := 1.0 + (power - 1.0) * 0.5
+		var dmg_scale := 1.0 + (power - 1.0) * 0.3
 		max_health *= hp_scale
 		contact_damage *= dmg_scale
 		slam_damage *= dmg_scale
@@ -300,6 +307,8 @@ func die() -> void:
 
 func _on_death_complete() -> void:
 	Game.on_boss_killed()
+	# Boss drops big loot
+	Game.spawn_boss_drops(global_position)
 	# Boss death weakens the final rift — deal 40% of its max HP
 	for rift in get_tree().get_nodes_in_group("rifts"):
 		if rift.has_method("take_damage"):

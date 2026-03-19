@@ -1,7 +1,7 @@
 extends Node
 
 ## Global game state. Autoloaded as "Game".
-## Rift-based progression: close 5 rifts to win.
+## Multi-world rift-based progression with persistent upgrades.
 
 enum GameProcess {
 	INITIALIZING,
@@ -17,6 +17,9 @@ var kill_count: int = 0
 var is_game_over: bool = false
 var boss_killed: bool = false
 var current_process: GameProcess = GameProcess.INITIALIZING
+
+# World/stage progression
+var current_world: int = 0
 
 # Rift tracking
 var rifts_closed: int = 0
@@ -37,12 +40,13 @@ signal process_changed(new_process: GameProcess)
 signal shake_camera(intensity: float)
 signal upgrade_available
 signal rift_closed_signal(rift_number: int)
+signal world_portal_spawned
 
 # Hit freeze
 var _freeze_timer: float = 0.0
 var _freeze_prev_scale: float = 1.0
 
-# Upgrade multipliers
+# Upgrade multipliers (per-run, reset each world)
 var upgrade_attack_mult: float = 1.0
 var upgrade_speed_mult: float = 1.0
 var upgrade_health_bonus: float = 0.0
@@ -53,6 +57,9 @@ var upgrade_cooldown_mult: float = 1.0
 var upgrade_thrall_speed_mult: float = 1.0
 
 var DamageNumber: GDScript = preload("res://scripts/damage_number.gd")
+var CoinPickup: GDScript = preload("res://scripts/coin_pickup.gd")
+var ExpOrb: GDScript = preload("res://scripts/exp_orb.gd")
+var WorldPortal: GDScript = preload("res://scripts/world_portal.gd")
 
 # Chosen upgrades tracking — prevents duplicates, shown in HUD
 var chosen_upgrades: Array[String] = []
@@ -88,14 +95,17 @@ func _process(delta: float) -> void:
 		if _freeze_timer <= 0.0:
 			Engine.time_scale = _freeze_prev_scale
 
+## Get current world config from WorldData
+func get_world_config() -> Dictionary:
+	return WorldData.get_config(current_world)
+
 func on_enemy_killed() -> void:
 	kill_count += 1
 	enemy_killed.emit()
 
 func on_boss_killed() -> void:
 	boss_killed = true
-	# Boss death is significant but doesn't trigger victory
-	# Victory comes from closing the final rift
+	SaveData.total_bosses_killed += 1
 	Audio.play_boss_enrage()
 
 func on_boss_spawned() -> void:
@@ -116,21 +126,124 @@ func on_rift_closed(rift_number: int) -> void:
 		_set_process(GameProcess.VICTORY)
 		Audio.play_victory()
 		victory.emit()
+		# Spawn world portal after a delay
+		var timer := get_tree().create_timer(2.0)
+		timer.timeout.connect(_spawn_world_portal)
 	else:
 		# Upgrade reward for closing a rift
 		upgrade_available.emit()
 		Audio.play_upgrade()
 
-		if rifts_closed >= 3:
+		var mid_threshold := ceili(total_rifts / 2.0)
+		if rifts_closed >= mid_threshold:
 			_set_process(GameProcess.MID_GAME)
+
+func _spawn_world_portal() -> void:
+	var players := get_tree().get_nodes_in_group("player")
+	if players.is_empty():
+		return
+	var player := players[0]
+	var angle := randf() * TAU
+	var pos := player.global_position + Vector2(cos(angle), sin(angle)) * 150.0
+
+	var portal := Node2D.new()
+	portal.set_script(WorldPortal)
+	portal.global_position = pos
+	portal.setup(current_world + 1)
+	get_tree().current_scene.add_child(portal)
+	world_portal_spawned.emit()
+
+## Spawn coin and EXP drops at a position (called from enemy death)
+func spawn_drops(pos: Vector2, enemy_type: String) -> void:
+	var config := get_world_config()
+	var coin_mult: float = config.get("coin_mult", 1.0)
+	var exp_mult: float = config.get("exp_mult", 1.0)
+
+	# Coin value by enemy type
+	var coin_val := 1
+	match enemy_type:
+		"melee": coin_val = 1
+		"ranged": coin_val = 2
+		"tank": coin_val = 3
+		"flying": coin_val = 2
+		"exploder": coin_val = 2
+		_: coin_val = 1
+	coin_val = int(coin_val * coin_mult)
+
+	# EXP value by type
+	var exp_val := 3
+	match enemy_type:
+		"melee": exp_val = 3
+		"ranged": exp_val = 5
+		"tank": exp_val = 8
+		"flying": exp_val = 5
+		"exploder": exp_val = 4
+		_: exp_val = 3
+	exp_val = int(exp_val * exp_mult)
+
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+
+	# Spawn coin
+	var coin := Node2D.new()
+	coin.set_script(CoinPickup)
+	coin.global_position = pos
+	coin.setup(coin_val)
+	scene.add_child(coin)
+
+	# Spawn EXP orb
+	var orb := Node2D.new()
+	orb.set_script(ExpOrb)
+	orb.global_position = pos
+	orb.setup(exp_val)
+	scene.add_child(orb)
+
+## Spawn boss-tier drops (more coins, more EXP)
+func spawn_boss_drops(pos: Vector2) -> void:
+	var config := get_world_config()
+	var coin_mult: float = config.get("coin_mult", 1.0)
+	var exp_mult: float = config.get("exp_mult", 1.0)
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	# Scatter multiple coins
+	for i in range(8):
+		var coin := Node2D.new()
+		coin.set_script(CoinPickup)
+		coin.global_position = pos + Vector2(randf_range(-20, 20), randf_range(-20, 20))
+		coin.setup(int(5 * coin_mult))
+		scene.add_child(coin)
+	# Scatter EXP orbs
+	for i in range(5):
+		var orb := Node2D.new()
+		orb.set_script(ExpOrb)
+		orb.global_position = pos + Vector2(randf_range(-20, 20), randf_range(-20, 20))
+		orb.setup(int(20 * exp_mult))
+		scene.add_child(orb)
 
 func trigger_game_over() -> void:
 	is_game_over = true
 	_set_process(GameProcess.GAME_OVER)
+	# Save progress even on death
+	SaveData.total_runs += 1
+	SaveData.total_kills += kill_count
+	SaveData.save_game()
 	get_tree().paused = true
 	game_over.emit()
 
 func restart() -> void:
+	current_world = 0
+	_reset_run_state()
+	get_tree().paused = false
+	get_tree().reload_current_scene()
+
+func restart_for_next_world() -> void:
+	_reset_run_state()
+	get_tree().paused = false
+	get_tree().reload_current_scene()
+
+func _reset_run_state() -> void:
 	is_game_over = false
 	boss_killed = false
 	thrall_count = 0
@@ -149,19 +262,21 @@ func restart() -> void:
 	upgrade_regen = 0.0
 	upgrade_cooldown_mult = 1.0
 	upgrade_thrall_speed_mult = 1.0
-	get_tree().paused = false
-	get_tree().reload_current_scene()
+	# Apply permanent upgrades from save data
+	var w_config := get_world_config()
+	total_rifts = w_config.get("rifts", 5)
 
 func get_process_name() -> String:
+	var world_name: String = get_world_config().get("name", "Unknown")
 	match current_process:
 		GameProcess.EARLY_GAME:
-			return "The Rift Opens"
+			return world_name
 		GameProcess.MID_GAME:
-			return "Rifts Intensify"
+			return world_name + " — Intensifying"
 		GameProcess.BOSS_FIGHT:
-			return "Guardian Awakens"
+			return get_world_config().get("boss_name", "Boss") + " Awakens"
 		GameProcess.VICTORY:
-			return "Rifts Sealed"
+			return world_name + " — Cleared!"
 		GameProcess.GAME_OVER:
 			return "Fallen"
 	return ""
@@ -218,7 +333,20 @@ func get_power_level() -> float:
 	# Utility
 	power += (upgrade_speed_mult - 1.0) * 0.2
 	power += (upgrade_thrall_speed_mult - 1.0) * 0.15
+	# Permanent upgrades from save
+	power += SaveData.perm_attack_mult * 0.3
+	power += SaveData.perm_thrall_damage * 0.2
 	return power
+
+## Get world-scaled difficulty multipliers
+func get_enemy_hp_mult() -> float:
+	return get_world_config().get("hp_mult", 1.0)
+
+func get_enemy_dmg_mult() -> float:
+	return get_world_config().get("dmg_mult", 1.0)
+
+func get_enemy_count_mult() -> float:
+	return get_world_config().get("enemy_mult", 1.0)
 
 func _apply_health_upgrade() -> void:
 	var players := get_tree().get_nodes_in_group("player")

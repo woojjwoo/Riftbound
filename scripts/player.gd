@@ -56,6 +56,12 @@ var current_anim: String = "idle"
 @onready var sprite: Sprite2D = $Sprite
 
 func _ready() -> void:
+	# Apply permanent upgrades from save data
+	max_health += SaveData.perm_max_health
+	move_speed *= (1.0 + SaveData.perm_speed_mult)
+	bolt_damage *= (1.0 + SaveData.perm_attack_mult)
+	dash_cooldown = max(0.3, dash_cooldown - SaveData.perm_dash_cooldown)
+
 	current_health = max_health + Game.upgrade_health_bonus
 	max_health += Game.upgrade_health_bonus
 	add_to_group("player")
@@ -106,9 +112,10 @@ func _physics_process(delta: float) -> void:
 			if not is_dashing:
 				is_invincible = false
 
-	# Health regen
-	if Game.upgrade_regen > 0.0 and current_health < max_health:
-		regen_accumulator += Game.upgrade_regen * delta
+	# Health regen (run upgrade + permanent upgrade)
+	var total_regen := Game.upgrade_regen + SaveData.perm_regen
+	if total_regen > 0.0 and current_health < max_health:
+		regen_accumulator += total_regen * delta
 		if regen_accumulator >= 1.0:
 			var heal_amount := floorf(regen_accumulator)
 			regen_accumulator -= heal_amount
@@ -267,7 +274,7 @@ func try_extract_nearby(enemy: Node2D, chance: float) -> void:
 	var effective_range := extraction_range + Game.upgrade_extraction_bonus * 100.0
 	if dist > effective_range:
 		return
-	var effective_chance := chance + Game.upgrade_extraction_bonus + Game.extraction_pity
+	var effective_chance := chance + Game.upgrade_extraction_bonus + SaveData.perm_extraction_bonus + Game.extraction_pity
 	if randf() <= effective_chance:
 		Game.extraction_pity = 0.0
 		extract(enemy)
