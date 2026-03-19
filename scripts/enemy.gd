@@ -177,8 +177,9 @@ func _shoot_at(target: Node2D) -> void:
 	var dir := global_position.direction_to(target.global_position)
 	var proj := projectile_scene.instantiate()
 	proj.global_position = global_position
-	# Always target "player" group for projectile collision since thralls are on a different layer
-	proj.setup(dir, contact_damage, "player")
+	# Use correct target group based on who we're shooting at
+	var group := "thralls" if target.is_in_group("thralls") else "player"
+	proj.setup(dir, contact_damage, group)
 	get_tree().current_scene.add_child(proj)
 	Audio.play_shoot()
 

@@ -242,11 +242,18 @@ func restart() -> void:
 	_reset_run_state()
 	get_tree().paused = false
 	get_tree().reload_current_scene()
+	# Re-emit process state after scene reload so new UI picks it up
+	_emit_process_deferred.call_deferred()
 
 func restart_for_next_world() -> void:
 	_reset_run_state()
 	get_tree().paused = false
 	get_tree().reload_current_scene()
+	# Re-emit process state after scene reload so new UI picks it up
+	_emit_process_deferred.call_deferred()
+
+func _emit_process_deferred() -> void:
+	process_changed.emit(current_process)
 
 func _reset_run_state() -> void:
 	is_game_over = false

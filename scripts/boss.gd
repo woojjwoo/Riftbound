@@ -286,6 +286,9 @@ func take_damage(amount: float) -> void:
 
 func die() -> void:
 	is_dying = true
+	# Remove from groups immediately to prevent double-processing
+	remove_from_group("enemies")
+	remove_from_group("boss")
 	Game.on_enemy_killed()
 	Game.request_shake(15.0)
 	Game.hit_freeze(0.15)
@@ -294,6 +297,8 @@ func die() -> void:
 		sprite.texture = sprite_death
 		sprite.hframes = 6
 
+	# Capture position before any async operations
+	var death_pos := global_position
 	var players := get_tree().get_nodes_in_group("player")
 	if players.size() > 0:
 		players[0].force_extract(self)
@@ -303,12 +308,12 @@ func die() -> void:
 	tween.tween_property(sprite, "modulate:a", 0.0, 0.8)
 	tween.tween_property(sprite, "scale", Vector2(2.0, 2.0), 0.8).set_ease(Tween.EASE_OUT)
 	tween.tween_property(sprite, "rotation", PI, 0.8)
-	tween.chain().tween_callback(_on_death_complete)
+	tween.chain().tween_callback(_on_death_complete.bind(death_pos))
 
-func _on_death_complete() -> void:
+func _on_death_complete(death_pos: Vector2) -> void:
 	Game.on_boss_killed()
-	# Boss drops big loot
-	Game.spawn_boss_drops(global_position)
+	# Boss drops big loot — use captured position since node may be invalid
+	Game.spawn_boss_drops(death_pos)
 	# Boss death weakens the final rift — deal 40% of its max HP
 	for rift in get_tree().get_nodes_in_group("rifts"):
 		if rift.has_method("take_damage"):

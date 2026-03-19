@@ -27,6 +27,12 @@ func start_music() -> void:
 		return
 	music_playing = true
 
+	# Free old music player if it exists (prevents accumulation on scene reload)
+	if music_player:
+		music_player.stop()
+		music_player.queue_free()
+		music_player = null
+
 	var sample_rate := 22050
 	var duration := 4.0
 	var num_samples := int(sample_rate * duration)
@@ -68,7 +74,9 @@ func start_music() -> void:
 func stop_music() -> void:
 	if music_player:
 		music_player.stop()
-		music_playing = false
+		music_player.queue_free()
+		music_player = null
+	music_playing = false
 
 # --- SFX ---
 

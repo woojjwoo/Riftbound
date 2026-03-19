@@ -50,6 +50,8 @@ func _on_body_entered(body: Node2D) -> void:
 	if body.is_in_group(target_group) and body.has_method("take_damage"):
 		if target_group == "player":
 			body.take_damage(damage, global_position)
+		elif target_group == "thralls":
+			body.take_damage(damage, global_position)
 		else:
 			body.take_damage(damage)
 		Game.spawn_damage_number(damage, body.global_position, Color(1.0, 0.6, 0.2))
