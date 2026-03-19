@@ -58,9 +58,13 @@ func take_damage(amount: float) -> void:
 	current_health -= amount
 	Game.spawn_damage_number(amount, global_position + Vector2(0, -30), Color(0.8, 0.4, 1.0))
 
-	# Boss spawn at 50% HP on final rift
-	if rift_number == 5 and not _boss_spawned and current_health <= max_health * 0.5:
-		_spawn_boss()
+	# Boss spawn on final rift — threshold scales with player power
+	# Stronger players face the boss earlier (at higher rift HP%)
+	if rift_number == 5 and not _boss_spawned:
+		var power := Game.get_power_level()
+		var boss_threshold := 0.5 + clampf((power - 1.0) * 0.1, 0.0, 0.25)  # 50%-75%
+		if current_health <= max_health * boss_threshold:
+			_spawn_boss()
 
 	if current_health <= 0.0:
 		_close()
@@ -107,11 +111,26 @@ func _do_spawn(scene: PackedScene, pos: Vector2) -> void:
 		return
 	var enemy := scene.instantiate()
 	enemy.global_position = pos
+
+	# Scale enemy stats based on player power level
+	var power := Game.get_power_level()
+	if power > 1.0:
+		var scale_factor := 1.0 + (power - 1.0) * 0.4  # 40% of power surplus
+		enemy.max_health *= scale_factor
+		enemy.contact_damage *= (1.0 + (power - 1.0) * 0.25)  # 25% of power surplus
+		enemy.move_speed *= (1.0 + (power - 1.0) * 0.1)  # 10% speed increase
+
 	get_tree().current_scene.add_child(enemy)
 
-	# Shielded enemies on later rifts
-	if rift_number >= 4 and randf() < 0.25 and enemy.has_method("enable_shield"):
-		enemy.enable_shield(3)
+	# Shielded enemies on later rifts — more likely when player is strong
+	var shield_chance := 0.0
+	if rift_number >= 4:
+		shield_chance = 0.25
+	if power > 1.5:
+		shield_chance += (power - 1.5) * 0.15
+	if shield_chance > 0.0 and randf() < shield_chance and enemy.has_method("enable_shield"):
+		var shield_hits := 3 if power < 2.0 else 4
+		enemy.enable_shield(shield_hits)
 
 func _spawn_boss() -> void:
 	_boss_spawned = true

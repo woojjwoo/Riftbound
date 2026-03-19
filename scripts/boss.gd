@@ -36,6 +36,16 @@ var pattern_index: int = 0
 @onready var sprite: Sprite2D = $Sprite
 
 func _ready() -> void:
+	# Scale boss stats based on player power level
+	var power := Game.get_power_level()
+	if power > 1.0:
+		var hp_scale := 1.0 + (power - 1.0) * 0.5  # 50% of power surplus
+		var dmg_scale := 1.0 + (power - 1.0) * 0.3  # 30% of power surplus
+		max_health *= hp_scale
+		contact_damage *= dmg_scale
+		slam_damage *= dmg_scale
+		charge_speed *= (1.0 + (power - 1.0) * 0.15)
+
 	current_health = max_health
 	base_speed = move_speed
 	add_to_group("enemies")

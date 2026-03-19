@@ -54,6 +54,9 @@ var upgrade_thrall_speed_mult: float = 1.0
 
 var DamageNumber: GDScript = preload("res://scripts/damage_number.gd")
 
+# Chosen upgrades tracking — prevents duplicates, shown in HUD
+var chosen_upgrades: Array[String] = []
+
 # Upgrades — tailored for necromancer + rift gameplay
 var ALL_UPGRADES: Array[Dictionary] = [
 	{"name": "Soul Pierce", "desc": "Soul bolt damage +25%", "icon": "bolt",
@@ -135,6 +138,7 @@ func restart() -> void:
 	rifts_closed = 0
 	guaranteed_extractions = 3
 	extraction_pity = 0.0
+	chosen_upgrades = []
 	current_process = GameProcess.EARLY_GAME
 	Engine.time_scale = 1.0
 	upgrade_attack_mult = 1.0
@@ -181,12 +185,40 @@ func spawn_damage_number(amount: float, pos: Vector2, color: Color = Color.WHITE
 	dmg_num.setup(amount, color)
 
 func get_random_upgrades(count: int = 3) -> Array[Dictionary]:
-	var available := ALL_UPGRADES.duplicate()
+	# Filter out already-chosen upgrades
+	var available: Array[Dictionary] = []
+	for upgrade in ALL_UPGRADES:
+		if upgrade["name"] not in chosen_upgrades:
+			available.append(upgrade)
+	# If fewer than needed remain, allow all (fallback for late game)
+	if available.size() < count:
+		available = ALL_UPGRADES.duplicate()
 	available.shuffle()
 	var result: Array[Dictionary] = []
 	for i in range(min(count, available.size())):
 		result.append(available[i])
 	return result
+
+func apply_upgrade(upgrade_name: String) -> void:
+	chosen_upgrades.append(upgrade_name)
+
+## Player power level — used to scale enemy difficulty.
+## Returns 1.0 at baseline (no upgrades, no thralls), scales up with power.
+func get_power_level() -> float:
+	var power := 1.0
+	# Offensive upgrades
+	power += (upgrade_attack_mult - 1.0) * 0.5
+	power += (1.0 - upgrade_cooldown_mult) * 0.8
+	power += (upgrade_thrall_damage_mult - 1.0) * 0.4
+	# Defensive upgrades
+	power += upgrade_health_bonus / 100.0
+	power += upgrade_regen * 0.1
+	# Thrall army strength
+	power += thrall_count * 0.15
+	# Utility
+	power += (upgrade_speed_mult - 1.0) * 0.2
+	power += (upgrade_thrall_speed_mult - 1.0) * 0.15
+	return power
 
 func _apply_health_upgrade() -> void:
 	var players := get_tree().get_nodes_in_group("player")

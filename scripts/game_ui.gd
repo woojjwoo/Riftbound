@@ -26,6 +26,7 @@ extends CanvasLayer
 @onready var pause_panel: Panel = $PausePanel
 @onready var resume_button: Button = $PausePanel/ResumeButton
 @onready var pause_restart_button: Button = $PausePanel/PauseRestartButton
+@onready var active_upgrades_label: Label = $ActiveUpgradesLabel
 
 var player: Node2D = null
 var arise_timer: float = 0.0
@@ -183,6 +184,8 @@ func _on_upgrade_available() -> void:
 func _on_upgrade_selected(index: int) -> void:
 	if index < current_upgrades.size():
 		current_upgrades[index]["apply"].call()
+		Game.apply_upgrade(current_upgrades[index]["name"])
+		_update_active_upgrades()
 	upgrade_panel.visible = false
 	get_tree().paused = false
 
@@ -234,6 +237,13 @@ func _on_upgrade_hover(btn: Button, hovered: bool) -> void:
 		tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 		tween.tween_property(btn, "scale", Vector2(1.0, 1.0), 0.1)
 		btn.modulate = Color.WHITE
+
+func _update_active_upgrades() -> void:
+	if Game.chosen_upgrades.is_empty():
+		active_upgrades_label.visible = false
+	else:
+		active_upgrades_label.visible = true
+		active_upgrades_label.text = "Upgrades: " + ", ".join(Game.chosen_upgrades)
 
 func _update_boss_health_bar() -> void:
 	if not boss_health_bar.visible:

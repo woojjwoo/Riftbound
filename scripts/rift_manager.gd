@@ -46,6 +46,14 @@ func _spawn_next_rift() -> void:
 
 	var config: Dictionary = rift_configs[current_rift_index]
 
+	# Scale rift HP and spawn rate based on player power
+	var power := Game.get_power_level()
+	var hp: float = config["hp"]
+	var interval: float = config["interval"]
+	if power > 1.0:
+		hp *= (1.0 + (power - 1.0) * 0.35)  # Rift gets tougher
+		interval *= max(0.5, 1.0 - (power - 1.0) * 0.1)  # Spawns faster (floor 50%)
+
 	# Position: random direction, 300-500px from player
 	var angle := randf() * TAU
 	var dist := randf_range(300.0, 500.0)
@@ -59,7 +67,7 @@ func _spawn_next_rift() -> void:
 	var scenes_array: Array[PackedScene] = []
 	for s in config["scenes"]:
 		scenes_array.append(s)
-	rift.setup(current_rift_index + 1, config["hp"], config["interval"], scenes_array)
+	rift.setup(current_rift_index + 1, hp, interval, scenes_array)
 	rift.rift_closed.connect(_on_rift_closed)
 
 func _on_rift_closed(rift_number: int) -> void:
