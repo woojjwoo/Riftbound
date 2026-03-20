@@ -31,6 +31,12 @@ var boss_spawned: bool = false
 var player: Node2D = null
 
 var SpawnTelegraph: GDScript = preload("res://scripts/spawn_telegraph.gd")
+var EnvHazard: GDScript = preload("res://scripts/env_hazard.gd")
+
+# World hazard spawning
+var _hazard_timer: float = 10.0
+var _hazard_interval: float = 12.0
+const MAX_HAZARDS: int = 8
 
 ## World-specific enemy pools. Each world introduces new enemy types.
 ## Structure: Array of {scene, weight} dicts per world.
@@ -62,6 +68,13 @@ func _process(delta: float) -> void:
 		try_spawn()
 		spawn_interval = max(0.5, spawn_interval - 0.01)
 		spawn_timer = spawn_interval
+
+	# World hazard spawning (worlds 1+ only)
+	if current_world > 0:
+		_hazard_timer -= delta
+		if _hazard_timer <= 0.0:
+			_spawn_world_hazard()
+			_hazard_timer = _hazard_interval
 
 func try_spawn() -> void:
 	var current_enemies := get_tree().get_nodes_in_group("enemies").size()
@@ -211,6 +224,53 @@ func _do_boss_spawn(pos: Vector2) -> void:
 	boss.global_position = pos
 	get_tree().current_scene.add_child(boss)
 	Game.on_boss_spawned()
+
+func _spawn_world_hazard() -> void:
+	var hazards := get_tree().get_nodes_in_group("hazards")
+	if hazards.size() >= MAX_HAZARDS:
+		return
+	if player == null:
+		return
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+
+	# Pick hazard type based on world
+	var hazard_type: int
+	var hazard_radius := 35.0
+	var hazard_damage := 4.0 + Game.current_world * 2.0
+	var hazard_duration := 8.0 + Game.current_world * 1.0
+	match current_world:
+		1:  # Desert — lava pools
+			hazard_type = 0  # LAVA
+			hazard_radius = 30.0
+		2:  # Ice — ice patches
+			hazard_type = 1  # ICE_PATCH
+			hazard_radius = 40.0
+			hazard_damage = 0.0  # Ice just slows
+		3:  # Swamp — poison fog
+			hazard_type = 2  # POISON_FOG
+			hazard_radius = 45.0
+		4:  # Void — gravity wells
+			hazard_type = 3  # GRAVITY_WELL
+			hazard_radius = 35.0
+		5:  # Celestial — light beams
+			hazard_type = 4  # LIGHT_BEAM
+			hazard_radius = 25.0
+			hazard_damage *= 1.5
+		_:
+			return
+
+	# Spawn at random position near player (but not on top)
+	var angle := randf() * TAU
+	var dist := randf_range(80.0, 200.0)
+	var pos := player.global_position + Vector2(cos(angle), sin(angle)) * dist
+
+	var hazard := Node2D.new()
+	hazard.set_script(EnvHazard)
+	hazard.global_position = pos
+	scene.add_child(hazard)
+	hazard.setup(hazard_type, hazard_radius, hazard_damage, hazard_duration)
 
 func get_spawn_position() -> Vector2:
 	# Spawn at edge of screen, never too close to player

@@ -76,6 +76,42 @@ static func get_all_abilities() -> Dictionary:
 		5
 	)
 
+	abilities["bone_shield"] = AbilityInfo.new(
+		"bone_shield",
+		"Bone Shield",
+		"Surrounds the player with orbiting bone fragments that absorb incoming damage.",
+		Color(0.85, 0.8, 0.7),
+		14.0,
+		5
+	)
+
+	abilities["soul_link"] = AbilityInfo.new(
+		"soul_link",
+		"Soul Link",
+		"Links the player to nearby thralls, sharing damage taken and boosting their attack.",
+		Color(0.6, 0.3, 1.0),
+		16.0,
+		5
+	)
+
+	abilities["death_coil"] = AbilityInfo.new(
+		"death_coil",
+		"Death Coil",
+		"Fires a homing coil of dark energy that damages enemies and heals on hit.",
+		Color(0.4, 0.1, 0.6),
+		7.0,
+		5
+	)
+
+	abilities["corpse_explosion"] = AbilityInfo.new(
+		"corpse_explosion",
+		"Corpse Explosion",
+		"Detonates nearby enemy corpses, dealing massive area damage.",
+		Color(0.7, 0.2, 0.1),
+		9.0,
+		5
+	)
+
 	return abilities
 
 ## Returns scaled values per ability per level.
@@ -119,6 +155,35 @@ static func get_ability_stats(id: String, level: int) -> Dictionary:
 				"tick_rate": 0.5,
 				"cooldown": max(5.0, 10.0 - 1.0 * (level - 1)),
 			}
+		"bone_shield":
+			return {
+				"charges": 3 + level,
+				"absorb_per_charge": 10.0 + 5.0 * (level - 1),
+				"duration": 8.0 + 1.0 * (level - 1),
+				"cooldown": max(8.0, 14.0 - 1.2 * (level - 1)),
+			}
+		"soul_link":
+			return {
+				"damage_share": 0.25 + 0.05 * (level - 1),
+				"thrall_damage_boost": 0.15 + 0.05 * (level - 1),
+				"duration": 5.0 + 1.0 * (level - 1),
+				"radius": 150.0 + 20.0 * (level - 1),
+				"cooldown": max(8.0, 16.0 - 1.6 * (level - 1)),
+			}
+		"death_coil":
+			return {
+				"damage": 25.0 + 12.0 * (level - 1),
+				"heal_percent": 0.3 + 0.05 * (level - 1),
+				"projectile_speed": 250.0,
+				"cooldown": max(3.0, 7.0 - 0.8 * (level - 1)),
+			}
+		"corpse_explosion":
+			return {
+				"damage_per_corpse": 40.0 + 20.0 * (level - 1),
+				"radius": 80.0 + 15.0 * (level - 1),
+				"max_corpses": 3 + level,
+				"cooldown": max(4.0, 9.0 - 1.0 * (level - 1)),
+			}
 	return {}
 
 ## Returns a description line with current level stats.
@@ -137,4 +202,12 @@ static func get_level_description(id: String, level: int) -> String:
 			return "+%.0f%% speed for %.1fs. CD: %.1fs" % [(stats.speed_mult - 1.0) * 100, stats.duration, stats.cooldown]
 		"fire_trail":
 			return "%.0f damage/tick for %.1fs. CD: %.1fs" % [stats.damage_per_tick, stats.trail_duration, stats.cooldown]
+		"bone_shield":
+			return "%d charges, absorbs %.0f each for %.0fs. CD: %.1fs" % [stats.charges, stats.absorb_per_charge, stats.duration, stats.cooldown]
+		"soul_link":
+			return "Share %.0f%% damage, thralls +%.0f%% DMG for %.0fs. CD: %.1fs" % [stats.damage_share * 100, stats.thrall_damage_boost * 100, stats.duration, stats.cooldown]
+		"death_coil":
+			return "%.0f damage, heals %.0f%%. CD: %.1fs" % [stats.damage, stats.heal_percent * 100, stats.cooldown]
+		"corpse_explosion":
+			return "%.0f per corpse in %.0f radius (max %d). CD: %.1fs" % [stats.damage_per_corpse, stats.radius, stats.max_corpses, stats.cooldown]
 	return ""

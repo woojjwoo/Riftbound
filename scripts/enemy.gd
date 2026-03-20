@@ -89,6 +89,11 @@ var _pull_timer: float = 0.0
 var _pulling: bool = false
 var _pull_elapsed: float = 0.0
 
+# AI behavior
+var _retreat_active: bool = false
+var _flank_offset: Vector2 = Vector2.ZERO
+var _pack_bonus_applied: bool = false
+
 # Draw helpers
 var _draw_timer: float = 0.0
 
@@ -256,6 +261,42 @@ func _physics_process(delta: float) -> void:
 
 	knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
 	var effective_speed := move_speed * (1.0 - _slow_amount if _slow_timer > 0.0 else 1.0)
+
+	# AI: Retreat when low HP (ranged/summoner/poisoner flee below 25% HP)
+	if current_health < max_health * 0.25 and enemy_type in ["ranged", "summoner", "poisoner", "flying"]:
+		_retreat_active = true
+	elif current_health > max_health * 0.4:
+		_retreat_active = false
+
+	if _retreat_active:
+		dir = -dir  # Run away
+		effective_speed *= 1.2
+
+	# AI: Flanking — melee/charger enemies try to approach from the side
+	if enemy_type in ["melee", "charger", "tank"] and not _retreat_active:
+		if _flank_offset == Vector2.ZERO:
+			# Pick a flank side based on instance ID for consistency
+			var side := 1.0 if get_instance_id() % 2 == 0 else -1.0
+			_flank_offset = Vector2(-dir.y, dir.x) * side
+		if dist > 60.0:
+			dir = (dir + _flank_offset * 0.35).normalized()
+		else:
+			_flank_offset = Vector2.ZERO  # Close enough, attack directly
+
+	# AI: Pack bonus — nearby allies of same type buff each other's speed
+	if not _pack_bonus_applied:
+		var nearby_same := 0
+		for enemy in get_tree().get_nodes_in_group("enemies"):
+			if enemy == self or enemy.get("is_dying"):
+				continue
+			if enemy.get("enemy_type") == enemy_type:
+				if global_position.distance_to(enemy.global_position) < 80.0:
+					nearby_same += 1
+					if nearby_same >= 2:
+						break
+		if nearby_same >= 2:
+			effective_speed *= 1.1  # Pack speed boost
+
 	velocity = dir * effective_speed + knockback_velocity
 	move_and_slide()
 
@@ -556,10 +597,12 @@ func die() -> void:
 	if randf() < 0.2:
 		_spawn_health_orb()
 
-	# Proximity-based extraction + proc on kill
+	# Register corpse position for Corpse Explosion ability
 	var players := get_tree().get_nodes_in_group("player")
 	if players.size() > 0:
 		var p := players[0]
+		if p.ability_manager and p.ability_manager.has_method("register_corpse"):
+			p.ability_manager.register_corpse(global_position)
 		if p.proc_handler:
 			p.proc_handler.on_kill(self)
 		if Game.guaranteed_extractions > 0:

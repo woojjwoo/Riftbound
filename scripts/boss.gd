@@ -437,15 +437,24 @@ func _trigger_phase_transition(phase: int) -> void:
 		1:  # 75% — speed boost
 			move_speed = base_speed * 1.2
 			charge_speed *= 1.1
-		2:  # 50% — damage boost + faster patterns
+		2:  # 50% — PHASE 2 TRANSFORMATION: new form + damage boost + faster patterns
+			contact_damage *= 1.25
+			slam_damage *= 1.25
+			slam_radius *= 1.2
+			pattern_timer = 0.0  # Trigger attack immediately
+			# Visual transformation — boss grows and changes color
+			var transform_tween := create_tween()
+			transform_tween.tween_property(self, "scale", scale * 1.15, 0.5).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
+			# New attack: omni-directional projectile burst
+			_phase2_projectile_burst()
+		3:  # 25% — full enrage + all bonuses
+			move_speed = base_speed * enrage_speed_mult * 1.3
+			charge_speed *= 1.2
 			contact_damage *= 1.2
 			slam_damage *= 1.2
-			pattern_timer = 0.0  # Trigger attack immediately
-		3:  # 25% — full enrage + all bonuses
-			move_speed = base_speed * enrage_speed_mult * 1.2
-			charge_speed *= 1.15
-			contact_damage *= 1.15
-			slam_damage *= 1.15
+			# Phase 3 burst: even more intense
+			_phase2_projectile_burst()
+			_phase2_projectile_burst()
 
 	# World-specific phase mechanics
 	_do_world_phase_mechanic(phase)
@@ -637,6 +646,24 @@ func _boss_eternal_wrath() -> void:
 			2: _boss_frost_ring()
 			3: _boss_poison_pools()
 			4: _boss_void_pull()
+
+## Phase 2 projectile burst — fires projectiles in all directions
+func _phase2_projectile_burst() -> void:
+	if projectile_scene == null:
+		return
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	var count := 8 + current_phase * 4
+	for i in range(count):
+		var angle := float(i) / float(count) * TAU
+		var dir := Vector2(cos(angle), sin(angle))
+		var proj := projectile_scene.instantiate()
+		proj.global_position = global_position + dir * 20.0
+		proj.setup(dir, contact_damage * 0.4, "player")
+		scene.add_child(proj)
+	Effects.spawn_particles(global_position, enrage_color, 24, 0.5)
+	Game.request_shake(10.0)
 
 ## Apply slow debuff from legendary proc
 func apply_slow(amount: float, duration: float) -> void:

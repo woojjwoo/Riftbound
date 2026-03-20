@@ -63,6 +63,16 @@ var _blink_timer: float = 2.0
 var _buff_timer: float = 4.0
 var _buff_radius: float = 100.0
 
+# Healer state (summoner thrall can heal)
+var _heal_timer: float = 3.0
+var _heal_cooldown: float = 3.0
+var _heal_amount: float = 8.0
+var _heal_radius: float = 100.0
+
+# Ranged volley state (ranged/flying)
+var _volley_timer: float = 0.0
+var _volley_cooldown: float = 8.0
+
 # Evolution system
 var kill_assists: int = 0
 var evolution_tier: int = 0  # 0=base, 1=veteran, 2=elite
@@ -260,6 +270,9 @@ func _physics_process(delta: float) -> void:
 			_process_blink(delta)
 		"summoner", "voidcaller":
 			_process_buff_aura(delta)
+			_process_heal_aura(delta)
+		"ranged", "flying":
+			_process_volley(delta)
 
 	# Movement
 	var effective_speed := follow_speed * Game.upgrade_thrall_speed_mult * Game.synergy_thrall_speed_mult * (1.0 + SkillTree.bonus_thrall_speed)
@@ -498,6 +511,60 @@ func _process_buff_aura(delta: float) -> void:
 				var base := Color(1.0, 0.8, 0.4) if thrall.mode == ThrallMode.COMMANDED else Color(0.4, 1.0, 0.9)
 				tween.tween_property(thrall.sprite, "modulate", base, 0.5)
 
+## Healer: summoner/voidcaller thralls periodically heal the player and nearby thralls
+func _process_heal_aura(delta: float) -> void:
+	_heal_timer -= delta
+	if _heal_timer > 0.0:
+		return
+	_heal_timer = _heal_cooldown
+	# Heal player if nearby
+	if leader and is_instance_valid(leader):
+		if global_position.distance_to(leader.global_position) < _heal_radius:
+			if leader.has_method("heal"):
+				leader.heal(_heal_amount)
+				Effects.spawn_particles(leader.global_position, Color(0.3, 1.0, 0.4), 4, 0.2)
+	# Heal nearby thralls
+	for thrall in get_tree().get_nodes_in_group("thralls"):
+		if thrall == self or not is_instance_valid(thrall):
+			continue
+		if thrall.is_dying:
+			continue
+		if global_position.distance_to(thrall.global_position) < _heal_radius:
+			thrall.current_health = minf(thrall.current_health + _heal_amount * 0.5, thrall.max_health)
+	# VFX
+	sprite.modulate = Color(0.3, 1.0, 0.5)
+	var tween := create_tween()
+	var base_col := Color(1.0, 0.8, 0.4) if mode == ThrallMode.COMMANDED else Color(0.4, 1.0, 0.9)
+	tween.tween_property(sprite, "modulate", base_col, 0.3)
+
+## Ranged Volley: ranged/flying thralls fire a burst of projectiles periodically
+func _process_volley(delta: float) -> void:
+	_volley_timer -= delta
+	if _volley_timer > 0.0:
+		return
+	if current_target == null or not is_instance_valid(current_target):
+		return
+	if not current_target.is_in_group("enemies"):
+		return
+	_volley_timer = _volley_cooldown
+	var ring_bonus := SaveData.get_equip_bonus(Equipment.Slot.RING)
+	var effective_damage := attack_damage * 0.5 * Game.upgrade_thrall_damage_mult * (1.0 + SaveData.perm_thrall_damage + ring_bonus)
+	var base_dir := global_position.direction_to(current_target.global_position)
+	if projectile_scene:
+		var scene := get_tree().current_scene
+		if scene:
+			for i in range(3):
+				var angle := (float(i) - 1.0) * 0.15
+				var dir := base_dir.rotated(angle)
+				var proj := projectile_scene.instantiate()
+				proj.global_position = global_position
+				proj.setup(dir, effective_damage, "enemies")
+				scene.add_child(proj)
+	sprite.modulate = Color(1.0, 0.6, 1.0)
+	var tween := create_tween()
+	var base_col := Color(1.0, 0.8, 0.4) if mode == ThrallMode.COMMANDED else Color(0.4, 1.0, 0.9)
+	tween.tween_property(sprite, "modulate", base_col, 0.2)
+
 ## Called by enemies when they die near this thrall
 func record_kill_assist() -> void:
 	kill_assists += 1
@@ -581,6 +648,11 @@ func _draw() -> void:
 	if (thrall_type == "summoner" or thrall_type == "voidcaller") and _buff_timer <= 0.5:
 		var aura_alpha := 0.1 * (1.0 - _buff_timer * 2.0)
 		draw_arc(Vector2.ZERO, _buff_radius / scale.x, 0, TAU, 20, Color(0.3, 0.9, 0.4, aura_alpha), 1.5)
+
+	# Heal aura indicator
+	if (thrall_type == "summoner" or thrall_type == "voidcaller") and _heal_timer <= 0.5:
+		var heal_alpha := 0.12 * (1.0 - _heal_timer * 2.0)
+		draw_arc(Vector2.ZERO, _heal_radius / scale.x, 0, TAU, 20, Color(0.3, 1.0, 0.4, heal_alpha), 1.5)
 
 	# Exploder low-health warning
 	if thrall_type == "exploder" and current_health <= max_health * 0.5 and not _explode_triggered:

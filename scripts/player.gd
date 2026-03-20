@@ -390,6 +390,16 @@ func take_damage(amount: float, from_pos: Vector2 = Vector2.ZERO) -> void:
 		return
 
 	var reduced := amount * (1.0 - SkillTree.bonus_damage_reduction)
+	# Bone shield absorption
+	if ability_manager and ability_manager.bone_shield_charges > 0:
+		var absorbed := ability_manager.try_absorb_damage(reduced)
+		reduced -= absorbed
+	# Soul link damage distribution
+	if ability_manager and ability_manager.soul_link_active:
+		var shared := ability_manager.distribute_soul_link_damage(reduced)
+		reduced -= shared
+	if reduced <= 0.0:
+		return
 	current_health -= reduced
 	current_health = max(current_health, 0.0)
 	health_changed.emit(current_health, max_health)

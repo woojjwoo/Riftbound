@@ -23,6 +23,22 @@ var speed_burst_mult: float = 1.0
 var fire_trail_timer: float = 0.0
 var fire_trail_stats: Dictionary = {}
 
+## Bone Shield state
+var bone_shield_charges: int = 0
+var bone_shield_absorb: float = 0.0
+var bone_shield_timer: float = 0.0
+
+## Soul Link state
+var soul_link_active: bool = false
+var soul_link_timer: float = 0.0
+var soul_link_stats: Dictionary = {}
+
+## Corpse Explosion tracking
+var recent_death_positions: Array[Vector2] = []
+const MAX_CORPSE_POSITIONS: int = 10
+const CORPSE_EXPIRE_TIME: float = 8.0
+var corpse_timers: Array[float] = []
+
 var player: CharacterBody2D = null
 var all_ability_info: Dictionary = {}
 
@@ -62,6 +78,27 @@ func _process(delta: float) -> void:
 		if player.velocity.length() > 10.0:
 			_spawn_fire_patch()
 
+	# Bone shield expiry
+	if bone_shield_timer > 0.0:
+		bone_shield_timer -= delta
+		if bone_shield_timer <= 0.0:
+			bone_shield_charges = 0
+
+	# Soul link expiry
+	if soul_link_active:
+		soul_link_timer -= delta
+		if soul_link_timer <= 0.0:
+			_end_soul_link()
+
+	# Corpse position expiry
+	var i := corpse_timers.size() - 1
+	while i >= 0:
+		corpse_timers[i] -= delta
+		if corpse_timers[i] <= 0.0:
+			corpse_timers.remove_at(i)
+			recent_death_positions.remove_at(i)
+		i -= 1
+
 func unlock_ability(id: String) -> void:
 	if ability_levels.has(id):
 		ability_levels[id] += 1
@@ -97,6 +134,14 @@ func activate_ability(id: String) -> void:
 			_do_speed_burst(stats)
 		"fire_trail":
 			_do_fire_trail(stats)
+		"bone_shield":
+			_do_bone_shield(stats)
+		"soul_link":
+			_do_soul_link(stats)
+		"death_coil":
+			_do_death_coil(stats)
+		"corpse_explosion":
+			_do_corpse_explosion(stats)
 
 	ability_cooldowns[id] = stats.get("cooldown", 5.0)
 	ability_max_cooldowns[id] = stats.get("cooldown", 5.0)
@@ -219,6 +264,122 @@ func _spawn_fire_patch() -> void:
 	patch.global_position = player.global_position
 	get_tree().current_scene.add_child(patch)
 
+# ── Bone Shield ─────────────────────────────────────────────────────────────
+
+func _do_bone_shield(stats: Dictionary) -> void:
+	bone_shield_charges = stats.charges
+	bone_shield_absorb = stats.absorb_per_charge
+	bone_shield_timer = stats.duration
+	_spawn_ring_vfx(player.global_position, 40.0, Color(0.85, 0.8, 0.7, 0.7), 0.3)
+
+## Called from player.take_damage — returns how much damage to absorb
+func try_absorb_damage(amount: float) -> float:
+	if bone_shield_charges <= 0:
+		return 0.0
+	var absorbed := minf(amount, bone_shield_absorb)
+	bone_shield_charges -= 1
+	Effects.spawn_hit_sparks(player.global_position, Color(0.85, 0.8, 0.7))
+	if bone_shield_charges <= 0:
+		bone_shield_timer = 0.0
+	return absorbed
+
+# ── Soul Link ───────────────────────────────────────────────────────────────
+
+func _do_soul_link(stats: Dictionary) -> void:
+	soul_link_active = true
+	soul_link_timer = stats.duration
+	soul_link_stats = stats
+	# Boost nearby thralls
+	for thrall in get_tree().get_nodes_in_group("thralls"):
+		if player.global_position.distance_to(thrall.global_position) < stats.radius:
+			thrall.attack_damage *= (1.0 + stats.thrall_damage_boost)
+			thrall.sprite.modulate = Color(0.6, 0.3, 1.0)
+			var tween := thrall.create_tween()
+			tween.tween_property(thrall.sprite, "modulate", Color(0.4, 1.0, 0.9), 0.5)
+	_spawn_ring_vfx(player.global_position, stats.radius, Color(0.6, 0.3, 1.0, 0.5), 0.5)
+
+func _end_soul_link() -> void:
+	soul_link_active = false
+	# Revert thrall damage boost
+	var boost := soul_link_stats.get("thrall_damage_boost", 0.15)
+	for thrall in get_tree().get_nodes_in_group("thralls"):
+		thrall.attack_damage /= (1.0 + boost)
+
+## Called from player.take_damage when soul link is active
+func distribute_soul_link_damage(amount: float) -> float:
+	if not soul_link_active:
+		return 0.0
+	var share := soul_link_stats.get("damage_share", 0.25)
+	var shared := amount * share
+	var thralls := get_tree().get_nodes_in_group("thralls")
+	if thralls.is_empty():
+		return 0.0
+	var per_thrall := shared / float(thralls.size())
+	for thrall in thralls:
+		if is_instance_valid(thrall) and thrall.has_method("take_damage"):
+			thrall.take_damage(per_thrall)
+	return shared
+
+# ── Death Coil ──────────────────────────────────────────────────────────────
+
+func _do_death_coil(stats: Dictionary) -> void:
+	# Find nearest enemy
+	var closest_enemy: Node2D = null
+	var closest_dist := 300.0
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if enemy.get("is_dying"):
+			continue
+		var dist := player.global_position.distance_to(enemy.global_position)
+		if dist < closest_dist:
+			closest_dist = dist
+			closest_enemy = enemy
+	if closest_enemy == null:
+		# No target — refund half cooldown
+		ability_cooldowns["death_coil"] = ability_max_cooldowns.get("death_coil", 5.0) * 0.5
+		return
+	var coil := DeathCoilProjectile.new()
+	coil.damage = stats.damage
+	coil.heal_percent = stats.heal_percent
+	coil.speed = stats.projectile_speed
+	coil.target = closest_enemy
+	coil.caster = player
+	coil.global_position = player.global_position
+	get_tree().current_scene.add_child(coil)
+
+# ── Corpse Explosion ────────────────────────────────────────────────────────
+
+func _do_corpse_explosion(stats: Dictionary) -> void:
+	if recent_death_positions.is_empty():
+		# No corpses — refund half cooldown
+		ability_cooldowns["corpse_explosion"] = ability_max_cooldowns.get("corpse_explosion", 5.0) * 0.5
+		return
+	var max_corpses: int = stats.max_corpses
+	var damage: float = stats.damage_per_corpse
+	var radius: float = stats.radius
+	var exploded := 0
+	while recent_death_positions.size() > 0 and exploded < max_corpses:
+		var pos: Vector2 = recent_death_positions.pop_back()
+		corpse_timers.pop_back()
+		for enemy in get_tree().get_nodes_in_group("enemies"):
+			if enemy.get("is_dying"):
+				continue
+			if enemy.global_position.distance_to(pos) <= radius:
+				if enemy.has_method("take_damage"):
+					enemy.take_damage(damage)
+		_spawn_ring_vfx(pos, radius, Color(0.7, 0.2, 0.1, 0.8), 0.4)
+		Effects.spawn_death_explosion(pos, Color(0.7, 0.2, 0.1))
+		exploded += 1
+	if exploded > 0:
+		Game.request_shake(6.0)
+
+## Called by external systems when an enemy dies to track corpse positions
+func register_corpse(pos: Vector2) -> void:
+	recent_death_positions.append(pos)
+	corpse_timers.append(CORPSE_EXPIRE_TIME)
+	if recent_death_positions.size() > MAX_CORPSE_POSITIONS:
+		recent_death_positions.pop_front()
+		corpse_timers.pop_front()
+
 # ── Visual Effects ───────────────────────────────────────────────────────────
 
 func _spawn_ring_vfx(pos: Vector2, radius: float, color: Color, duration: float) -> void:
@@ -291,3 +452,35 @@ class FirePatch extends Area2D:
 	func _on_body_entered(body: Node2D) -> void:
 		if body.is_in_group("enemies") and body.has_method("take_damage"):
 			body.take_damage(damage)
+
+class DeathCoilProjectile extends Node2D:
+	var damage: float = 25.0
+	var heal_percent: float = 0.3
+	var speed: float = 250.0
+	var target: Node2D = null
+	var caster: Node2D = null
+	var elapsed: float = 0.0
+
+	func _process(delta: float) -> void:
+		elapsed += delta
+		if elapsed > 5.0:
+			queue_free()
+			return
+		if target == null or not is_instance_valid(target) or target.get("is_dying"):
+			queue_free()
+			return
+		var dir := global_position.direction_to(target.global_position)
+		global_position += dir * speed * delta
+		if global_position.distance_to(target.global_position) < 15.0:
+			if target.has_method("take_damage"):
+				target.take_damage(damage)
+			if caster and is_instance_valid(caster) and caster.has_method("heal"):
+				caster.heal(damage * heal_percent)
+			Effects.spawn_hit_sparks(global_position, Color(0.4, 0.1, 0.6))
+			queue_free()
+		queue_redraw()
+
+	func _draw() -> void:
+		var pulse := 0.6 + 0.4 * sin(elapsed * 12.0)
+		draw_circle(Vector2.ZERO, 6.0 * pulse, Color(0.4, 0.1, 0.6, 0.8))
+		draw_circle(Vector2.ZERO, 3.0, Color(0.7, 0.3, 1.0, 0.9))
