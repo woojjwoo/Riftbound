@@ -3,7 +3,7 @@ extends Node2D
 ## Random mid-run events that spawn after closing rifts.
 ## Types: shrine (buff), cursed chest (risk/reward), blessing altar (coin sacrifice), merchant.
 
-enum EventType { SHRINE, CURSED_CHEST, BLESSING_ALTAR, MERCHANT }
+enum EventType { SHRINE, CURSED_CHEST, BLESSING_ALTAR, MERCHANT, AMBUSH, TREASURE_HUNT, SURVIVAL_WAVE, NPC_RESCUE }
 
 var event_type: EventType = EventType.SHRINE
 var interacted: bool = false
@@ -59,6 +59,14 @@ func _interact() -> void:
 			_blessing_effect(player)
 		EventType.MERCHANT:
 			_merchant_effect(player)
+		EventType.AMBUSH:
+			_ambush_effect(player)
+		EventType.TREASURE_HUNT:
+			_treasure_hunt_effect(player)
+		EventType.SURVIVAL_WAVE:
+			_survival_wave_effect(player)
+		EventType.NPC_RESCUE:
+			_npc_rescue_effect(player)
 
 	# Fade out after interaction
 	var tween := create_tween()
@@ -144,6 +152,93 @@ func _merchant_effect(_player: Node2D) -> void:
 	Effects.spawn_particles(global_position, Color(1.0, 0.9, 0.3), 12, 0.4)
 	Audio.play_ui_confirm()
 
+func _ambush_effect(player: Node2D) -> void:
+	# Spawn a ring of enemies around the player — survive for a reward
+	_show_event_text("AMBUSH!")
+	Game.request_shake(8.0)
+	Audio.play_boss_enter()
+	var EnemyScript := preload("res://scripts/enemy.gd")
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	var count := 6 + Game.current_world * 2
+	for i in range(count):
+		var angle := float(i) / float(count) * TAU
+		var pos := player.global_position + Vector2(cos(angle), sin(angle)) * 100.0
+		var enemy := CharacterBody2D.new()
+		enemy.set_script(EnemyScript)
+		var types := ["melee", "ranged", "charger"]
+		enemy.enemy_type = types[randi() % types.size()]
+		enemy.global_position = pos
+		scene.call_deferred("add_child", enemy)
+	# Reward coins after a delay (assuming player survives)
+	get_tree().create_timer(8.0).timeout.connect(func():
+		if not Game.is_game_over:
+			var bonus := 20 + Game.current_world * 15
+			SaveData.add_coins(bonus)
+			Game.spawn_damage_number(bonus, player.global_position + Vector2(0, -30), Color(1.0, 0.9, 0.3))
+	)
+
+func _treasure_hunt_effect(_player: Node2D) -> void:
+	# Spawn 3 equipment drops scattered around the event location
+	_show_event_text("Treasure Found!")
+	Effects.spawn_level_up_burst(global_position)
+	Audio.play_upgrade()
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	for i in range(3):
+		var angle := float(i) / 3.0 * TAU + randf() * 0.5
+		var pos := global_position + Vector2(cos(angle), sin(angle)) * randf_range(30.0, 60.0)
+		var min_rarity := mini(Game.current_world, Equipment.Rarity.EPIC)
+		var rarity := clampi(randi() % 3 + min_rarity, 0, Equipment.Rarity.LEGENDARY)
+		var equip := Equipment.create_equipment(randi() % 6, rarity)
+		Game.spawn_equip_drop(pos, equip)
+
+func _survival_wave_effect(player: Node2D) -> void:
+	# Timed survival challenge: survive 15 seconds of intense spawns for big reward
+	_show_event_text("Survive 15 seconds!")
+	Game.request_shake(6.0)
+	Audio.play_boss_enter()
+	var EnemyScript := preload("res://scripts/enemy.gd")
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	# Spawn waves over 15 seconds
+	for wave in range(5):
+		get_tree().create_timer(float(wave) * 3.0).timeout.connect(func():
+			if Game.is_game_over:
+				return
+			for j in range(4):
+				var angle := randf() * TAU
+				var pos := player.global_position + Vector2(cos(angle), sin(angle)) * randf_range(150.0, 300.0)
+				var enemy := CharacterBody2D.new()
+				enemy.set_script(EnemyScript)
+				enemy.enemy_type = ["melee", "ranged", "tank", "charger", "exploder"][randi() % 5]
+				enemy.global_position = pos
+				if scene and is_instance_valid(scene):
+					scene.call_deferred("add_child", enemy)
+		)
+	# Reward at end
+	get_tree().create_timer(15.0).timeout.connect(func():
+		if not Game.is_game_over:
+			var bonus := 50 + Game.current_world * 25
+			SaveData.add_coins(bonus)
+			Game.upgrade_available.emit()
+			Game.spawn_damage_number(bonus, player.global_position + Vector2(0, -30), Color(1.0, 0.9, 0.3))
+			_show_event_text("Survived! +Upgrade")
+	)
+
+func _npc_rescue_effect(player: Node2D) -> void:
+	# Rescue NPC for a permanent thrall damage buff
+	_show_event_text("Spirit Rescued! +10% Thrall DMG")
+	Effects.spawn_particles(global_position, Color(0.3, 0.8, 1.0), 16, 0.5)
+	Audio.play_level_up()
+	Game.upgrade_thrall_damage_mult += 0.10
+	# Also heal player as thanks
+	if player.has_method("heal"):
+		player.heal(player.max_health * 0.25)
+
 func _show_event_text(text: String) -> void:
 	var font := ThemeDB.fallback_font
 	# Use damage number system to show floating text
@@ -201,6 +296,33 @@ func _draw() -> void:
 			# Coin symbol
 			draw_circle(Vector2.ZERO, 4.0, Color(1.0, 0.9, 0.3, 0.6))
 
+		EventType.AMBUSH:
+			# Red skull
+			draw_circle(Vector2.ZERO, 10.0, Color(0.9, 0.1, 0.1, 0.15 * pulse))
+			draw_arc(Vector2.ZERO, 12.0, 0, TAU, 12, Color(1.0, 0.2, 0.1, 0.5 * pulse), 2.0)
+			draw_circle(Vector2(-3, -2), 2.0, Color(1.0, 0.3, 0.1, 0.7))
+			draw_circle(Vector2(3, -2), 2.0, Color(1.0, 0.3, 0.1, 0.7))
+
+		EventType.TREASURE_HUNT:
+			# Gold chest with sparkle
+			draw_rect(Rect2(-9, -7, 18, 14), Color(0.8, 0.6, 0.1, 0.4 * pulse))
+			draw_rect(Rect2(-9, -7, 18, 14), Color(1.0, 0.85, 0.3, 0.6 * pulse), false, 1.5)
+			for ti in range(3):
+				var ta := float(ti) / 3.0 * TAU + time * 4.0
+				var tp := Vector2(cos(ta), sin(ta)) * 8.0
+				draw_circle(tp, 1.5, Color(1.0, 0.9, 0.4, 0.6 * pulse))
+
+		EventType.SURVIVAL_WAVE:
+			# Purple arena ring
+			draw_arc(Vector2.ZERO, 14.0, 0, TAU, 16, Color(0.8, 0.2, 1.0, 0.4 * pulse), 2.0)
+			draw_arc(Vector2.ZERO, 8.0, 0, TAU * pulse, 12, Color(0.6, 0.1, 0.9, 0.6), 1.5)
+
+		EventType.NPC_RESCUE:
+			# Blue spirit
+			draw_circle(Vector2.ZERO, 8.0, Color(0.2, 0.5, 1.0, 0.2 * pulse))
+			draw_circle(Vector2.ZERO, 5.0, Color(0.4, 0.7, 1.0, 0.4 * pulse))
+			draw_circle(Vector2(0, -4), 3.0, Color(0.6, 0.8, 1.0, 0.5))
+
 	# Floating particles
 	for i in range(3):
 		var angle := float(i) / 3.0 * TAU + time * 2.0
@@ -217,6 +339,10 @@ func _draw() -> void:
 			EventType.CURSED_CHEST: label = "E: Open Chest"
 			EventType.BLESSING_ALTAR: label = "E: Pray (%d coins)" % (50 + Game.current_world * 25)
 			EventType.MERCHANT: label = "E: Buy Heal (%d coins)" % (30 + Game.current_world * 10)
+			EventType.AMBUSH: label = "E: Spring Trap"
+			EventType.TREASURE_HUNT: label = "E: Open Treasure"
+			EventType.SURVIVAL_WAVE: label = "E: Accept Challenge"
+			EventType.NPC_RESCUE: label = "E: Rescue Spirit"
 		draw_string(font, Vector2(-40, -22), label, HORIZONTAL_ALIGNMENT_CENTER, 80, 8, Color(1.0, 0.9, 0.6, pulse))
 
 func _get_event_color() -> Color:
@@ -225,4 +351,8 @@ func _get_event_color() -> Color:
 		EventType.CURSED_CHEST: return Color(1.0, 0.3, 0.2)
 		EventType.BLESSING_ALTAR: return Color(1.0, 0.85, 0.3)
 		EventType.MERCHANT: return Color(0.3, 0.5, 1.0)
+		EventType.AMBUSH: return Color(1.0, 0.2, 0.1)
+		EventType.TREASURE_HUNT: return Color(1.0, 0.85, 0.3)
+		EventType.SURVIVAL_WAVE: return Color(0.8, 0.2, 1.0)
+		EventType.NPC_RESCUE: return Color(0.4, 0.7, 1.0)
 	return Color.WHITE

@@ -57,6 +57,47 @@ const SANCTUM_UPGRADES: Array[Dictionary] = [
 	 "color": Color(0.8, 0.4, 1.0)},
 ]
 
+# Prestige unlocks — cosmetic/permanent features bought with Soul Essence
+const PRESTIGE_UNLOCKS: Array[Dictionary] = [
+	{"key": "prestige_death_trail", "name": "Death Trail", "desc": "Leave a ghostly trail while moving",
+	 "cost": 100, "color": Color(0.6, 0.3, 1.0)},
+	{"key": "prestige_golden_thralls", "name": "Golden Thralls", "desc": "Thralls have a golden aura",
+	 "cost": 150, "color": Color(1.0, 0.85, 0.3)},
+	{"key": "prestige_crit_flash", "name": "Critical Flash", "desc": "Dramatic screen flash on critical hits",
+	 "cost": 80, "color": Color(1.0, 0.4, 0.2)},
+	{"key": "prestige_soul_magnet", "name": "Soul Magnet", "desc": "Increase pickup range by 50%",
+	 "cost": 200, "color": Color(0.3, 0.8, 1.0)},
+	{"key": "prestige_bonus_essence", "name": "Essence Amplifier", "desc": "+25% Soul Essence earned from runs",
+	 "cost": 300, "color": Color(0.8, 0.4, 1.0)},
+	{"key": "prestige_extra_life", "name": "Undying Will", "desc": "Revive once per run at 30% HP",
+	 "cost": 500, "color": Color(0.3, 1.0, 0.4)},
+]
+
+var prestige_unlocked: Array[String] = []
+
+func has_prestige(key: String) -> bool:
+	return key in prestige_unlocked
+
+func can_buy_prestige(key: String) -> bool:
+	if key in prestige_unlocked:
+		return false
+	for unlock in PRESTIGE_UNLOCKS:
+		if unlock["key"] == key:
+			return soul_essence >= unlock["cost"]
+	return false
+
+func buy_prestige(key: String) -> bool:
+	if not can_buy_prestige(key):
+		return false
+	for unlock in PRESTIGE_UNLOCKS:
+		if unlock["key"] == key:
+			soul_essence -= unlock["cost"]
+			prestige_unlocked.append(key)
+			soul_essence_changed.emit(soul_essence)
+			save_meta()
+			return true
+	return false
+
 # Computed bonuses (derived from sanctum_levels)
 var sanctum_max_health: float = 0.0
 var sanctum_base_damage: float = 0.0
@@ -87,6 +128,9 @@ func calculate_run_essence(kills: int, worlds_cleared: int, bosses_killed: int) 
 ## Award Soul Essence at the end of a run
 func award_run_essence(kills: int, worlds_cleared: int, bosses_killed: int) -> int:
 	var earned := calculate_run_essence(kills, worlds_cleared, bosses_killed)
+	# Apply prestige bonus
+	if has_prestige("prestige_bonus_essence"):
+		earned = int(earned * 1.25)
 	soul_essence += earned
 	total_soul_essence_earned += earned
 	meta_total_kills += kills
@@ -154,6 +198,7 @@ func save_meta() -> void:
 		"meta_bosses_killed": meta_bosses_killed,
 		"meta_runs_completed": meta_runs_completed,
 		"sanctum_levels": sanctum_levels,
+		"prestige_unlocked": prestige_unlocked,
 	}
 	var json_string := JSON.stringify(data)
 	var file := FileAccess.open(META_SAVE_PATH, FileAccess.WRITE)
@@ -183,6 +228,12 @@ func load_meta() -> void:
 	if saved_levels is Array:
 		for i in range(mini(saved_levels.size(), sanctum_levels.size())):
 			sanctum_levels[i] = clampi(int(saved_levels[i]), 0, 20)
+	var saved_prestige = data.get("prestige_unlocked", [])
+	prestige_unlocked = []
+	if saved_prestige is Array:
+		for p in saved_prestige:
+			if p is String:
+				prestige_unlocked.append(p)
 	_recalculate_bonuses()
 
 func reset_meta() -> void:

@@ -100,6 +100,14 @@ func _ready() -> void:
 	move_speed *= (1.0 + SkillTree.bonus_move_speed)
 	bolt_cooldown *= max(0.2, 1.0 - SkillTree.bonus_attack_speed)
 
+	# Apply rune bonuses from socketed equipment
+	var rune_node := get_node_or_null("/root/Runes")
+	if rune_node and rune_node.has_method("get_equipped_rune_bonuses"):
+		var rune_bonuses: Dictionary = rune_node.get_equipped_rune_bonuses()
+		bolt_damage *= (1.0 + rune_bonuses.get("damage", 0.0))
+		max_health += rune_bonuses.get("max_hp", 0.0)
+		bolt_cooldown *= max(0.2, 1.0 - rune_bonuses.get("cdr", 0.0))
+
 	current_health = max_health + Game.upgrade_health_bonus
 	max_health += Game.upgrade_health_bonus
 	base_move_speed = move_speed

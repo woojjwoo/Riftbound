@@ -597,6 +597,10 @@ func die() -> void:
 	if randf() < 0.2:
 		_spawn_health_orb()
 
+	# Rune fragment drop chance
+	if has_node("/root/Runes"):
+		get_node("/root/Runes").try_drop_fragment()
+
 	# Register corpse position for Corpse Explosion ability
 	var players := get_tree().get_nodes_in_group("player")
 	if players.size() > 0:

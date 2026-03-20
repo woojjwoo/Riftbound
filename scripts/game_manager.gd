@@ -316,17 +316,25 @@ func _spawn_world_event() -> void:
 	var event := Node2D.new()
 	event.set_script(WorldEvent)
 	event.global_position = pos
-	# Random event type, weighted
+	# Random event type, weighted — includes new event types
 	var roll := randf()
 	var event_type: int
-	if roll < 0.35:
+	if roll < 0.20:
 		event_type = 0  # SHRINE
-	elif roll < 0.55:
+	elif roll < 0.32:
 		event_type = 1  # CURSED_CHEST
-	elif roll < 0.80:
+	elif roll < 0.44:
 		event_type = 2  # BLESSING_ALTAR
-	else:
+	elif roll < 0.52:
 		event_type = 3  # MERCHANT
+	elif roll < 0.64:
+		event_type = 4  # AMBUSH
+	elif roll < 0.76:
+		event_type = 5  # TREASURE_HUNT
+	elif roll < 0.88:
+		event_type = 6  # SURVIVAL_WAVE
+	else:
+		event_type = 7  # NPC_RESCUE
 	event.setup(event_type)
 	scene.add_child(event)
 
@@ -480,6 +488,16 @@ func trigger_game_over() -> void:
 	# Award Soul Essence for the run
 	var earned := Meta.award_run_essence(kill_count, run_worlds_cleared, run_bosses_killed)
 	soul_essence_earned.emit(earned)
+	# Submit to leaderboard
+	var lb := get_node_or_null("/root/Leaderboard")
+	if lb:
+		lb.submit_overall(kill_count, run_worlds_cleared, run_bosses_killed)
+		if arena_mode and arena_wave > 0:
+			lb.submit_arena(arena_wave, kill_count)
+	# Check codex auto-unlocks
+	var codex := get_node_or_null("/root/Codex")
+	if codex:
+		codex.check_auto_unlocks()
 	get_tree().paused = true
 	game_over.emit()
 
