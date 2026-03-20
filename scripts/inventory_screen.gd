@@ -67,6 +67,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_ENTER, KEY_SPACE:
 				if focus == Focus.INVENTORY:
 					_equip_selected()
+			KEY_X:
+				if focus == Focus.INVENTORY:
+					_scrap_selected()
 
 	# Mouse scroll for inventory
 	if event is InputEventMouseButton and event.pressed:
@@ -108,6 +111,22 @@ func _equip_selected() -> void:
 	var item := SaveData.inventory[inv_cursor]
 	SaveData.equip_item(item)
 	# Clamp cursor after removal
+	_clamp_inv_cursor()
+	compare_item = {}
+
+func _scrap_selected() -> void:
+	if SaveData.inventory.is_empty():
+		return
+	if inv_cursor < 0 or inv_cursor >= SaveData.inventory.size():
+		return
+	var item := SaveData.inventory[inv_cursor]
+	# Scrap value: base 5 coins + 5 per rarity tier + 3 per upgrade level
+	var scrap_value := 5 + item["rarity"] * 5 + item["level"] * 3
+	SaveData.inventory.remove_at(inv_cursor)
+	SaveData.add_coins(scrap_value)
+	SaveData.equipment_changed.emit()
+	SaveData.save_game()
+	Audio.play_sell()
 	_clamp_inv_cursor()
 	compare_item = {}
 
@@ -221,9 +240,9 @@ func _draw() -> void:
 	_draw_comparison(vp, font)
 
 	# Controls hint
-	draw_string(font, Vector2(cx - 200, vp.y - 12),
-		"Arrow Keys: Navigate  |  Enter/Double-Click: Equip  |  Scroll: Mouse Wheel  |  TAB/ESC: Close",
-		HORIZONTAL_ALIGNMENT_CENTER, 400, 11, Color(0.4, 0.35, 0.5))
+	draw_string(font, Vector2(cx - 250, vp.y - 12),
+		"Arrows: Navigate  |  Enter: Equip  |  X: Scrap  |  Scroll: Mouse Wheel  |  TAB/ESC: Close",
+		HORIZONTAL_ALIGNMENT_CENTER, 500, 11, Color(0.4, 0.35, 0.5))
 
 func _draw_equipment(vp: Vector2, font: Font) -> void:
 	var slot_x := vp.x * 0.03
@@ -273,9 +292,15 @@ func _draw_equipment(vp: Vector2, font: Font) -> void:
 			draw_string(font, Vector2(slot_x + 85, y + 48), stat_text,
 				HORIZONTAL_ALIGNMENT_LEFT, 200, 10, Color(0.5, 0.8, 0.5))
 
+			# Proc effect for legendary items
+			if equip.has("proc_name"):
+				var proc_color := Equipment.get_rarity_color(Equipment.Rarity.LEGENDARY)
+				draw_string(font, Vector2(slot_x + 85, y + 48), "[%s]" % equip["proc_name"],
+					HORIZONTAL_ALIGNMENT_LEFT, int(slot_w - 95), 9, Color(proc_color.r, proc_color.g, proc_color.b, 0.8))
+
 			# Level pips
 			var pip_x := slot_x + slot_w - 55.0
-			var pip_y := y + 44.0
+			var pip_y := y + 58.0
 			var max_pips := mini(equip["level"], 15)
 			for p in range(mini(max_pips, 10)):
 				var pip_col := Color(0.4, 0.8, 0.3) if p < equip["level"] else Color(0.2, 0.2, 0.2)
@@ -360,9 +385,10 @@ func _draw_comparison(vp: Vector2, font: Font) -> void:
 		return
 
 	var panel_x := vp.x * 0.44
-	var panel_y := vp.y - 170.0
 	var panel_w := vp.x * 0.53
-	var panel_h := 115.0
+	var has_proc := item.has("proc_name")
+	var panel_h := 130.0 if has_proc else 115.0
+	var panel_y := vp.y - panel_h - 55.0
 
 	# Panel background
 	draw_rect(Rect2(panel_x, panel_y, panel_w, panel_h), Color(0.08, 0.06, 0.14, 0.95))
@@ -429,9 +455,17 @@ func _draw_comparison(vp: Vector2, font: Font) -> void:
 		draw_string(font, Vector2(panel_x + 10, panel_y + 90), diff_text,
 			HORIZONTAL_ALIGNMENT_LEFT, int(panel_w - 20), 11, diff_color)
 
+	# Legendary proc description
+	if item.has("proc_name"):
+		var proc_y := panel_y + 90 if current.is_empty() else panel_y + 100
+		var proc_color := Equipment.get_rarity_color(Equipment.Rarity.LEGENDARY)
+		draw_string(font, Vector2(panel_x + 10, proc_y),
+			"[%s] %s" % [item.get("proc_name", ""), item.get("proc_desc", "")],
+			HORIZONTAL_ALIGNMENT_LEFT, int(panel_w - 20), 9, Color(proc_color.r, proc_color.g, proc_color.b, 0.9))
+
 	# Equip hint
-	draw_string(font, Vector2(panel_x + panel_w - 140, panel_y + 105),
-		"Enter / Double-Click to equip",
+	draw_string(font, Vector2(panel_x + panel_w - 140, panel_y + 112),
+		"Enter: Equip  |  X: Scrap",
 		HORIZONTAL_ALIGNMENT_RIGHT, 130, 9, Color(0.5, 0.45, 0.6))
 
 func _format_stat(slot_info: Dictionary, bonus: float) -> String:

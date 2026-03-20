@@ -45,6 +45,9 @@ var run_bests: Dictionary = {}
 # Tutorial tracking
 var tutorial_completed: bool = false
 
+# New Game+ cycle (0 = first playthrough, 1 = NG+, 2 = NG++, etc.)
+var ng_plus_cycle: int = 0
+
 # Cached achievement data — loaded before AchievementManager is ready
 var _cached_achievements: Dictionary = {}
 
@@ -241,6 +244,7 @@ func save_game() -> void:
 		"achievements": _get_achievements_data(),
 		"run_bests": run_bests,
 		"tutorial_completed": tutorial_completed,
+		"ng_plus_cycle": ng_plus_cycle,
 	}
 	var json_string := JSON.stringify(data)
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -323,6 +327,8 @@ func load_game() -> void:
 		run_bests = saved_bests
 	# Tutorial
 	tutorial_completed = bool(data.get("tutorial_completed", false))
+	# New Game+
+	ng_plus_cycle = clampi(int(data.get("ng_plus_cycle", 0)), 0, 99)
 	# Achievements — stored for AchievementManager to load on its own _ready
 	var saved_achievements = data.get("achievements", {})
 	if saved_achievements is Dictionary:
@@ -357,6 +363,8 @@ func _migrate_v2_to_v3(data: Dictionary) -> void:
 		data["run_bests"] = {}
 	if not data.has("tutorial_completed"):
 		data["tutorial_completed"] = false
+	if not data.has("ng_plus_cycle"):
+		data["ng_plus_cycle"] = 0
 	data["save_version"] = 3
 
 func _get_achievements_data() -> Dictionary:
@@ -403,6 +411,7 @@ func reset_save() -> void:
 	audio_music_volume = 0.6
 	run_bests = {}
 	tutorial_completed = false
+	ng_plus_cycle = 0
 	var ach_node := get_node_or_null("/root/Achievements")
 	if ach_node:
 		ach_node.unlocked = {}

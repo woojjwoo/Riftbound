@@ -155,8 +155,11 @@ func _draw() -> void:
 		HORIZONTAL_ALIGNMENT_CENTER, 180, 36, Color(0.85, 0.65, 1.0))
 
 	# Subtitle
-	draw_string(font, Vector2(cx - 80, cy - 100), "A Necromancer's Tale",
-		HORIZONTAL_ALIGNMENT_CENTER, 160, 12, Color(0.5, 0.35, 0.65))
+	var subtitle := "A Necromancer's Tale"
+	if SaveData.ng_plus_cycle > 0:
+		subtitle = "New Game+ %d" % SaveData.ng_plus_cycle
+	draw_string(font, Vector2(cx - 80, cy - 100), subtitle,
+		HORIZONTAL_ALIGNMENT_CENTER, 160, 12, Color(0.5, 0.35, 0.65) if SaveData.ng_plus_cycle == 0 else Color(1.0, 0.6, 0.2))
 
 	# World selector
 	var world_name: String = world_config.get("name", "Unknown")

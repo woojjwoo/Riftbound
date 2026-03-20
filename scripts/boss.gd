@@ -266,11 +266,13 @@ func _do_slam() -> void:
 	if player and global_position.distance_to(player.global_position) < slam_radius:
 		player.take_damage(slam_damage, global_position)
 	# VFX
-	var vfx := Node2D.new()
-	vfx.global_position = global_position
-	vfx.set_script(preload("res://scripts/explosion_vfx.gd"))
-	vfx.set("max_radius", slam_radius)
-	get_tree().current_scene.add_child(vfx)
+	var scene := get_tree().current_scene
+	if scene:
+		var vfx := Node2D.new()
+		vfx.global_position = global_position
+		vfx.set_script(preload("res://scripts/explosion_vfx.gd"))
+		vfx.set("max_radius", slam_radius)
+		scene.add_child(vfx)
 
 func _do_summon() -> void:
 	# Spawn 2-3 small melee enemies around the boss
@@ -286,7 +288,9 @@ func _do_summon() -> void:
 		var telegraph := Node2D.new()
 		telegraph.set_script(preload("res://scripts/spawn_telegraph.gd"))
 		telegraph.global_position = spawn_pos
-		get_tree().current_scene.add_child(telegraph)
+		var summon_scene := get_tree().current_scene
+		if summon_scene:
+			summon_scene.add_child(telegraph)
 		# Delayed spawn
 		var timer := get_tree().create_timer(0.5)
 		timer.timeout.connect(_spawn_minion.bind(melee_scene, spawn_pos))
@@ -299,7 +303,9 @@ func _spawn_minion(scene: PackedScene, pos: Vector2) -> void:
 	# Minions are weaker than normal
 	enemy.max_health = 20.0
 	enemy.contact_damage = 5.0
-	get_tree().current_scene.add_child(enemy)
+	var current := get_tree().current_scene
+	if current:
+		current.add_child(enemy)
 
 func take_damage(amount: float) -> void:
 	if is_dying:
@@ -395,7 +401,7 @@ func _do_world_special() -> void:
 func _boss_sand_barrage() -> void:
 	if player == null:
 		return
-	Audio.play_boss_enrage()
+	Audio.play_boss_sand_barrage()
 	var base_dir := global_position.direction_to(player.global_position)
 	var spread := 5 if not enraged else 8
 	var melee_scene := load("res://scenes/enemy_melee.tscn")
@@ -404,17 +410,19 @@ func _boss_sand_barrage() -> void:
 		var dir := base_dir.rotated(angle)
 		# Spawn a fast-moving projectile
 		if projectile_scene:
-			var proj := projectile_scene.instantiate()
-			proj.global_position = global_position + dir * 20.0
-			proj.setup(dir, contact_damage * 0.6, "player")
-			get_tree().current_scene.add_child(proj)
+			var barrage_scene := get_tree().current_scene
+			if barrage_scene:
+				var proj := projectile_scene.instantiate()
+				proj.global_position = global_position + dir * 20.0
+				proj.setup(dir, contact_damage * 0.6, "player")
+				barrage_scene.add_child(proj)
 	Effects.spawn_particles(global_position, Color(0.9, 0.7, 0.2), 12, 0.3)
 
 ## Frost Wyrm: expanding ice ring that slows player
 func _boss_frost_ring() -> void:
 	if player == null:
 		return
-	Audio.play_explode()
+	Audio.play_boss_frost_ring()
 	Game.request_shake(6.0)
 	var radius := 140.0 if not enraged else 200.0
 	if player and global_position.distance_to(player.global_position) < radius:
@@ -431,7 +439,7 @@ func _boss_frost_ring() -> void:
 
 ## Swamp Horror: drops poison pools around the arena
 func _boss_poison_pools() -> void:
-	Audio.play_explode()
+	Audio.play_boss_poison_pools()
 	var count := 3 if not enraged else 5
 	for i in range(count):
 		var angle := randf() * TAU
@@ -441,14 +449,16 @@ func _boss_poison_pools() -> void:
 		pool.global_position = pos
 		pool.set_script(preload("res://scripts/poison_pool.gd"))
 		pool.setup(25.0, contact_damage * 0.15, 6.0)
-		get_tree().current_scene.add_child(pool)
+		var pool_scene := get_tree().current_scene
+		if pool_scene:
+			pool_scene.add_child(pool)
 	Effects.spawn_particles(global_position, Color(0.3, 0.9, 0.2), 16, 0.4)
 
 ## Void Sovereign: pulls player toward the boss
 func _boss_void_pull() -> void:
 	if player == null:
 		return
-	Audio.play_boss_enrage()
+	Audio.play_boss_void_pull()
 	Game.request_shake(8.0)
 	var pull_strength := 150.0 if not enraged else 220.0
 	var dir := player.global_position.direction_to(global_position)

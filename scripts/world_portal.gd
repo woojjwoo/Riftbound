@@ -23,7 +23,7 @@ func _ready() -> void:
 	tween.tween_property(self, "scale", Vector2(1.0, 1.0), 0.8).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
 	tween.tween_callback(func(): active = true)
 	Game.request_shake(10.0)
-	Audio.play_phase_change()
+	Audio.play_portal_open()
 
 func _process(delta: float) -> void:
 	time += delta
@@ -46,7 +46,7 @@ func _enter_portal() -> void:
 	Game.is_game_over = true
 	Game.hit_freeze(0.1)
 	Game.request_shake(15.0)
-	Audio.play_victory()
+	Audio.play_portal_enter()
 
 	# Save progress (guard against double-counting in trigger_game_over)
 	SaveData.complete_world(Game.current_world)
@@ -58,10 +58,23 @@ func _enter_portal() -> void:
 	Game.on_world_cleared()
 
 	if next_world_id >= WorldData.get_world_count():
-		# Beat the final world — award Soul Essence for the complete run
+		# Beat the final world — award Soul Essence and start New Game+
 		Meta.award_run_essence(Game.kill_count, Game.run_worlds_cleared, Game.run_bosses_killed)
+		SaveData.ng_plus_cycle += 1
+		SaveData.save_game()
+		# Loop back to world 0 with NG+ scaling
 		Game.current_world = 0
-		get_tree().change_scene_to_file("res://scenes/title_screen.tscn")
+		Game.ng_plus_cycle = SaveData.ng_plus_cycle
+		# Show sacrifice/story screen for NG+ transition
+		var sacrifice := Node2D.new()
+		sacrifice.set_script(preload("res://scripts/sacrifice_screen.gd"))
+		sacrifice.z_index = 100
+		sacrifice.setup_ng_plus(SaveData.ng_plus_cycle, Game.thrall_count)
+		var scene := get_tree().current_scene
+		if scene:
+			scene.add_child(sacrifice)
+		else:
+			Game.restart_for_next_world()
 		return
 
 	# Show sacrifice/story screen before transitioning

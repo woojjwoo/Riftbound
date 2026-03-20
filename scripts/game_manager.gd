@@ -57,6 +57,9 @@ var xp_to_next_level: int = 10
 var run_worlds_cleared: int = 0
 var run_bosses_killed: int = 0
 
+# New Game+ cycle (synced from SaveData on start)
+var ng_plus_cycle: int = 0
+
 # Hit freeze
 var _freeze_timer: float = 0.0
 var _freeze_prev_scale: float = 1.0
@@ -103,6 +106,7 @@ var ALL_UPGRADES: Array[Dictionary] = [
 ]
 
 func _ready() -> void:
+	ng_plus_cycle = SaveData.ng_plus_cycle
 	# Set rift count from world config on first load
 	total_rifts = get_world_config().get("rifts", 5)
 	_transition_to(GameProcess.EARLY_GAME)
@@ -204,8 +208,8 @@ func spawn_equip_drop(pos: Vector2, equip: Dictionary) -> void:
 ## Spawn coin and EXP drops at a position (called from enemy death)
 func spawn_drops(pos: Vector2, enemy_type: String) -> void:
 	var config := get_world_config()
-	var coin_mult: float = config.get("coin_mult", 1.0)
-	var exp_mult: float = config.get("exp_mult", 1.0)
+	var coin_mult: float = config.get("coin_mult", 1.0) * (1.0 + ng_plus_cycle * 0.3)
+	var exp_mult: float = config.get("exp_mult", 1.0) * (1.0 + ng_plus_cycle * 0.2)
 
 	# Coin value by enemy type
 	var coin_val := 1
@@ -269,8 +273,8 @@ func spawn_drops(pos: Vector2, enemy_type: String) -> void:
 ## Spawn boss-tier drops (more coins, more EXP)
 func spawn_boss_drops(pos: Vector2) -> void:
 	var config := get_world_config()
-	var coin_mult: float = config.get("coin_mult", 1.0)
-	var exp_mult: float = config.get("exp_mult", 1.0)
+	var coin_mult: float = config.get("coin_mult", 1.0) * (1.0 + ng_plus_cycle * 0.3)
+	var exp_mult: float = config.get("exp_mult", 1.0) * (1.0 + ng_plus_cycle * 0.2)
 	var scene := get_tree().current_scene
 	if scene == null:
 		return
@@ -307,6 +311,7 @@ func trigger_game_over() -> void:
 
 func restart() -> void:
 	current_world = 0
+	ng_plus_cycle = SaveData.ng_plus_cycle
 	_reset_run_state()
 	get_tree().paused = false
 	get_tree().reload_current_scene()
@@ -448,15 +453,19 @@ func get_power_level() -> float:
 					power += equip_bonus * 0.8   # move speed %
 	return power
 
-## Get world-scaled difficulty multipliers
+## NG+ difficulty scaling: each cycle adds 50% HP, 30% damage, 20% count
+func get_ng_plus_mult(base: float, per_cycle: float) -> float:
+	return base * (1.0 + ng_plus_cycle * per_cycle)
+
+## Get world-scaled difficulty multipliers (with NG+ scaling)
 func get_enemy_hp_mult() -> float:
-	return get_world_config().get("hp_mult", 1.0)
+	return get_ng_plus_mult(get_world_config().get("hp_mult", 1.0), 0.5)
 
 func get_enemy_dmg_mult() -> float:
-	return get_world_config().get("dmg_mult", 1.0)
+	return get_ng_plus_mult(get_world_config().get("dmg_mult", 1.0), 0.3)
 
 func get_enemy_count_mult() -> float:
-	return get_world_config().get("enemy_mult", 1.0)
+	return get_ng_plus_mult(get_world_config().get("enemy_mult", 1.0), 0.2)
 
 func _apply_health_upgrade() -> void:
 	var players := get_tree().get_nodes_in_group("player")

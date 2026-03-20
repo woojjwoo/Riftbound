@@ -100,7 +100,8 @@ func _ready() -> void:
 
 	# Set world label and show intro narrative
 	var config := Game.get_world_config()
-	world_label.text = "World %d: %s" % [Game.current_world + 1, config.get("name", "Unknown")]
+	var ng_suffix := " (NG+%d)" % Game.ng_plus_cycle if Game.ng_plus_cycle > 0 else ""
+	world_label.text = "World %d: %s%s" % [Game.current_world + 1, config.get("name", "Unknown"), ng_suffix]
 	_show_narrative(config.get("intro", ""), 6.0)
 
 	# Equipment HUD overlay

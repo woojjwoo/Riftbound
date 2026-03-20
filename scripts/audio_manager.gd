@@ -439,6 +439,78 @@ func play_ui_cancel() -> void:
 func play_ui_error() -> void:
 	_play_tone(200.0, 0.08, -8.0, "square")
 
+# --- Legendary Proc Effects ---
+
+## Chain lightning proc triggers.
+func play_proc_chain_lightning() -> void:
+	_play_sweep(1200.0, 400.0, 0.12, -6.0)
+
+## Lifesteal / Soul Drain proc heals.
+func play_proc_lifesteal() -> void:
+	_play_sweep(500.0, 800.0, 0.1, -10.0)
+
+## Thorns / Soul Thorns reflect damage.
+func play_proc_thorns() -> void:
+	_play_tone(150.0, 0.08, -6.0, "square")
+
+## Soul Explosion proc (AOE on kill).
+func play_proc_soul_explosion() -> void:
+	_play_noise(0.2, -4.0)
+
+## Frost Slow proc applied.
+func play_proc_frost_slow() -> void:
+	_play_sweep(800.0, 200.0, 0.15, -8.0)
+
+## Burning / Soulfire proc applied.
+func play_proc_burning() -> void:
+	_play_sweep(300.0, 600.0, 0.1, -8.0)
+
+# --- World Portal / Sacrifice ---
+
+## Portal appears after world clear.
+func play_portal_open() -> void:
+	_play_sweep(100.0, 600.0, 0.4, -3.0)
+
+## Entering the world portal.
+func play_portal_enter() -> void:
+	_play_sweep(200.0, 1000.0, 0.5, -2.0)
+
+## Thrall sacrifice ritual sound.
+func play_sacrifice() -> void:
+	_play_sweep(400.0, 100.0, 0.3, -4.0)
+
+## Equipment upgrade success during sacrifice screen.
+func play_upgrade_success() -> void:
+	_play_sweep(400.0, 1200.0, 0.2, -3.0)
+
+## Equipment upgrade failure during sacrifice screen.
+func play_upgrade_fail() -> void:
+	_play_sweep(300.0, 80.0, 0.25, -5.0)
+
+# --- Boss World Specials ---
+
+## Sand Colossus barrage attack.
+func play_boss_sand_barrage() -> void:
+	_play_noise(0.12, -5.0)
+
+## Frost Wyrm ice ring.
+func play_boss_frost_ring() -> void:
+	_play_sweep(800.0, 200.0, 0.2, -4.0)
+
+## Swamp Horror poison pools.
+func play_boss_poison_pools() -> void:
+	_play_sweep(150.0, 300.0, 0.15, -6.0)
+
+## Void Sovereign gravity pull.
+func play_boss_void_pull() -> void:
+	_play_sweep(100.0, 400.0, 0.3, -3.0)
+
+# --- Sell / Scrap ---
+
+## Item sold/scrapped for coins.
+func play_sell() -> void:
+	_play_sweep(600.0, 300.0, 0.08, -8.0)
+
 # =========================================================================
 # SFX — INTERNAL GENERATION
 # =========================================================================

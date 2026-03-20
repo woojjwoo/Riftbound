@@ -34,6 +34,7 @@ func on_hit_taken(damage: float, attacker: Node2D) -> void:
 			if attacker.has_method("take_damage"):
 				attacker.take_damage(reflect)
 				Effects.spawn_hit_sparks(attacker.global_position, Color(0.8, 0.4, 1.0))
+				Audio.play_proc_thorns()
 
 ## Called when the player kills an enemy.
 func on_kill(enemy: Node2D) -> void:
@@ -61,12 +62,13 @@ func _proc_chain_lightning(source_enemy: Node2D, proc: Dictionary) -> void:
 		if enemy.has_method("take_damage"):
 			enemy.take_damage(dmg)
 		Effects.spawn_hit_sparks(enemy.global_position, Color(0.4, 0.7, 1.0))
-		# Draw lightning line effect
 		_spawn_lightning_line(last_pos, enemy.global_position)
 		last_pos = enemy.global_position
 		targets_hit += 1
 		if targets_hit >= max_targets:
 			break
+	if targets_hit > 0:
+		Audio.play_proc_chain_lightning()
 
 func _proc_lifesteal(damage_dealt: float, proc: Dictionary) -> void:
 	if player == null or not is_instance_valid(player):
@@ -74,18 +76,21 @@ func _proc_lifesteal(damage_dealt: float, proc: Dictionary) -> void:
 	var heal_amount := damage_dealt * proc["percent"]
 	if heal_amount >= 1.0:
 		player.heal(heal_amount)
+		Audio.play_proc_lifesteal()
 
 func _proc_frost_slow(enemy: Node2D, proc: Dictionary) -> void:
 	if not is_instance_valid(enemy) or not enemy.has_method("apply_slow"):
 		return
 	enemy.apply_slow(proc["slow_amount"], proc["duration"])
 	Effects.spawn_hit_sparks(enemy.global_position, Color(0.4, 0.7, 1.0))
+	Audio.play_proc_frost_slow()
 
 func _proc_burning(enemy: Node2D, proc: Dictionary) -> void:
 	if not is_instance_valid(enemy) or not enemy.has_method("apply_burn"):
 		return
 	enemy.apply_burn(proc["dps"], proc["duration"])
 	Effects.spawn_hit_sparks(enemy.global_position, Color(1.0, 0.5, 0.1))
+	Audio.play_proc_burning()
 
 func _proc_soul_explosion(enemy: Node2D, proc: Dictionary) -> void:
 	if not is_instance_valid(enemy):
@@ -94,6 +99,7 @@ func _proc_soul_explosion(enemy: Node2D, proc: Dictionary) -> void:
 	var radius: float = proc["radius"]
 	var dmg: float = proc["damage"]
 	Effects.spawn_death_explosion(pos, Color(0.6, 0.2, 1.0))
+	Audio.play_proc_soul_explosion()
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if e == enemy or not is_instance_valid(e):
 			continue

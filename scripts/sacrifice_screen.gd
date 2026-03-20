@@ -35,6 +35,23 @@ var upgrade_result: String = ""
 var result_timer: float = 0.0
 var scroll_offset: int = 0
 
+## Setup for New Game+ transition (after beating final world)
+func setup_ng_plus(cycle: int, thralls: int) -> void:
+	next_world_id = 0
+	thrall_count = thralls
+	sacrifice_bonus = minf(thralls * Equipment.SACRIFICE_BONUS_PER_THRALL,
+		Equipment.MAX_SACRIFICE_BONUS)
+	is_first_time = true
+	story_title = "NEW GAME+ %d" % cycle if cycle <= 1 else "NEW GAME+%d" % cycle
+	story_lines = [
+		"The Eternal One falls... but the rifts reopen.",
+		"Each cycle tears the worlds further apart.",
+		"Your power carries forward, but so does the darkness.",
+		"The enemies grow stronger with each iteration.",
+		"Begin the cycle anew. Prove your mastery.",
+	]
+	phase = Phase.STORY
+
 func setup(next_world: int, thralls: int) -> void:
 	next_world_id = next_world
 	thrall_count = thralls
@@ -52,6 +69,7 @@ func setup(next_world: int, thralls: int) -> void:
 		phase = Phase.SACRIFICE
 		sacrifice_timer = 2.5
 		_generate_sacrifice_particles()
+		Audio.play_sacrifice()
 	else:
 		phase = Phase.UPGRADE
 
@@ -132,6 +150,7 @@ func _advance_story() -> void:
 			phase = Phase.SACRIFICE
 			sacrifice_timer = 2.5
 			_generate_sacrifice_particles()
+			Audio.play_sacrifice()
 		else:
 			phase = Phase.UPGRADE
 
@@ -188,12 +207,12 @@ func _try_upgrade_selected() -> void:
 		equip["level"] += 1
 		upgrade_result = "SUCCESS! +%d" % equip["level"]
 		result_timer = 2.5
-		Audio.play_upgrade()
+		Audio.play_upgrade_success()
 		Game.request_shake(5.0)
 	else:
 		upgrade_result = "FAILED... Equipment unchanged."
 		result_timer = 2.5
-		Audio.play_shield_break()
+		Audio.play_upgrade_fail()
 		Game.request_shake(3.0)
 	SaveData.save_game()
 
