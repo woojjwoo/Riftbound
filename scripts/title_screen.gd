@@ -53,6 +53,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				_open_stats()
 			KEY_O:
 				_open_settings()
+			KEY_L:
+				_open_save_slots()
+			KEY_F1:
+				_open_controls()
 			KEY_ENTER, KEY_SPACE:
 				_start_game()
 			_:
@@ -106,6 +110,34 @@ func _unhandled_input(event: InputEvent) -> void:
 		var settings_btn_y := cy + 413 - 15
 		if my > settings_btn_y and my < settings_btn_y + 30 and mx > cx - 60 and mx < cx + 60:
 			_open_settings()
+			return
+
+		# --- Right column click regions ---
+		var rc_x := cx + 90.0
+		# Arena button
+		var arena_click_y := cy + 185 - 15
+		if my > arena_click_y and my < arena_click_y + 30 and mx > rc_x - 60 and mx < rc_x + 60:
+			_open_arena()
+			return
+		# Daily button
+		var daily_click_y := arena_click_y + 38
+		if my > daily_click_y and my < daily_click_y + 30 and mx > rc_x - 60 and mx < rc_x + 60:
+			_open_daily()
+			return
+		# Stats button
+		var stats_click_y := daily_click_y + 38
+		if my > stats_click_y and my < stats_click_y + 30 and mx > rc_x - 60 and mx < rc_x + 60:
+			_open_stats()
+			return
+		# Save Slots button
+		var slots_click_y := stats_click_y + 38
+		if my > slots_click_y and my < slots_click_y + 30 and mx > rc_x - 60 and mx < rc_x + 60:
+			_open_save_slots()
+			return
+		# Controls button
+		var help_click_y := slots_click_y + 38
+		if my > help_click_y and my < help_click_y + 30 and mx > rc_x - 60 and mx < rc_x + 60:
+			_open_controls()
 			return
 
 		# World select arrows
@@ -184,6 +216,18 @@ func _open_bestiary() -> void:
 	bestiary.set_script(preload("res://scripts/bestiary_screen.gd"))
 	bestiary.closed.connect(func(): bestiary.queue_free())
 	add_child(bestiary)
+
+func _open_save_slots() -> void:
+	var slots := CanvasLayer.new()
+	slots.set_script(preload("res://scripts/save_slot_screen.gd"))
+	slots.closed.connect(func(): slots.queue_free())
+	add_child(slots)
+
+func _open_controls() -> void:
+	var controls := CanvasLayer.new()
+	controls.set_script(preload("res://scripts/controls_screen.gd"))
+	controls.closed.connect(func(): controls.queue_free())
+	add_child(controls)
 
 func _open_settings() -> void:
 	var settings := CanvasLayer.new()
@@ -347,6 +391,46 @@ func _draw() -> void:
 	draw_rect(Rect2(cx - 60, settings_y - 15, 120, 30), Color(0.6, 0.6, 0.7, 0.4), false, 1.0)
 	draw_string(font, Vector2(cx - 30, settings_y + 5), "O: Settings",
 		HORIZONTAL_ALIGNMENT_CENTER, 60, 12, Color(0.6, 0.6, 0.7))
+
+	# --- Right column buttons ---
+	var rc_x := cx + 90.0  # right column offset
+
+	# Arena button
+	var arena_y := shop_y
+	draw_rect(Rect2(rc_x - 60, arena_y - 15, 120, 30), Color(0.12, 0.08, 0.18, 0.8))
+	draw_rect(Rect2(rc_x - 60, arena_y - 15, 120, 30), Color(1.0, 0.3, 0.3, 0.4), false, 1.0)
+	draw_string(font, Vector2(rc_x - 30, arena_y + 5), "N: Arena",
+		HORIZONTAL_ALIGNMENT_CENTER, 60, 12, Color(1.0, 0.4, 0.4))
+
+	# Daily Challenge button
+	var daily_y := arena_y + 38
+	var daily_pulse := 0.6 + 0.2 * sin(time * 3.0)
+	draw_rect(Rect2(rc_x - 60, daily_y - 15, 120, 30), Color(0.12, 0.08, 0.18, 0.8))
+	draw_rect(Rect2(rc_x - 60, daily_y - 15, 120, 30), Color(1.0, 0.6, 0.2, daily_pulse * 0.5), false, 1.0)
+	draw_string(font, Vector2(rc_x - 40, daily_y + 5), "D: Daily",
+		HORIZONTAL_ALIGNMENT_CENTER, 80, 12, Color(1.0, 0.7, 0.3))
+
+	# Stats button
+	var stats_btn_y := daily_y + 38
+	draw_rect(Rect2(rc_x - 60, stats_btn_y - 15, 120, 30), Color(0.12, 0.08, 0.18, 0.8))
+	draw_rect(Rect2(rc_x - 60, stats_btn_y - 15, 120, 30), Color(0.3, 0.7, 0.9, 0.4), false, 1.0)
+	draw_string(font, Vector2(rc_x - 25, stats_btn_y + 5), "P: Stats",
+		HORIZONTAL_ALIGNMENT_CENTER, 50, 12, Color(0.4, 0.8, 1.0))
+
+	# Save Slots button
+	var slots_y := stats_btn_y + 38
+	var slot_label := "L: Slot %d" % (SaveData.current_slot + 1)
+	draw_rect(Rect2(rc_x - 60, slots_y - 15, 120, 30), Color(0.12, 0.08, 0.18, 0.8))
+	draw_rect(Rect2(rc_x - 60, slots_y - 15, 120, 30), Color(0.5, 0.8, 0.4, 0.4), false, 1.0)
+	draw_string(font, Vector2(rc_x - 30, slots_y + 5), slot_label,
+		HORIZONTAL_ALIGNMENT_CENTER, 60, 12, Color(0.5, 0.9, 0.5))
+
+	# Controls/Help button
+	var help_y := slots_y + 38
+	draw_rect(Rect2(rc_x - 60, help_y - 15, 120, 30), Color(0.12, 0.08, 0.18, 0.8))
+	draw_rect(Rect2(rc_x - 60, help_y - 15, 120, 30), Color(0.5, 0.5, 0.6, 0.4), false, 1.0)
+	draw_string(font, Vector2(rc_x - 35, help_y + 5), "F1: Controls",
+		HORIZONTAL_ALIGNMENT_CENTER, 70, 12, Color(0.6, 0.6, 0.7))
 
 	# Controls preview
 	draw_string(font, Vector2(cx - 140, cy + 328), "A/D: Select World  |  WASD: Move  |  LMB: Attack",

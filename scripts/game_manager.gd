@@ -189,6 +189,7 @@ func on_enemy_killed() -> void:
 	combo_changed.emit(combo_count)
 	# Bonus rewards at combo milestones
 	if combo_count == 10 or combo_count == 25 or combo_count == 50 or combo_count % 50 == 0:
+		Audio.play_combo_milestone()
 		var bonus_coins := combo_count / 5
 		var pos := Vector2.ZERO
 		var players := get_tree().get_nodes_in_group("player")
@@ -200,6 +201,7 @@ func _end_combo() -> void:
 	var final := combo_count
 	combo_count = 0
 	if final >= 5:
+		Audio.play_combo_end()
 		combo_ended.emit(final)
 
 func add_xp(amount: int) -> void:
@@ -705,6 +707,7 @@ func _process_arena(delta: float) -> void:
 	if arena_enemies_remaining <= 0 and arena_wave > 0:
 		# Wave cleared — start intermission
 		arena_intermission = 3.0
+		Audio.play_arena_wave_clear()
 		if arena_wave > arena_best_wave:
 			arena_best_wave = arena_wave
 			SaveData.run_bests["arena_best_wave"] = arena_best_wave
@@ -715,6 +718,7 @@ func _start_arena_wave() -> void:
 	var enemy_count := 5 + arena_wave * 3
 	arena_enemies_remaining = enemy_count
 	arena_wave_started.emit(arena_wave)
+	Audio.play_arena_wave()
 	# Spawn enemies via rift portal system or direct spawn
 	var scene := get_tree().current_scene
 	if scene == null:

@@ -63,6 +63,8 @@ const CONTROLS: Array[Array] = [
 	["D", "Daily challenge"],
 	["N", "Arena mode"],
 	["P", "Statistics"],
+	["L", "Save slots"],
+	["F1", "Controls help"],
 	["O", "Settings"],
 
 	["GAMEPLAY TIPS"],

@@ -66,6 +66,9 @@ var pending_level_ups: int = 0
 ## Screen transition
 var transition: Node = null
 
+## Tooltip overlay
+var tooltip: Control = null
+
 ## Combo display
 var combo_label: Label = null
 var combo_display_timer: float = 0.0
@@ -133,6 +136,12 @@ func _ready() -> void:
 	transition.set_script(TransitionScript)
 	add_child(transition)
 	transition.fade_in(0.5)
+
+	# Tooltip overlay
+	var TooltipScript := preload("res://scripts/tooltip.gd")
+	tooltip = TooltipScript.new()
+	tooltip.name = "Tooltip"
+	add_child(tooltip)
 
 	# Tutorial overlay for first run
 	if not SaveData.tutorial_completed and Game.current_world == 0:
@@ -205,6 +214,10 @@ func _process(delta: float) -> void:
 		if combo_display_timer <= 0.0 and combo_label:
 			combo_label.visible = false
 			combo_label.modulate.a = 1.0
+
+	# Equipment tooltip on mouse hover
+	if tooltip and equip_hud:
+		_update_equip_tooltip()
 
 	# Command hint — show thrall count context
 	if Game.thrall_count == 0:
@@ -336,6 +349,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			_show_narrative("Formation: %s" % Game.get_formation_name(), 1.5)
 			return
 
+	if event is InputEventKey and event.pressed and event.keycode == KEY_F1:
+		if not Game.is_game_over:
+			_open_controls_overlay()
+			return
+
 	if event is InputEventKey and event.pressed and event.keycode == KEY_TAB:
 		if not Game.is_game_over and not inventory_open:
 			if upgrade_panel.visible or victory_panel.visible:
@@ -352,6 +370,18 @@ func _unhandled_input(event: InputEvent) -> void:
 			_on_resume()
 		else:
 			_on_pause()
+
+func _open_controls_overlay() -> void:
+	get_tree().paused = true
+	var ControlsScript := preload("res://scripts/controls_screen.gd")
+	var controls := CanvasLayer.new()
+	controls.set_script(ControlsScript)
+	controls.process_mode = Node.PROCESS_MODE_ALWAYS
+	controls.closed.connect(func():
+		controls.queue_free()
+		get_tree().paused = false
+	)
+	add_child(controls)
 
 func _on_pause() -> void:
 	is_paused = true
@@ -571,6 +601,38 @@ func _on_combo_ended(final_count: int) -> void:
 		tween.tween_property(combo_label, "modulate:a", 0.0, 1.5)
 
 # --- Equipment HUD Overlay ---
+
+func _update_equip_tooltip() -> void:
+	var mouse_pos := get_viewport().get_mouse_position()
+	var screen_w := get_viewport().get_visible_rect().size.x
+	var screen_h := get_viewport().get_visible_rect().size.y
+
+	# Equipment HUD layout constants (must match _draw_equip_hud)
+	var cell_w := 50.0
+	var cell_h := 28.0
+	var cols := 3
+	var rows := 2
+	var panel_w := cols * cell_w + 12.0
+	var panel_h := rows * cell_h + 28.0
+	var margin := 10.0
+	var panel_x := screen_w - panel_w - margin
+	var panel_y := screen_h - panel_h - margin
+	var start_x := panel_x + 6.0 + cell_w * 0.5
+	var start_y := panel_y + 24.0 + cell_h * 0.5
+
+	# Check if mouse is over any equipment slot
+	for i in range(6):
+		var col := i % cols
+		var row := i / cols
+		var cx := start_x + float(col) * cell_w
+		var cy := start_y + float(row) * cell_h
+		if abs(mouse_pos.x - cx) < cell_w * 0.5 and abs(mouse_pos.y - cy) < cell_h * 0.5:
+			var item: Dictionary = SaveData.equipped[i]
+			if not item.is_empty():
+				tooltip.show_equipment(item, mouse_pos)
+				return
+
+	tooltip.hide_tooltip()
 
 func _setup_equip_hud() -> void:
 	equip_hud = Control.new()

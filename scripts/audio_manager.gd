@@ -511,6 +511,88 @@ func play_boss_void_pull() -> void:
 func play_sell() -> void:
 	_play_sweep(600.0, 300.0, 0.08, -8.0)
 
+# --- Enchanting ---
+
+## Enchantment applied to equipment.
+func play_enchant() -> void:
+	_play_sweep(300.0, 1000.0, 0.2, -4.0)
+	get_tree().create_timer(0.15).timeout.connect(
+		func(): _play_sweep(500.0, 1200.0, 0.15, -5.0))
+
+## Enchantment reroll.
+func play_enchant_reroll() -> void:
+	_play_sweep(800.0, 400.0, 0.1, -6.0)
+	get_tree().create_timer(0.08).timeout.connect(
+		func(): _play_sweep(400.0, 900.0, 0.12, -6.0))
+
+# --- Arena ---
+
+## Arena wave starts.
+func play_arena_wave() -> void:
+	_play_tone(100.0, 0.15, -3.0, "square")
+	get_tree().create_timer(0.12).timeout.connect(
+		func(): _play_sweep(150.0, 500.0, 0.25, -4.0))
+
+## Arena wave cleared.
+func play_arena_wave_clear() -> void:
+	_play_sweep(400.0, 1000.0, 0.2, -3.0)
+	get_tree().create_timer(0.15).timeout.connect(
+		func(): _play_sweep(600.0, 1200.0, 0.25, -3.0))
+
+# --- Combo ---
+
+## Combo milestone reached (10, 25, 50+).
+func play_combo_milestone() -> void:
+	_play_sweep(500.0, 1400.0, 0.15, -4.0)
+	get_tree().create_timer(0.1).timeout.connect(
+		func(): _play_sweep(700.0, 1600.0, 0.12, -5.0))
+
+## Combo ended.
+func play_combo_end() -> void:
+	_play_sweep(600.0, 200.0, 0.12, -8.0)
+
+# --- World Procs ---
+
+## Sand storm proc effect.
+func play_proc_sand_storm() -> void:
+	_play_noise(0.15, -6.0)
+
+## Frostbite (freeze) proc effect.
+func play_proc_frostbite() -> void:
+	_play_sweep(900.0, 300.0, 0.12, -6.0)
+
+## Toxic burst proc effect.
+func play_proc_toxic_burst() -> void:
+	_play_sweep(200.0, 400.0, 0.15, -5.0)
+
+## Void rift proc effect.
+func play_proc_void_rift() -> void:
+	_play_sweep(80.0, 300.0, 0.25, -4.0)
+
+## Divine smite proc effect.
+func play_proc_divine_smite() -> void:
+	_play_sweep(600.0, 1500.0, 0.2, -3.0)
+
+# --- Misc ---
+
+## Save slot switched.
+func play_slot_switch() -> void:
+	_play_sweep(400.0, 800.0, 0.1, -6.0)
+
+## Tooltip shown.
+func play_tooltip() -> void:
+	_play_tone(600.0, 0.02, -14.0, "sine")
+
+## Player healed (health orb pickup, regen tick).
+func play_heal() -> void:
+	_play_sweep(500.0, 900.0, 0.08, -9.0)
+
+## NG+ cycle begins.
+func play_ng_plus() -> void:
+	_play_sweep(200.0, 1000.0, 0.4, -2.0)
+	get_tree().create_timer(0.3).timeout.connect(
+		func(): _play_sweep(400.0, 1400.0, 0.3, -3.0))
+
 # =========================================================================
 # SFX — INTERNAL GENERATION
 # =========================================================================
