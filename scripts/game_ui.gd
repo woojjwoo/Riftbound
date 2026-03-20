@@ -63,6 +63,9 @@ var ability_cooldown_ui: Node = null
 ## Queue of pending level-ups waiting for ability selection
 var pending_level_ups: int = 0
 
+## Screen transition
+var transition: Node = null
+
 ## Combo display
 var combo_label: Label = null
 var combo_display_timer: float = 0.0
@@ -124,6 +127,13 @@ func _ready() -> void:
 	Game.combo_changed.connect(_on_combo_changed)
 	Game.combo_ended.connect(_on_combo_ended)
 
+	# Screen transition — fade in from black on scene entry
+	var TransitionScript := preload("res://scripts/screen_transition.gd")
+	transition = CanvasLayer.new()
+	transition.set_script(TransitionScript)
+	add_child(transition)
+	transition.fade_in(0.5)
+
 	# Tutorial overlay for first run
 	if not SaveData.tutorial_completed and Game.current_world == 0:
 		_create_tutorial()
@@ -148,6 +158,12 @@ func _process(delta: float) -> void:
 	# Coins and EXP
 	coin_label.text = "Coins: %d" % SaveData.coins
 	exp_label.text = "Lv.%d  EXP: %d/%d" % [SaveData.player_level, SaveData.exp_points, SaveData.exp_to_next_level]
+
+	# Arena mode wave display
+	if Game.arena_mode:
+		rift_label.text = "Wave: %d  |  Enemies: %d" % [Game.arena_wave, Game.arena_enemies_remaining]
+		if Game.arena_intermission > 0.0:
+			process_label.text = "Next Wave in %.0f..." % Game.arena_intermission
 
 	# Smooth health bar
 	if player:
@@ -205,6 +221,9 @@ func _on_health_changed(current: float, _max_hp: float) -> void:
 	health_display = current
 
 func _on_game_over() -> void:
+	# Death screen transition
+	if transition:
+		transition.death_fade(1.2)
 	# Show detailed run summary instead of basic panel
 	_show_run_summary(false)
 
@@ -252,6 +271,8 @@ func _on_process_changed(new_process: Game.GameProcess) -> void:
 			boss_name_label.visible = true
 			boss_name_label.text = Game.get_world_config().get("boss_name", "Rift Guardian")
 			_show_narrative(Game.get_world_config().get("boss_taunt", ""), 5.0)
+			if transition:
+				transition.flash(Color(1.0, 0.2, 0.1), 0.5)
 		Game.GameProcess.VICTORY:
 			flash_color = Color(0.2, 1.0, 0.5, 0.4)
 			_show_narrative(Game.get_world_config().get("victory_text", ""), 5.0)

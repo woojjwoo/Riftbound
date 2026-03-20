@@ -165,6 +165,11 @@ func setup(player: Node2D, type: String) -> void:
 			sprite_run = load("res://sprites/skeleton/Run-Sheet.png")
 	max_health += SaveData.perm_thrall_health
 	max_health *= (1.0 + SkillTree.bonus_thrall_hp)
+	# Passive thrall gear bonuses from inventory items
+	var gear_bonus := Equipment.get_thrall_gear_bonus(SaveData.inventory)
+	max_health += gear_bonus["health"]
+	attack_damage *= (1.0 + gear_bonus["damage"])
+	follow_speed *= (1.0 + gear_bonus["speed"])
 	current_health = max_health
 	# Assign formation index based on current thrall count
 	formation_index = get_tree().get_nodes_in_group("thralls").size()

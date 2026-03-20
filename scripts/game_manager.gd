@@ -73,6 +73,15 @@ var synergy_extraction_bonus: float = 0.0
 var active_synergies: Array[String] = []
 signal synergies_changed(synergies: Array[String])
 
+# Arena/endless mode
+var arena_mode: bool = false
+var arena_wave: int = 0
+var arena_best_wave: int = 0
+var arena_spawn_timer: float = 0.0
+var arena_enemies_remaining: int = 0
+var arena_intermission: float = 0.0
+signal arena_wave_started(wave: int)
+
 # Combo / kill streak system
 var combo_count: int = 0
 var combo_timer: float = 0.0
@@ -125,6 +134,16 @@ var ALL_UPGRADES: Array[Dictionary] = [
 	 "apply": func(): upgrade_regen += 2.0},
 	{"name": "Rallying Cry", "desc": "Thrall speed +25%", "icon": "horn",
 	 "apply": func(): upgrade_thrall_speed_mult += 0.25},
+	{"name": "Bone Wall", "desc": "Thralls take 15% less damage", "icon": "wall",
+	 "apply": func(): synergy_thrall_defense_mult *= 0.85},
+	{"name": "Soul Storm", "desc": "Cooldown reduction +15%", "icon": "storm",
+	 "apply": func(): upgrade_cooldown_mult -= 0.12},
+	{"name": "Grave Pact", "desc": "+20% extraction chance", "icon": "grave",
+	 "apply": func(): upgrade_extraction_bonus += 0.20},
+	{"name": "Iron Will", "desc": "Max health +50", "icon": "iron",
+	 "apply": func():
+		upgrade_health_bonus += 50.0
+		_apply_health_upgrade()},
 ]
 
 func _ready() -> void:
@@ -132,6 +151,9 @@ func _ready() -> void:
 	# Set rift count from world config on first load
 	total_rifts = get_world_config().get("rifts", 5)
 	_transition_to(GameProcess.EARLY_GAME)
+	# Arena mode: start first wave after a short delay
+	if arena_mode:
+		arena_intermission = 2.0
 
 func _process(delta: float) -> void:
 	if _freeze_timer > 0.0:
@@ -145,6 +167,10 @@ func _process(delta: float) -> void:
 		if combo_timer <= 0.0:
 			_end_combo()
 
+	# Arena mode wave management
+	if arena_mode and not is_game_over:
+		_process_arena(delta)
+
 ## Get current world config from WorldData
 func get_world_config() -> Dictionary:
 	return WorldData.get_config(current_world)
@@ -153,6 +179,8 @@ func on_enemy_killed() -> void:
 	kill_count += 1
 	enemy_killed.emit()
 	add_xp(5)
+	if arena_mode:
+		on_arena_enemy_killed()
 	# Combo system
 	combo_count += 1
 	combo_timer = COMBO_WINDOW
@@ -456,6 +484,7 @@ func trigger_game_over() -> void:
 func restart() -> void:
 	current_world = 0
 	ng_plus_cycle = SaveData.ng_plus_cycle
+	arena_mode = false
 	_reset_run_state()
 	get_tree().paused = false
 	get_tree().reload_current_scene()
@@ -501,6 +530,11 @@ func _reset_run_state() -> void:
 	combo_count = 0
 	combo_timer = 0.0
 	best_combo = 0
+	# Arena mode state
+	if not arena_mode:
+		arena_wave = 0
+		arena_enemies_remaining = 0
+		arena_intermission = 0.0
 	# Apply permanent upgrades from save data
 	var w_config := get_world_config()
 	total_rifts = w_config.get("rifts", 5)
@@ -660,6 +694,67 @@ func get_formation_offset(index: int, total: int, facing: Vector2) -> Vector2:
 
 func follow_distance_for_formation(total: int) -> float:
 	return 50.0 + min(total, 8) * 5.0
+
+func _process_arena(delta: float) -> void:
+	if arena_intermission > 0.0:
+		arena_intermission -= delta
+		if arena_intermission <= 0.0:
+			_start_arena_wave()
+		return
+	# Check if wave is cleared
+	if arena_enemies_remaining <= 0 and arena_wave > 0:
+		# Wave cleared — start intermission
+		arena_intermission = 3.0
+		if arena_wave > arena_best_wave:
+			arena_best_wave = arena_wave
+			SaveData.run_bests["arena_best_wave"] = arena_best_wave
+			SaveData.save_game()
+
+func _start_arena_wave() -> void:
+	arena_wave += 1
+	var enemy_count := 5 + arena_wave * 3
+	arena_enemies_remaining = enemy_count
+	arena_wave_started.emit(arena_wave)
+	# Spawn enemies via rift portal system or direct spawn
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	var players := get_tree().get_nodes_in_group("player")
+	if players.is_empty():
+		return
+	var player_pos: Vector2 = players[0].global_position
+	var EnemyScript := preload("res://scripts/enemy.gd")
+	var enemy_types: Array[String] = ["melee", "ranged", "tank", "flying", "charger", "exploder"]
+	if arena_wave >= 3:
+		enemy_types.append("shielded")
+		enemy_types.append("splitter")
+	if arena_wave >= 5:
+		enemy_types.append("summoner")
+		enemy_types.append("poisoner")
+	if arena_wave >= 8:
+		enemy_types.append("teleporter")
+		enemy_types.append("voidcaller")
+	for i in range(enemy_count):
+		var angle := randf() * TAU
+		var dist := randf_range(200.0, 400.0)
+		var spawn_pos := player_pos + Vector2(cos(angle), sin(angle)) * dist
+		var enemy := CharacterBody2D.new()
+		enemy.set_script(EnemyScript)
+		enemy.enemy_type = enemy_types[randi() % enemy_types.size()]
+		# Scale stats with wave
+		var wave_mult := 1.0 + (arena_wave - 1) * 0.15
+		enemy.max_health *= wave_mult * get_enemy_hp_mult()
+		enemy.contact_damage *= wave_mult * get_enemy_dmg_mult()
+		enemy.move_speed *= 1.0 + arena_wave * 0.02
+		# Elite chance increases with waves
+		if arena_wave >= 3 and randf() < 0.05 + arena_wave * 0.02:
+			var elite_types := ["berserker", "armored", "swift", "vampiric"]
+			enemy.call_deferred("make_elite", elite_types[randi() % elite_types.size()])
+		enemy.global_position = spawn_pos
+		scene.call_deferred("add_child", enemy)
+
+func on_arena_enemy_killed() -> void:
+	arena_enemies_remaining = max(0, arena_enemies_remaining - 1)
 
 func _apply_health_upgrade() -> void:
 	var players := get_tree().get_nodes_in_group("player")

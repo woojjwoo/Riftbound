@@ -82,6 +82,30 @@ func _draw() -> void:
 		var mp: Vector2 = _to_map.call(portal.global_position)
 		_draw_diamond(mp, 4.0, Color(1.0, 0.85, 0.2, 0.9))
 
+	# Draw world events (green triangles)
+	for event in get_tree().get_nodes_in_group("world_events"):
+		if not is_instance_valid(event):
+			continue
+		if event.get("interacted"):
+			continue
+		var mp: Vector2 = _to_map.call(event.global_position)
+		_draw_triangle(mp, 3.0, Color(0.3, 1.0, 0.5, 0.8))
+
+	# Draw environmental hazards (orange dots)
+	for hazard in get_tree().get_nodes_in_group("hazards"):
+		if not is_instance_valid(hazard):
+			continue
+		var mp: Vector2 = _to_map.call(hazard.global_position)
+		draw_circle(mp, 1.5, Color(1.0, 0.5, 0.1, 0.4))
+
+	# Draw elite enemies with special marker
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if not is_instance_valid(enemy) or enemy.get("is_dying"):
+			continue
+		if enemy.get("is_elite"):
+			var mp: Vector2 = _to_map.call(enemy.global_position)
+			draw_circle(mp, 2.5, Color(1.0, 0.8, 0.2, 0.7))
+
 	# Draw player (white dot, always center)
 	draw_circle(map_center, 2.5, Color(1.0, 1.0, 1.0, 0.9))
 
@@ -96,5 +120,13 @@ func _draw_diamond(center: Vector2, size: float, color: Color) -> void:
 		center + Vector2(size * 0.7, 0),
 		center + Vector2(0, size),
 		center + Vector2(-size * 0.7, 0),
+	])
+	draw_colored_polygon(pts, color)
+
+func _draw_triangle(center: Vector2, size: float, color: Color) -> void:
+	var pts := PackedVector2Array([
+		center + Vector2(0, -size),
+		center + Vector2(size * 0.87, size * 0.5),
+		center + Vector2(-size * 0.87, size * 0.5),
 	])
 	draw_colored_polygon(pts, color)

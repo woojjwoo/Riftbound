@@ -47,6 +47,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				_open_daily()
 			KEY_T:
 				_open_skill_tree()
+			KEY_N:
+				_open_arena()
+			KEY_P:
+				_open_stats()
 			KEY_O:
 				_open_settings()
 			KEY_ENTER, KEY_SPACE:
@@ -156,6 +160,18 @@ func _open_crafting() -> void:
 	crafting.set_script(preload("res://scripts/crafting_screen.gd"))
 	crafting.closed.connect(func(): crafting.queue_free())
 	add_child(crafting)
+
+func _open_stats() -> void:
+	var stats := CanvasLayer.new()
+	stats.set_script(preload("res://scripts/stats_screen.gd"))
+	stats.closed.connect(func(): stats.queue_free())
+	add_child(stats)
+
+func _open_arena() -> void:
+	var arena := CanvasLayer.new()
+	arena.set_script(preload("res://scripts/arena_mode.gd"))
+	arena.closed.connect(func(): arena.queue_free())
+	add_child(arena)
 
 func _open_skill_tree() -> void:
 	var tree := CanvasLayer.new()

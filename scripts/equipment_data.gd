@@ -110,26 +110,67 @@ const LEGENDARY_PROCS: Array[Dictionary] = [
 	 "chance": 0.25, "dps": 5.0, "duration": 3.0},
 ]
 
+## World-specific legendary procs — bonus procs only from specific worlds
+const WORLD_PROCS: Array[Dictionary] = [
+	{"key": "sand_storm", "name": "Sand Storm",
+	 "desc": "15% chance on hit: blind nearby enemies for 1.5s (-50% speed)",
+	 "chance": 0.15, "slow_amount": 0.5, "duration": 1.5, "world": 1},
+	{"key": "frostbite", "name": "Frostbite",
+	 "desc": "20% chance on hit: freeze enemy for 1s",
+	 "chance": 0.20, "duration": 1.0, "world": 2},
+	{"key": "toxic_burst", "name": "Toxic Burst",
+	 "desc": "On kill: poison cloud dealing 8 dmg/sec for 3s",
+	 "chance": 1.0, "dps": 8.0, "duration": 3.0, "radius": 60.0, "world": 3},
+	{"key": "void_rift", "name": "Void Rift",
+	 "desc": "10% chance on hit: mini rift pulls enemies for 2s",
+	 "chance": 0.10, "pull": 80.0, "duration": 2.0, "world": 4},
+	{"key": "divine_smite", "name": "Divine Smite",
+	 "desc": "8% chance on hit: holy strike for 50 AOE damage",
+	 "chance": 0.08, "damage": 50.0, "radius": 90.0, "world": 5},
+]
+
 ## Create a new equipment item
-func create_equipment(slot_id: int, rarity: int) -> Dictionary:
-	var slot_data := SLOT_INFO[slot_id]
-	var rarity_data: Dictionary = RARITY_INFO[rarity]
+func create_equipment(slot_id: int, rarity: int, world_id: int = -1) -> Dictionary:
 	var item := {
 		"slot": slot_id,
 		"rarity": rarity,
 		"level": 0,
-		"name": _generate_name(slot_id, rarity),
+		"name": _generate_name(slot_id, rarity, world_id),
 	}
+	if world_id >= 0:
+		item["world"] = world_id
 	# Legendary items get a proc effect
 	if rarity == Rarity.LEGENDARY:
-		var proc := LEGENDARY_PROCS[randi() % LEGENDARY_PROCS.size()]
-		item["proc"] = proc["key"]
-		item["proc_name"] = proc["name"]
-		item["proc_desc"] = proc["desc"]
+		# 30% chance for world-specific proc if from a world that has one
+		var world_proc_options: Array[Dictionary] = []
+		if world_id >= 1:
+			for wp in WORLD_PROCS:
+				if wp["world"] == world_id:
+					world_proc_options.append(wp)
+		if world_proc_options.size() > 0 and randf() < 0.3:
+			var proc := world_proc_options[randi() % world_proc_options.size()]
+			item["proc"] = proc["key"]
+			item["proc_name"] = proc["name"]
+			item["proc_desc"] = proc["desc"]
+		else:
+			var proc := LEGENDARY_PROCS[randi() % LEGENDARY_PROCS.size()]
+			item["proc"] = proc["key"]
+			item["proc_name"] = proc["name"]
+			item["proc_desc"] = proc["desc"]
 	return item
 
-## Generate a thematic name based on slot and rarity
-func _generate_name(slot_id: int, rarity: int) -> String:
+## World-themed prefixes for equipment names
+const WORLD_PREFIXES: Array[Array] = [
+	["Dark", "Shadowed", "Twilight", "Grave", "Ashen"],      # World 0: Dark Realm
+	["Scorched", "Sand-Worn", "Blazing", "Oasis", "Dune"],   # World 1: Desert
+	["Frozen", "Glacial", "Frost-Kissed", "Rime", "Shiver"], # World 2: Ice
+	["Toxic", "Marsh-Born", "Rotting", "Mire", "Fungal"],    # World 3: Swamp
+	["Void-Torn", "Null", "Abyssal", "Phase", "Hollow"],     # World 4: Void
+	["Celestial", "Astral", "Divine", "Radiant", "Eternal"],  # World 5: Space
+]
+
+## Generate a thematic name based on slot, rarity, and optionally world
+func _generate_name(slot_id: int, rarity: int, world_id: int = -1) -> String:
 	var prefixes: Dictionary = {
 		Rarity.COMMON: ["Old", "Worn", "Simple", "Crude", "Faded"],
 		Rarity.UNCOMMON: ["Sturdy", "Keen", "Dark", "Bound", "Carved"],
@@ -138,7 +179,12 @@ func _generate_name(slot_id: int, rarity: int) -> String:
 		Rarity.LEGENDARY: ["Godslayer's", "Riftborn", "Ascendant", "Primordial", "Mythic"],
 	}
 	var slot_names: Array[String] = ["Grimoire", "Robes", "Amulet", "Ring", "Boots", "Crown"]
-	var prefix_list: Array = prefixes[rarity]
+	var prefix_list: Array
+	# Use world-themed prefix for Rare+ items from specific worlds
+	if world_id >= 0 and world_id < WORLD_PREFIXES.size() and rarity >= Rarity.RARE:
+		prefix_list = WORLD_PREFIXES[world_id]
+	else:
+		prefix_list = prefixes[rarity]
 	var prefix: String = prefix_list[randi() % prefix_list.size()]
 	return "%s %s" % [prefix, slot_names[slot_id]]
 
@@ -209,7 +255,7 @@ func roll_enemy_drop(enemy_type: String, world_id: int) -> Dictionary:
 		var rate: float = effective_rates[rarity_idx] * world_bonus
 		if rate > 0.0 and randf() < rate:
 			var slot := randi() % SLOT_INFO.size()
-			return create_equipment(slot, rarity_idx)
+			return create_equipment(slot, rarity_idx, world_id)
 	return {}  # No drop
 
 ## Roll for equipment drop from a boss kill.
@@ -239,7 +285,7 @@ func roll_boss_drop(world_id: int) -> Dictionary:
 			rarity = Rarity.RARE
 
 	var slot := randi() % SLOT_INFO.size()
-	return create_equipment(slot, rarity)
+	return create_equipment(slot, rarity, world_id)
 
 ## Set bonus: wearing 3+ items of the same rarity grants a bonus
 ## wearing all 6 grants an even bigger bonus
@@ -405,6 +451,23 @@ func get_enchant_bonuses(equipped_items: Array[Dictionary]) -> Dictionary:
 		var info := get_enchant_info(item["enchant"])
 		if not info.is_empty():
 			bonuses[info["key"]] += float(info["value"])
+	return bonuses
+
+## Calculate passive thrall bonuses from unequipped inventory items
+## Each inventory item provides a small fraction of its stats to all thralls
+func get_thrall_gear_bonus(inventory_items: Array) -> Dictionary:
+	var bonuses := {"damage": 0.0, "health": 0.0, "speed": 0.0}
+	for item in inventory_items:
+		if item is not Dictionary or item.is_empty():
+			continue
+		var rarity_data: Dictionary = RARITY_INFO.get(item.get("rarity", 0), RARITY_INFO[0])
+		var stat_mult: float = rarity_data["stat_mult"]
+		var level: int = item.get("level", 0)
+		# Each inventory item gives 2% of its power to thralls
+		var power := stat_mult * (1 + level) * 0.02
+		bonuses["damage"] += power * 0.05
+		bonuses["health"] += power * 3.0
+		bonuses["speed"] += power * 0.01
 	return bonuses
 
 ## Serialize equipment for save

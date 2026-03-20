@@ -3,8 +3,59 @@ extends Node
 ## Persistent save system. Autoloaded as "SaveData".
 ## Tracks coins, EXP, level, permanent upgrades between runs.
 
-const SAVE_PATH := "user://riftbound_save.dat"
 const SAVE_VERSION: int = 3  # Increment when save format changes
+const SAVE_SLOTS: int = 3
+var current_slot: int = 0  # 0, 1, or 2
+
+var SAVE_PATH: String = "user://riftbound_save.dat"
+
+## Get save path for a specific slot
+static func get_slot_path(slot: int) -> String:
+	if slot == 0:
+		return "user://riftbound_save.dat"
+	return "user://riftbound_save_%d.dat" % slot
+
+## Switch active save slot and reload
+func switch_slot(slot: int) -> void:
+	if slot < 0 or slot >= SAVE_SLOTS:
+		return
+	save_game()
+	current_slot = slot
+	SAVE_PATH = get_slot_path(slot)
+	load_game()
+
+## Check if a slot has save data
+func slot_has_data(slot: int) -> bool:
+	return FileAccess.file_exists(get_slot_path(slot))
+
+## Get brief info about a save slot (for slot selection UI)
+func get_slot_info(slot: int) -> Dictionary:
+	var path := get_slot_path(slot)
+	if not FileAccess.file_exists(path):
+		return {"empty": true}
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return {"empty": true}
+	var json := JSON.new()
+	if json.parse(file.get_as_text()) != OK:
+		return {"empty": true}
+	var data = json.data
+	if data is not Dictionary:
+		return {"empty": true}
+	return {
+		"empty": false,
+		"level": int(data.get("player_level", 1)),
+		"coins": int(data.get("coins", 0)),
+		"worlds": int(data.get("highest_world_unlocked", 0)),
+		"runs": int(data.get("total_runs", 0)),
+		"ng_plus": int(data.get("ng_plus_cycle", 0)),
+	}
+
+## Delete a save slot
+func delete_slot(slot: int) -> void:
+	var path := get_slot_path(slot)
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)
 
 # Persistent currency
 var coins: int = 0

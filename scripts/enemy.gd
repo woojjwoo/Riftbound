@@ -568,11 +568,17 @@ func die() -> void:
 		else:
 			p.try_extract_nearby(self, extraction_chance)
 
+	var death_duration := 0.4
+	if is_elite:
+		# Elite death: bright flash + longer animation
+		sprite.modulate = Color(2.0, 2.0, 1.5, 1.0)
+		death_duration = 0.6
+		Game.request_shake(6.0)
 	var tween := create_tween()
 	tween.set_parallel(true)
-	tween.tween_property(sprite, "modulate:a", 0.0, 0.4)
-	tween.tween_property(sprite, "scale", Vector2(1.5, 1.5), 0.4).set_ease(Tween.EASE_OUT)
-	tween.tween_property(sprite, "rotation", randf_range(-0.5, 0.5), 0.4)
+	tween.tween_property(sprite, "modulate:a", 0.0, death_duration)
+	tween.tween_property(sprite, "scale", Vector2(1.5, 1.5), death_duration).set_ease(Tween.EASE_OUT)
+	tween.tween_property(sprite, "rotation", randf_range(-0.5, 0.5), death_duration)
 	tween.chain().tween_callback(queue_free)
 
 func _explode() -> void:
