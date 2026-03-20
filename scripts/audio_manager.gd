@@ -647,7 +647,7 @@ func _play_sweep(freq_start: float, freq_end: float, duration: float, volume_db:
 	for i in range(num_samples):
 		var t := float(i) / float(num_samples)
 		var envelope := 1.0 - t
-		var freq := lerp(freq_start, freq_end, t)
+		var freq: float = lerp(freq_start, freq_end, t)
 		phase += freq / float(sample_rate)
 		var sample := sin(phase * TAU) * envelope
 		data[i] = int((sample * 0.5 + 0.5) * 255.0)

@@ -781,7 +781,7 @@ func _draw() -> void:
 		for i in range(5):
 			var seed_val := float(i) * 73.1
 			var fx := sin(_draw_timer * 6.0 + seed_val) * 8.0
-			var fy := -6.0 - abs(sin(_draw_timer * 8.0 + seed_val * 0.5)) * 8.0
+			var fy: float = -6.0 - abs(sin(_draw_timer * 8.0 + seed_val * 0.5)) * 8.0
 			var flame_size := 1.5 + sin(_draw_timer * 10.0 + seed_val) * 0.5
 			var flame_color := Color(1.0, 0.4 + 0.3 * sin(_draw_timer * 7.0 + seed_val), 0.1, 0.6 * burn_alpha)
 			draw_circle(Vector2(fx, fy), flame_size, flame_color)

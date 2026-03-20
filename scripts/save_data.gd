@@ -247,8 +247,8 @@ func try_auto_equip(item: Dictionary) -> String:
 		save_game()
 		return "equipped"
 	# Compare: higher rarity or higher level wins
-	var item_power := item["rarity"] * 100 + item["level"]
-	var current_power := current["rarity"] * 100 + current["level"]
+	var item_power: int = int(item["rarity"]) * 100 + int(item["level"])
+	var current_power: int = int(current["rarity"]) * 100 + int(current["level"])
 	if item_power > current_power:
 		inventory.append(current)
 		equipped[slot] = item

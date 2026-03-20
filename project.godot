@@ -30,6 +30,12 @@ Meta="*res://scripts/meta_progression.gd"
 Achievements="*res://scripts/achievement_manager.gd"
 Challenges="*res://scripts/challenge_modifiers.gd"
 SkillTree="*res://scripts/skill_tree.gd"
+Runes="*res://scripts/rune_data.gd"
+Codex="*res://scripts/codex_data.gd"
+Leaderboard="*res://scripts/leaderboard.gd"
+Milestones="*res://scripts/run_milestones.gd"
+Pool="*res://scripts/object_pool.gd"
+A11y="*res://scripts/accessibility.gd"
 
 [display]
 

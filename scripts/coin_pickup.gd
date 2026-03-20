@@ -89,9 +89,9 @@ func _draw() -> void:
 	# Golden trail particles (drawn in local space)
 	for i in range(_trail.size()):
 		var trail_pos := _trail[i] - global_position
-		var t := float(i) / max(float(_trail.size()), 1.0)
-		var trail_alpha := 0.5 * t
-		var trail_size := 1.5 + 1.5 * t
+		var t: float = float(i) / max(float(_trail.size()), 1.0)
+		var trail_alpha: float = 0.5 * t
+		var trail_size: float = 1.5 + 1.5 * t
 		draw_circle(trail_pos, trail_size, Color(1.0, 0.85, 0.2, trail_alpha))
 
 	if not collected and lifetime > MAX_LIFETIME - 2.0:

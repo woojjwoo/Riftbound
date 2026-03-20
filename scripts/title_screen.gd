@@ -65,8 +65,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var vp := get_viewport_rect().size
 		var cx := vp.x / 2.0
-		var my := event.position.y
-		var mx := event.position.x
+		var my: float = event.position.y
+		var mx: float = event.position.x
 
 		var cy := vp.y / 2.0
 

@@ -309,7 +309,7 @@ func _spawn_world_event() -> void:
 		return
 	var player := players[0]
 	var angle := randf() * TAU
-	var pos := player.global_position + Vector2(cos(angle), sin(angle)) * randf_range(80.0, 150.0)
+	var pos: Vector2 = player.global_position + Vector2(cos(angle), sin(angle)) * randf_range(80.0, 150.0)
 	var scene := get_tree().current_scene
 	if scene == null:
 		return
@@ -344,7 +344,7 @@ func _spawn_world_portal() -> void:
 		return
 	var player := players[0]
 	var angle := randf() * TAU
-	var pos := player.global_position + Vector2(cos(angle), sin(angle)) * 150.0
+	var pos: Vector2 = player.global_position + Vector2(cos(angle), sin(angle)) * 150.0
 
 	var scene := get_tree().current_scene
 	if scene == null:

@@ -55,26 +55,32 @@ func find_auto_aim_target(from_pos: Vector2, aim_dir: Vector2, max_range: float 
 	if not SaveData.auto_aim_enabled:
 		return null
 
-	var enemies := Engine.get_main_loop().root.get_tree().get_nodes_in_group("enemies")
+	var tree := get_tree()
+	if tree == null:
+		return null
+	var enemies: Array[Node] = tree.get_nodes_in_group("enemies")
 	var best_target: Node2D = null
-	var best_score := 999999.0
+	var best_score: float = 999999.0
 	var strength: float = SaveData.auto_aim_strength
 
 	# Auto-aim cone: wider cone at higher strength
-	var max_angle := lerp(PI * 0.15, PI * 0.5, strength)
+	var max_angle: float = lerpf(PI * 0.15, PI * 0.5, strength)
 
 	for enemy in enemies:
 		if not is_instance_valid(enemy):
 			continue
-		var to_enemy: Vector2 = enemy.global_position - from_pos
-		var dist := to_enemy.length()
+		var e2d: Node2D = enemy as Node2D
+		if e2d == null:
+			continue
+		var to_enemy: Vector2 = e2d.global_position - from_pos
+		var dist: float = to_enemy.length()
 		if dist > max_range or dist < 10.0:
 			continue
-		var angle := aim_dir.angle_to(to_enemy)
+		var angle: float = aim_dir.angle_to(to_enemy)
 		if abs(angle) > max_angle:
 			continue
 		# Score: prefer closer enemies and those nearer to center of aim
-		var score := dist * 0.5 + abs(angle) * 200.0
+		var score: float = dist * 0.5 + abs(angle) * 200.0
 		if score < best_score:
 			best_score = score
 			best_target = enemy
