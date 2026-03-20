@@ -84,6 +84,13 @@ func _ready() -> void:
 	move_speed += move_speed * SaveData.get_equip_bonus(Equipment.Slot.BOOTS)       # Boots: +speed%
 	bolt_cooldown *= max(0.2, 1.0 - SaveData.get_equip_bonus(Equipment.Slot.CROWN)) # Crown: -cooldown%
 
+	# Apply equipment set bonuses
+	var set_bonuses := Equipment.get_set_bonuses(SaveData.equipped)
+	bolt_damage *= (1.0 + set_bonuses["damage_mult"])
+	max_health += set_bonuses["health_bonus"]
+	move_speed *= (1.0 + set_bonuses["speed_mult"])
+	bolt_cooldown *= max(0.2, 1.0 - set_bonuses["cdr"])
+
 	current_health = max_health + Game.upgrade_health_bonus
 	max_health += Game.upgrade_health_bonus
 	base_move_speed = move_speed
@@ -192,7 +199,8 @@ func _physics_process(delta: float) -> void:
 
 	# Normal movement
 	knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
-	var effective_speed := move_speed * Game.upgrade_speed_mult
+	var ability_speed := ability_manager.get_speed_multiplier() if ability_manager else 1.0
+	var effective_speed := move_speed * Game.upgrade_speed_mult * ability_speed
 	velocity = input.normalized() * effective_speed + knockback_velocity
 	move_and_slide()
 

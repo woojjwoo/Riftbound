@@ -215,6 +215,13 @@ func spawn_drops(pos: Vector2, enemy_type: String) -> void:
 		"tank": coin_val = 3
 		"flying": coin_val = 2
 		"exploder": coin_val = 2
+		"charger": coin_val = 2
+		"shielded": coin_val = 3
+		"splitter": coin_val = 2
+		"summoner": coin_val = 4
+		"poisoner": coin_val = 3
+		"teleporter": coin_val = 3
+		"voidcaller": coin_val = 4
 		_: coin_val = 1
 	coin_val = int(coin_val * coin_mult)
 
@@ -226,6 +233,13 @@ func spawn_drops(pos: Vector2, enemy_type: String) -> void:
 		"tank": exp_val = 8
 		"flying": exp_val = 5
 		"exploder": exp_val = 4
+		"charger": exp_val = 5
+		"shielded": exp_val = 8
+		"splitter": exp_val = 4
+		"summoner": exp_val = 10
+		"poisoner": exp_val = 6
+		"teleporter": exp_val = 7
+		"voidcaller": exp_val = 10
 		_: exp_val = 3
 	exp_val = int(exp_val * exp_mult)
 

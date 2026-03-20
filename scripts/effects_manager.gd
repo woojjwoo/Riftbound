@@ -5,11 +5,18 @@ extends Node
 
 # Enemy type -> color mapping for death explosions
 const ENEMY_COLORS: Dictionary = {
-	"melee": Color(0.9, 0.3, 0.2),     # red-orange
-	"ranged": Color(0.3, 0.5, 1.0),    # blue
-	"tank": Color(0.6, 0.4, 0.2),      # brown
-	"flying": Color(0.7, 0.3, 0.9),    # purple
-	"exploder": Color(1.0, 0.6, 0.1),  # orange
+	"melee": Color(0.9, 0.3, 0.2),       # red-orange
+	"ranged": Color(0.3, 0.5, 1.0),      # blue
+	"tank": Color(0.6, 0.4, 0.2),        # brown
+	"flying": Color(0.7, 0.3, 0.9),      # purple
+	"exploder": Color(1.0, 0.6, 0.1),    # orange
+	"charger": Color(1.0, 0.3, 0.1),     # bright red
+	"shielded": Color(0.3, 0.6, 1.0),    # steel blue
+	"splitter": Color(0.5, 0.9, 0.3),    # lime green
+	"summoner": Color(0.3, 0.9, 0.2),    # dark green
+	"poisoner": Color(0.4, 0.8, 0.1),    # toxic green
+	"teleporter": Color(0.9, 0.2, 0.9),  # magenta
+	"voidcaller": Color(0.6, 0.1, 0.9),  # dark purple
 }
 
 const DEFAULT_COLOR: Color = Color(1.0, 0.5, 0.2)

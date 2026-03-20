@@ -142,8 +142,11 @@ func get_bonus(key: String) -> float:
 
 # --- Save / Load ---
 
+const META_SAVE_VERSION: int = 1
+
 func save_meta() -> void:
 	var data := {
+		"meta_save_version": META_SAVE_VERSION,
 		"soul_essence": soul_essence,
 		"total_soul_essence_earned": total_soul_essence_earned,
 		"meta_total_kills": meta_total_kills,

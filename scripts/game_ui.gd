@@ -26,6 +26,7 @@ extends CanvasLayer
 @onready var command_hint: Label = $CommandHint
 @onready var pause_panel: Panel = $PausePanel
 @onready var resume_button: Button = $PausePanel/ResumeButton
+@onready var pause_settings_button: Button = $PausePanel/PauseSettingsButton
 @onready var pause_restart_button: Button = $PausePanel/PauseRestartButton
 @onready var active_upgrades_label: Label = $ActiveUpgradesLabel
 @onready var coin_label: Label = $CoinLabel
@@ -75,6 +76,7 @@ func _ready() -> void:
 	restart_button.pressed.connect(_on_restart)
 	victory_restart.pressed.connect(_on_restart)
 	resume_button.pressed.connect(_on_resume)
+	pause_settings_button.pressed.connect(_on_pause_settings)
 	pause_restart_button.pressed.connect(_on_restart)
 	Game.game_over.connect(_on_game_over)
 	Game.thrall_gained.connect(_on_thrall_gained)
@@ -303,6 +305,13 @@ func _on_resume() -> void:
 	is_paused = false
 	pause_panel.visible = false
 	get_tree().paused = false
+
+func _on_pause_settings() -> void:
+	Audio.play_ui_click()
+	var settings := CanvasLayer.new()
+	settings.set_script(preload("res://scripts/settings_screen.gd"))
+	settings.closed.connect(func(): settings.queue_free())
+	add_child(settings)
 
 func _open_inventory() -> void:
 	inventory_open = true

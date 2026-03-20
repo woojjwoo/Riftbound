@@ -4,6 +4,7 @@ extends Node
 ## Tracks coins, EXP, level, permanent upgrades between runs.
 
 const SAVE_PATH := "user://riftbound_save.dat"
+const SAVE_VERSION: int = 2  # Increment when save format changes
 
 # Persistent currency
 var coins: int = 0
@@ -204,6 +205,7 @@ func complete_world(world_id: int) -> void:
 
 func save_game() -> void:
 	var data := {
+		"save_version": SAVE_VERSION,
 		"coins": coins,
 		"exp_points": exp_points,
 		"player_level": player_level,
@@ -250,6 +252,12 @@ func load_game() -> void:
 	var data = json.data
 	if data is not Dictionary:
 		return
+
+	# Migrate old save formats
+	var version := int(data.get("save_version", 1))
+	if version < 2:
+		_migrate_v1_to_v2(data)
+
 	coins = clampi(int(data.get("coins", 0)), 0, 9999999)
 	exp_points = clampi(int(data.get("exp_points", 0)), 0, 9999999)
 	player_level = clampi(int(data.get("player_level", 1)), 1, 999)
@@ -303,6 +311,29 @@ func load_game() -> void:
 	var saved_achievements = data.get("achievements", {})
 	if saved_achievements is Dictionary:
 		_cached_achievements = saved_achievements
+
+## Migrate saves from version 1 (pre-audio/achievements) to version 2
+func _migrate_v1_to_v2(data: Dictionary) -> void:
+	# v1 saves may be missing audio volumes and achievements
+	if not data.has("audio_master_volume"):
+		data["audio_master_volume"] = 0.8
+	if not data.has("audio_sfx_volume"):
+		data["audio_sfx_volume"] = 0.8
+	if not data.has("audio_music_volume"):
+		data["audio_music_volume"] = 0.6
+	if not data.has("achievements"):
+		data["achievements"] = {}
+	if not data.has("total_bosses_killed"):
+		data["total_bosses_killed"] = 0
+	if not data.has("stories_seen"):
+		data["stories_seen"] = []
+	# Ensure shop_levels has enough entries for new upgrades
+	var shop_levels_data = data.get("shop_levels", [])
+	if shop_levels_data is Array:
+		while shop_levels_data.size() < SHOP_UPGRADES.size():
+			shop_levels_data.append(0)
+		data["shop_levels"] = shop_levels_data
+	data["save_version"] = 2
 
 func _get_achievements_data() -> Dictionary:
 	var node := get_node_or_null("/root/Achievements")

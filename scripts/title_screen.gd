@@ -35,6 +35,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				_open_sanctum()
 			KEY_I:
 				_open_achievements()
+			KEY_O:
+				_open_settings()
 			KEY_ENTER, KEY_SPACE:
 				_start_game()
 			_:
@@ -66,6 +68,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			_open_achievements()
 			return
 
+		# Settings button region (drawn at cy + 299)
+		var settings_btn_y := cy + 299 - 15
+		if my > settings_btn_y and my < settings_btn_y + 30 and mx > cx - 60 and mx < cx + 60:
+			_open_settings()
+			return
+
 		# World select arrows
 		if my > vp.y * 0.55 and my < vp.y * 0.55 + 30:
 			if mx < cx - 60:
@@ -94,6 +102,12 @@ func _open_sanctum() -> void:
 
 func _open_achievements() -> void:
 	get_tree().change_scene_to_file("res://scenes/achievement_screen.tscn")
+
+func _open_settings() -> void:
+	var settings := CanvasLayer.new()
+	settings.set_script(preload("res://scripts/settings_screen.gd"))
+	settings.setup("res://scenes/title_screen.tscn")
+	add_child(settings)
 
 func _draw() -> void:
 	var vp := get_viewport_rect().size
@@ -203,8 +217,15 @@ func _draw() -> void:
 	draw_string(font, Vector2(cx - 55, ach_y + 5), "I: Achievements %s" % ach_progress,
 		HORIZONTAL_ALIGNMENT_CENTER, 110, 11, Color(0.7, 0.6, 0.9))
 
+	# Settings button (below achievements)
+	var settings_y := ach_y + 38
+	draw_rect(Rect2(cx - 60, settings_y - 15, 120, 30), Color(0.12, 0.08, 0.18, 0.8))
+	draw_rect(Rect2(cx - 60, settings_y - 15, 120, 30), Color(0.6, 0.6, 0.7, 0.4), false, 1.0)
+	draw_string(font, Vector2(cx - 30, settings_y + 5), "O: Settings",
+		HORIZONTAL_ALIGNMENT_CENTER, 60, 12, Color(0.6, 0.6, 0.7))
+
 	# Controls preview
-	draw_string(font, Vector2(cx - 140, cy + 290), "A/D: Select World  |  WASD: Move  |  LMB: Attack",
+	draw_string(font, Vector2(cx - 140, cy + 328), "A/D: Select World  |  WASD: Move  |  LMB: Attack",
 		HORIZONTAL_ALIGNMENT_CENTER, 280, 11, Color(0.5, 0.4, 0.6, 0.7))
-	draw_string(font, Vector2(cx - 140, cy + 308), "RMB: Command Thralls  |  SPACE: Dash  |  R: Recall",
+	draw_string(font, Vector2(cx - 140, cy + 346), "RMB: Command Thralls  |  SPACE: Dash  |  R: Recall",
 		HORIZONTAL_ALIGNMENT_CENTER, 280, 11, Color(0.5, 0.4, 0.6, 0.7))

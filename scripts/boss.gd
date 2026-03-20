@@ -13,6 +13,7 @@ extends CharacterBody2D
 @export var sprite_idle: Texture2D
 @export var sprite_run: Texture2D
 @export var sprite_death: Texture2D
+@export var projectile_scene: PackedScene
 
 var current_health: float
 var player: Node2D = null
@@ -34,6 +35,13 @@ var charge_speed: float = 400.0
 var slam_radius: float = 100.0
 var slam_damage: float = 30.0
 var pattern_index: int = 0
+
+# World-specific boss abilities
+var boss_world: int = 0
+var _special_timer: float = 0.0
+var _special_active: bool = false
+var _barrage_count: int = 0
+var _spin_elapsed: float = 0.0
 
 @onready var sprite: Sprite2D = $Sprite
 
@@ -84,6 +92,8 @@ func _ready() -> void:
 	if players.size() > 0:
 		player = players[0]
 
+	boss_world = Game.current_world
+
 	# Dramatic entrance
 	Effects.spawn_boss_entrance(global_position)
 	Game.request_shake(12.0)
@@ -101,10 +111,16 @@ func _physics_process(delta: float) -> void:
 	contact_timer -= delta
 	state_timer -= delta
 	pattern_timer -= delta
+	_special_timer -= delta
 
 	var dir := global_position.direction_to(player.global_position)
 	var dist := global_position.distance_to(player.global_position)
 	sprite.flip_h = dir.x < 0
+
+	# World-specific periodic abilities
+	if _special_timer <= 0.0 and state == BossState.CHASE:
+		_do_world_special()
+		_special_timer = _get_special_cooldown()
 
 	# Check if it's time for an attack pattern
 	if state == BossState.CHASE and pattern_timer <= 0.0:
@@ -213,6 +229,22 @@ func _start_next_pattern() -> void:
 	var patterns := [BossState.CHARGE_WINDUP, BossState.SLAM_WINDUP]
 	if enraged:
 		patterns.append(BossState.SUMMON)
+
+	# World-specific boss abilities inject extra patterns
+	match boss_world:
+		1:  # Sand Colossus — extra charge attacks
+			patterns.append(BossState.CHARGE_WINDUP)
+		2:  # Frost Wyrm — extra slams (ice shatter)
+			patterns.append(BossState.SLAM_WINDUP)
+		3:  # Swamp Horror — extra summons
+			patterns.append(BossState.SUMMON)
+		4:  # Void Sovereign — charges more when enraged
+			if enraged:
+				patterns.append(BossState.CHARGE_WINDUP)
+				patterns.append(BossState.CHARGE_WINDUP)
+		5:  # The Eternal One — all patterns available always
+			patterns.append(BossState.SUMMON)
+			patterns.append(BossState.CHARGE_WINDUP)
 
 	# Cycle through patterns with some randomness
 	var chosen := patterns[pattern_index % patterns.size()]
@@ -340,6 +372,100 @@ func _on_death_complete(death_pos: Vector2) -> void:
 		if rift.has_method("take_damage"):
 			rift.take_damage(rift.max_health * 0.4)
 	queue_free()
+
+## World-specific boss specials
+func _get_special_cooldown() -> float:
+	match boss_world:
+		1: return 6.0 if not enraged else 4.0  # Sand barrage
+		2: return 8.0 if not enraged else 5.0  # Frost ring
+		3: return 5.0 if not enraged else 3.0  # Poison pools
+		4: return 7.0 if not enraged else 4.0  # Void pull
+		5: return 4.0 if not enraged else 2.5  # All abilities
+	return 99.0  # World 0 has no special
+
+func _do_world_special() -> void:
+	match boss_world:
+		1: _boss_sand_barrage()
+		2: _boss_frost_ring()
+		3: _boss_poison_pools()
+		4: _boss_void_pull()
+		5: _boss_eternal_wrath()
+
+## Sand Colossus: fires projectiles in a spread pattern
+func _boss_sand_barrage() -> void:
+	if player == null:
+		return
+	Audio.play_boss_enrage()
+	var base_dir := global_position.direction_to(player.global_position)
+	var spread := 5 if not enraged else 8
+	var melee_scene := load("res://scenes/enemy_melee.tscn")
+	for i in range(spread):
+		var angle := (float(i) - float(spread) / 2.0) * 0.2
+		var dir := base_dir.rotated(angle)
+		# Spawn a fast-moving projectile
+		if projectile_scene:
+			var proj := projectile_scene.instantiate()
+			proj.global_position = global_position + dir * 20.0
+			proj.setup(dir, contact_damage * 0.6, "player")
+			get_tree().current_scene.add_child(proj)
+	Effects.spawn_particles(global_position, Color(0.9, 0.7, 0.2), 12, 0.3)
+
+## Frost Wyrm: expanding ice ring that slows player
+func _boss_frost_ring() -> void:
+	if player == null:
+		return
+	Audio.play_explode()
+	Game.request_shake(6.0)
+	var radius := 140.0 if not enraged else 200.0
+	if player and global_position.distance_to(player.global_position) < radius:
+		# Slow the player temporarily
+		var original_speed := player.move_speed
+		player.move_speed *= 0.5
+		player.sprite.modulate = Color(0.5, 0.7, 1.0)
+		get_tree().create_timer(2.0).timeout.connect(func():
+			if is_instance_valid(player):
+				player.move_speed = original_speed
+				player.sprite.modulate = Color.WHITE
+		)
+	Effects.spawn_particles(global_position, Color(0.3, 0.7, 1.0), 20, 0.5)
+
+## Swamp Horror: drops poison pools around the arena
+func _boss_poison_pools() -> void:
+	Audio.play_explode()
+	var count := 3 if not enraged else 5
+	for i in range(count):
+		var angle := randf() * TAU
+		var dist := randf_range(60.0, 180.0)
+		var pos := global_position + Vector2(cos(angle), sin(angle)) * dist
+		var pool := Node2D.new()
+		pool.global_position = pos
+		pool.set_script(preload("res://scripts/poison_pool.gd"))
+		pool.setup(25.0, contact_damage * 0.15, 6.0)
+		get_tree().current_scene.add_child(pool)
+	Effects.spawn_particles(global_position, Color(0.3, 0.9, 0.2), 16, 0.4)
+
+## Void Sovereign: pulls player toward the boss
+func _boss_void_pull() -> void:
+	if player == null:
+		return
+	Audio.play_boss_enrage()
+	Game.request_shake(8.0)
+	var pull_strength := 150.0 if not enraged else 220.0
+	var dir := player.global_position.direction_to(global_position)
+	player.knockback_velocity += dir * pull_strength
+	Effects.spawn_particles(global_position, Color(0.6, 0.1, 0.9), 20, 0.6)
+
+## The Eternal One: random combination of all specials
+func _boss_eternal_wrath() -> void:
+	var abilities := [1, 2, 3, 4]
+	abilities.shuffle()
+	# Execute two random specials
+	for i in range(2):
+		match abilities[i]:
+			1: _boss_sand_barrage()
+			2: _boss_frost_ring()
+			3: _boss_poison_pools()
+			4: _boss_void_pull()
 
 func get_enemy_type() -> String:
 	return "tank"

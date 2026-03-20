@@ -37,6 +37,7 @@ var SpawnTelegraph: GDScript = preload("res://scripts/spawn_telegraph.gd")
 var _world_pools: Array[Array] = []
 
 func _ready() -> void:
+	current_world = Game.current_world
 	spawn_timer = spawn_interval
 	_build_world_pools()
 

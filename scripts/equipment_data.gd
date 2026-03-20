@@ -73,6 +73,13 @@ const DROP_RATES: Dictionary = {
 	"tank": [0.05, 0.01, 0.0, 0.0],
 	"flying": [0.04, 0.008, 0.0, 0.0],
 	"exploder": [0.04, 0.008, 0.0, 0.0],
+	"charger": [0.04, 0.008, 0.0, 0.0],
+	"shielded": [0.05, 0.012, 0.0, 0.0],
+	"splitter": [0.03, 0.006, 0.0, 0.0],
+	"summoner": [0.06, 0.015, 0.0, 0.0],
+	"poisoner": [0.04, 0.010, 0.0, 0.0],
+	"teleporter": [0.05, 0.012, 0.0, 0.0],
+	"voidcaller": [0.06, 0.015, 0.0, 0.0],
 }
 
 ## Boss guaranteed drops
@@ -188,6 +195,54 @@ func roll_boss_drop(world_id: int) -> Dictionary:
 
 	var slot := randi() % SLOT_INFO.size()
 	return create_equipment(slot, rarity)
+
+## Set bonus: wearing 3+ items of the same rarity grants a bonus
+## wearing all 6 grants an even bigger bonus
+func get_set_bonuses(equipped_items: Array[Dictionary]) -> Dictionary:
+	# Count items per rarity
+	var rarity_counts: Dictionary = {}
+	for item in equipped_items:
+		if item.is_empty():
+			continue
+		var r: int = item["rarity"]
+		rarity_counts[r] = rarity_counts.get(r, 0) + 1
+
+	var bonuses := {"damage_mult": 0.0, "health_bonus": 0.0, "speed_mult": 0.0, "cdr": 0.0}
+	for rarity_id in rarity_counts:
+		var count: int = rarity_counts[rarity_id]
+		if count >= 3:
+			# 3-piece set bonus
+			match rarity_id:
+				Rarity.COMMON:
+					bonuses["health_bonus"] += 10.0
+				Rarity.UNCOMMON:
+					bonuses["damage_mult"] += 0.08
+					bonuses["health_bonus"] += 15.0
+				Rarity.RARE:
+					bonuses["damage_mult"] += 0.15
+					bonuses["health_bonus"] += 25.0
+					bonuses["speed_mult"] += 0.05
+				Rarity.EPIC:
+					bonuses["damage_mult"] += 0.25
+					bonuses["health_bonus"] += 40.0
+					bonuses["speed_mult"] += 0.10
+					bonuses["cdr"] += 0.10
+		if count >= 6:
+			# 6-piece bonus (stacks with 3-piece)
+			match rarity_id:
+				Rarity.UNCOMMON:
+					bonuses["damage_mult"] += 0.10
+					bonuses["health_bonus"] += 20.0
+				Rarity.RARE:
+					bonuses["damage_mult"] += 0.20
+					bonuses["health_bonus"] += 40.0
+					bonuses["speed_mult"] += 0.08
+				Rarity.EPIC:
+					bonuses["damage_mult"] += 0.35
+					bonuses["health_bonus"] += 60.0
+					bonuses["speed_mult"] += 0.15
+					bonuses["cdr"] += 0.15
+	return bonuses
 
 ## Get display color for a rarity
 func get_rarity_color(rarity: int) -> Color:

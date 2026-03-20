@@ -108,6 +108,14 @@ var explode_damage: float = 20.0
 @onready var sprite: Sprite2D = $Sprite
 
 func _ready() -> void:
+	# Apply world difficulty scaling to base stats
+	var hp_mult: float = Game.get_enemy_hp_mult()
+	var dmg_mult: float = Game.get_enemy_dmg_mult()
+	max_health *= hp_mult
+	contact_damage *= dmg_mult
+	explode_damage *= dmg_mult
+	poison_damage *= dmg_mult
+
 	current_health = max_health
 	add_to_group("enemies")
 	_find_player()

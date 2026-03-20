@@ -44,13 +44,14 @@ func _setup_rift_configs() -> void:
 
 	# Base configs scale with world multipliers
 	# Later rifts introduce new enemy types for variety
+	# Difficulty ramps: HP, spawn speed, and enemy variety increase per rift
 	var base_configs: Array[Dictionary] = [
-		{"hp": 100.0, "interval": 4.0, "scenes": [melee]},
-		{"hp": 150.0, "interval": 3.0, "scenes": [melee, ranged]},
-		{"hp": 250.0, "interval": 2.5, "scenes": [melee, ranged, charger, flying]},
-		{"hp": 350.0, "interval": 2.0, "scenes": [melee, ranged, tank, charger, shielded]},
-		{"hp": 400.0, "interval": 1.8, "scenes": [melee, ranged, tank, flying, exploder, splitter]},
-		{"hp": 500.0, "interval": 1.5, "scenes": [ranged, tank, summoner, poisoner, teleporter, voidcaller]},
+		{"hp": 80.0, "interval": 4.5, "scenes": [melee]},
+		{"hp": 130.0, "interval": 3.5, "scenes": [melee, ranged]},
+		{"hp": 200.0, "interval": 2.8, "scenes": [melee, ranged, charger, flying]},
+		{"hp": 300.0, "interval": 2.2, "scenes": [melee, ranged, tank, charger, shielded]},
+		{"hp": 380.0, "interval": 1.8, "scenes": [melee, ranged, tank, flying, exploder, splitter]},
+		{"hp": 480.0, "interval": 1.5, "scenes": [ranged, tank, summoner, poisoner, teleporter, voidcaller]},
 	]
 
 	rift_configs = []
