@@ -85,6 +85,7 @@ func _ready() -> void:
 		player = players[0]
 
 	# Dramatic entrance
+	Effects.spawn_boss_entrance(global_position)
 	Game.request_shake(12.0)
 	Game.hit_freeze(0.1)
 	Audio.play_boss_enter()
@@ -285,6 +286,7 @@ func take_damage(amount: float) -> void:
 	var scale_tween := create_tween()
 	scale_tween.tween_property(sprite, "scale", Vector2(1.0, 1.0), 0.15).set_ease(Tween.EASE_OUT)
 
+	Effects.spawn_hit_sparks(global_position, Color(1.0, 0.3, 0.2))
 	Game.hit_freeze(0.03)
 	Audio.play_hit_heavy()
 
@@ -306,6 +308,9 @@ func die() -> void:
 	remove_from_group("enemies")
 	remove_from_group("boss")
 	Game.on_enemy_killed()
+	# Boss death: big explosion + large screen shake
+	Effects.spawn_death_explosion(global_position, "tank")
+	Effects.spawn_particles(global_position, Color(1.0, 0.3, 0.1), 24, 0.6)
 	Game.request_shake(15.0)
 	Game.hit_freeze(0.15)
 

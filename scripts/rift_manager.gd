@@ -30,19 +30,27 @@ func _setup_rift_configs() -> void:
 	var tank := load("res://scenes/enemy_tank.tscn")
 	var flying := load("res://scenes/enemy_flying.tscn")
 	var exploder := load("res://scenes/enemy_exploder.tscn")
+	var charger := load("res://scenes/enemy_charger.tscn")
+	var shielded := load("res://scenes/enemy_shielded.tscn")
+	var splitter := load("res://scenes/enemy_splitter.tscn")
+	var summoner := load("res://scenes/enemy_summoner.tscn")
+	var poisoner := load("res://scenes/enemy_poisoner.tscn")
+	var teleporter := load("res://scenes/enemy_teleporter.tscn")
+	var voidcaller := load("res://scenes/enemy_voidcaller.tscn")
 
 	var world_config := Game.get_world_config()
 	var hp_mult: float = world_config.get("hp_mult", 1.0)
 	var enemy_mult: float = world_config.get("enemy_mult", 1.0)
 
 	# Base configs scale with world multipliers
+	# Later rifts introduce new enemy types for variety
 	var base_configs: Array[Dictionary] = [
 		{"hp": 100.0, "interval": 4.0, "scenes": [melee]},
 		{"hp": 150.0, "interval": 3.0, "scenes": [melee, ranged]},
-		{"hp": 250.0, "interval": 2.5, "scenes": [melee, ranged, flying]},
-		{"hp": 350.0, "interval": 2.0, "scenes": [melee, ranged, tank, flying]},
-		{"hp": 400.0, "interval": 1.8, "scenes": [melee, ranged, tank, flying, exploder]},
-		{"hp": 500.0, "interval": 1.5, "scenes": [melee, ranged, tank, flying, exploder]},
+		{"hp": 250.0, "interval": 2.5, "scenes": [melee, ranged, charger, flying]},
+		{"hp": 350.0, "interval": 2.0, "scenes": [melee, ranged, tank, charger, shielded]},
+		{"hp": 400.0, "interval": 1.8, "scenes": [melee, ranged, tank, flying, exploder, splitter]},
+		{"hp": 500.0, "interval": 1.5, "scenes": [ranged, tank, summoner, poisoner, teleporter, voidcaller]},
 	]
 
 	rift_configs = []

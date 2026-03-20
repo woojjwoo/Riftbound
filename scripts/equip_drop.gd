@@ -47,7 +47,7 @@ func _process(delta: float) -> void:
 	if dist < PICKUP_RANGE:
 		collected = true
 		var result := SaveData.try_auto_equip(equip_data)
-		Audio.play_upgrade()
+		Audio.play_pickup_equip()
 		# Show pickup notification
 		var rarity_name := Equipment.get_rarity_name(equip_data["rarity"])
 		var slot_name := Equipment.get_slot_name(equip_data["slot"])

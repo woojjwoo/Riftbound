@@ -54,8 +54,12 @@ func _enter_portal() -> void:
 	SaveData.total_kills += Game.kill_count
 	SaveData.save_game()
 
+	# Track world cleared for Soul Essence and award at run boundaries
+	Game.on_world_cleared()
+
 	if next_world_id >= WorldData.get_world_count():
-		# Beat the final world — show ultimate victory
+		# Beat the final world — award Soul Essence for the complete run
+		Meta.award_run_essence(Game.kill_count, Game.run_worlds_cleared, Game.run_bosses_killed)
 		Game.current_world = 0
 		get_tree().change_scene_to_file("res://scenes/title_screen.tscn")
 		return

@@ -38,6 +38,13 @@ var inventory: Array[Dictionary] = []
 const MAX_INVENTORY: int = 30
 # Track which world transition stories have been seen
 var stories_seen: Array[int] = []
+# Cached achievement data — loaded before AchievementManager is ready
+var _cached_achievements: Dictionary = {}
+
+# Audio volume settings (linear 0.0–1.0)
+var audio_master_volume: float = 0.8
+var audio_sfx_volume: float = 0.8
+var audio_music_volume: float = 0.6
 
 # Shop upgrade definitions — cost scales with level
 const SHOP_UPGRADES: Array[Dictionary] = [
@@ -68,6 +75,7 @@ var shop_levels: Array[int] = []
 signal coins_changed(new_amount: int)
 signal exp_changed(new_exp: int, level: int, to_next: int)
 signal equipment_changed
+signal level_up(new_level: int)
 
 func _ready() -> void:
 	shop_levels.resize(SHOP_UPGRADES.size())
@@ -82,10 +90,14 @@ func add_coins(amount: int) -> void:
 func add_exp(amount: int) -> void:
 	var effective := int(amount * (1.0 + perm_exp_mult))
 	exp_points += effective
+	var old_level := player_level
 	while exp_points >= exp_to_next_level:
 		exp_points -= exp_to_next_level
 		player_level += 1
 		exp_to_next_level = _calc_exp_for_level(player_level)
+	if player_level > old_level:
+		level_up.emit(player_level)
+		Audio.play_level_up()
 	exp_changed.emit(exp_points, player_level, exp_to_next_level)
 
 func _calc_exp_for_level(level: int) -> int:
@@ -215,6 +227,10 @@ func save_game() -> void:
 		"equipped": _serialize_equipment(equipped),
 		"inventory": _serialize_equipment(inventory),
 		"stories_seen": stories_seen,
+		"audio_master_volume": audio_master_volume,
+		"audio_sfx_volume": audio_sfx_volume,
+		"audio_music_volume": audio_music_volume,
+		"achievements": _get_achievements_data(),
 	}
 	var json_string := JSON.stringify(data)
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -279,6 +295,20 @@ func load_game() -> void:
 	if saved_stories is Array:
 		for s in saved_stories:
 			stories_seen.append(clampi(int(s), 0, 20))
+	# Audio volume settings
+	audio_master_volume = clampf(float(data.get("audio_master_volume", 0.8)), 0.0, 1.0)
+	audio_sfx_volume = clampf(float(data.get("audio_sfx_volume", 0.8)), 0.0, 1.0)
+	audio_music_volume = clampf(float(data.get("audio_music_volume", 0.6)), 0.0, 1.0)
+	# Achievements — stored for AchievementManager to load on its own _ready
+	var saved_achievements = data.get("achievements", {})
+	if saved_achievements is Dictionary:
+		_cached_achievements = saved_achievements
+
+func _get_achievements_data() -> Dictionary:
+	var node := get_node_or_null("/root/Achievements")
+	if node and node.has_method("save_to_dict"):
+		return node.save_to_dict()
+	return _cached_achievements
 
 func _serialize_equipment(items: Array) -> Array:
 	var result := []
@@ -313,4 +343,11 @@ func reset_save() -> void:
 	equipped = [{}, {}, {}, {}, {}, {}]
 	inventory = []
 	stories_seen = []
+	audio_master_volume = 0.8
+	audio_sfx_volume = 0.8
+	audio_music_volume = 0.6
+	var ach_node := get_node_or_null("/root/Achievements")
+	if ach_node:
+		ach_node.unlocked = {}
+	_cached_achievements = {}
 	save_game()

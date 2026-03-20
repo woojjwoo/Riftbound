@@ -7,6 +7,7 @@ extends CharacterBody2D
 @export var move_speed: float = 200.0
 @export var max_health: float = 120.0
 var current_health: float
+var base_move_speed: float
 
 @export var thrall_scene: PackedScene
 @export var arise_vfx_scene: PackedScene
@@ -53,6 +54,9 @@ var extraction_range: float = 100.0
 var sprites: Dictionary = {}
 var current_anim: String = "idle"
 
+## Ability system
+var ability_manager: Node2D = null
+
 @onready var sprite: Sprite2D = $Sprite
 
 func _ready() -> void:
@@ -61,6 +65,17 @@ func _ready() -> void:
 	move_speed *= (1.0 + SaveData.perm_speed_mult)
 	bolt_damage *= (1.0 + SaveData.perm_attack_mult)
 	dash_cooldown = max(0.3, dash_cooldown - SaveData.perm_dash_cooldown)
+
+	# Apply Sanctum (meta-progression) bonuses
+	max_health += Meta.sanctum_max_health
+	bolt_damage *= (1.0 + Meta.sanctum_base_damage)
+	move_speed *= (1.0 + Meta.sanctum_move_speed)
+
+	# Apply Sanctum starting level bonus
+	var starting_levels := int(Meta.sanctum_starting_level)
+	if starting_levels > 0:
+		for i in range(starting_levels):
+			SaveData.add_exp(SaveData.exp_to_next_level)
 
 	# Apply equipment bonuses
 	bolt_damage += bolt_damage * SaveData.get_equip_bonus(Equipment.Slot.GRIMOIRE)  # Grimoire: +damage%
@@ -71,9 +86,12 @@ func _ready() -> void:
 
 	current_health = max_health + Game.upgrade_health_bonus
 	max_health += Game.upgrade_health_bonus
+	base_move_speed = move_speed
 	add_to_group("player")
 	_load_sprites()
 	_set_animation("idle")
+	_setup_ability_manager()
+	Game.level_up.connect(_on_level_up)
 
 func _load_sprites() -> void:
 	sprites = {
@@ -95,6 +113,21 @@ func _set_animation(anim_name: String) -> void:
 		sprite.texture = sprites[key]
 		sprite.hframes = 6
 		current_anim = anim_name
+
+func _setup_ability_manager() -> void:
+	var AbilityManagerScript := preload("res://scripts/ability_manager.gd")
+	ability_manager = AbilityManagerScript.new()
+	ability_manager.name = "AbilityManager"
+	add_child(ability_manager)
+
+func _on_level_up(_new_level: int) -> void:
+	# Level-up burst effect centered on player + large screen shake
+	Effects.spawn_level_up_burst(global_position)
+	Game.request_shake(8.0)
+	# Brief golden flash on the player sprite
+	sprite.modulate = Color(1.0, 1.0, 0.5)
+	var tween := create_tween()
+	tween.tween_property(sprite, "modulate", Color.WHITE, 0.4)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if Game.is_game_over:

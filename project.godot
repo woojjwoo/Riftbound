@@ -25,6 +25,9 @@ Audio="*res://scripts/audio_manager.gd"
 WorldData="*res://scripts/world_data.gd"
 SaveData="*res://scripts/save_data.gd"
 Equipment="*res://scripts/equipment_data.gd"
+Effects="*res://scripts/effects_manager.gd"
+Meta="*res://scripts/meta_progression.gd"
+Achievements="*res://scripts/achievement_manager.gd"
 
 [display]
 

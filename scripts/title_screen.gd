@@ -8,7 +8,7 @@ var started: bool = false
 var selected_world: int = 0
 
 func _ready() -> void:
-	Audio.start_music()
+	Audio.start_music(0)  # Title screen uses Dark Realm music
 	selected_world = mini(SaveData.highest_world_unlocked, WorldData.get_world_count() - 1)
 
 func _process(delta: float) -> void:
@@ -23,11 +23,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		match event.keycode:
 			KEY_LEFT, KEY_A:
 				selected_world = max(0, selected_world - 1)
+				Audio.play_ui_click()
 			KEY_RIGHT, KEY_D:
 				selected_world = min(SaveData.highest_world_unlocked, selected_world + 1)
 				selected_world = mini(selected_world, WorldData.get_world_count() - 1)
+				Audio.play_ui_click()
 			KEY_TAB:
+				Audio.play_ui_click()
 				_open_shop()
+			KEY_Q:
+				_open_sanctum()
+			KEY_I:
+				_open_achievements()
 			KEY_ENTER, KEY_SPACE:
 				_start_game()
 			_:
@@ -39,9 +46,24 @@ func _unhandled_input(event: InputEvent) -> void:
 		var my := event.position.y
 		var mx := event.position.x
 
-		# Shop button region
-		if my > vp.y * 0.78 and my < vp.y * 0.78 + 30 and mx > cx - 60 and mx < cx + 60:
+		var cy := vp.y / 2.0
+
+		# Shop button region (drawn at cy + 185)
+		var shop_btn_y := cy + 185 - 15
+		if my > shop_btn_y and my < shop_btn_y + 30 and mx > cx - 60 and mx < cx + 60:
 			_open_shop()
+			return
+
+		# Sanctum button region (drawn at cy + 223)
+		var sanctum_btn_y := cy + 223 - 15
+		if my > sanctum_btn_y and my < sanctum_btn_y + 30 and mx > cx - 60 and mx < cx + 60:
+			_open_sanctum()
+			return
+
+		# Achievements button region (drawn at cy + 261)
+		var ach_btn_y := cy + 261 - 15
+		if my > ach_btn_y and my < ach_btn_y + 30 and mx > cx - 60 and mx < cx + 60:
+			_open_achievements()
 			return
 
 		# World select arrows
@@ -66,6 +88,12 @@ func _start_game() -> void:
 
 func _open_shop() -> void:
 	get_tree().change_scene_to_file("res://scenes/shop_screen.tscn")
+
+func _open_sanctum() -> void:
+	get_tree().change_scene_to_file("res://scenes/sanctum_screen.tscn")
+
+func _open_achievements() -> void:
+	get_tree().change_scene_to_file("res://scenes/achievement_screen.tscn")
 
 func _draw() -> void:
 	var vp := get_viewport_rect().size
@@ -141,20 +169,42 @@ func _draw() -> void:
 		SaveData.player_level, SaveData.coins, SaveData.worlds_completed.size(), WorldData.get_world_count()],
 		HORIZONTAL_ALIGNMENT_CENTER, 220, 11, Color(0.5, 0.45, 0.6))
 
+	# Soul Essence display
+	var essence_pulse := 0.7 + 0.3 * sin(time * 2.0)
+	var essence_color := Color(0.5 * essence_pulse, 0.25 * essence_pulse, 0.9 * essence_pulse)
+	draw_string(font, Vector2(cx - 90, stats_y + 18), "Soul Essence: %d" % Meta.soul_essence,
+		HORIZONTAL_ALIGNMENT_CENTER, 180, 11, essence_color)
+
 	# Click to start
 	var blink := 0.4 + 0.6 * sin(time * 3.0)
 	draw_string(font, Vector2(cx - 60, cy + 160), "Click to Begin",
 		HORIZONTAL_ALIGNMENT_CENTER, 120, 14, Color(0.7, 0.5, 0.9, blink))
 
 	# Shop button
-	var shop_y := cy + 190
+	var shop_y := cy + 185
 	draw_rect(Rect2(cx - 60, shop_y - 15, 120, 30), Color(0.12, 0.08, 0.18, 0.8))
 	draw_rect(Rect2(cx - 60, shop_y - 15, 120, 30), Color(1.0, 0.85, 0.3, 0.4), false, 1.0)
 	draw_string(font, Vector2(cx - 30, shop_y + 5), "TAB: Shop",
 		HORIZONTAL_ALIGNMENT_CENTER, 60, 12, Color(1.0, 0.9, 0.4))
 
+	# Sanctum button (below shop)
+	var sanctum_y := shop_y + 38
+	var sanctum_pulse := 0.4 + 0.15 * sin(time * 2.5)
+	draw_rect(Rect2(cx - 60, sanctum_y - 15, 120, 30), Color(0.08, 0.03, 0.14, 0.8))
+	draw_rect(Rect2(cx - 60, sanctum_y - 15, 120, 30), Color(0.6, 0.3, 1.0, sanctum_pulse), false, 1.0)
+	draw_string(font, Vector2(cx - 35, sanctum_y + 5), "Q: Sanctum",
+		HORIZONTAL_ALIGNMENT_CENTER, 70, 12, Color(0.6, 0.35, 1.0))
+
+	# Achievements button (below sanctum)
+	var ach_y := sanctum_y + 38
+	var ach_progress := "%d/%d" % [Achievements.get_unlocked_count(), Achievements.get_total_count()]
+	draw_rect(Rect2(cx - 60, ach_y - 15, 120, 30), Color(0.12, 0.08, 0.18, 0.8))
+	draw_rect(Rect2(cx - 60, ach_y - 15, 120, 30), Color(0.6, 0.4, 1.0, 0.4), false, 1.0)
+	draw_string(font, Vector2(cx - 55, ach_y + 5), "I: Achievements %s" % ach_progress,
+		HORIZONTAL_ALIGNMENT_CENTER, 110, 11, Color(0.7, 0.6, 0.9))
+
 	# Controls preview
-	draw_string(font, Vector2(cx - 140, cy + 240), "A/D: Select World  |  WASD: Move  |  LMB: Attack",
+	draw_string(font, Vector2(cx - 140, cy + 290), "A/D: Select World  |  WASD: Move  |  LMB: Attack",
 		HORIZONTAL_ALIGNMENT_CENTER, 280, 11, Color(0.5, 0.4, 0.6, 0.7))
-	draw_string(font, Vector2(cx - 140, cy + 258), "RMB: Command Thralls  |  SPACE: Dash  |  R: Recall",
+	draw_string(font, Vector2(cx - 140, cy + 308), "RMB: Command Thralls  |  SPACE: Dash  |  R: Recall",
 		HORIZONTAL_ALIGNMENT_CENTER, 280, 11, Color(0.5, 0.4, 0.6, 0.7))

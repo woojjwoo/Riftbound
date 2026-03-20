@@ -37,16 +37,19 @@ func _process(delta: float) -> void:
 	var player := players[0]
 	var dist := global_position.distance_to(player.global_position)
 
-	if dist < ATTRACT_RANGE:
+	var effective_attract := ATTRACT_RANGE + Meta.sanctum_coin_magnet
+	if dist < effective_attract:
 		var dir := global_position.direction_to(player.global_position)
-		var speed := 350.0 * (1.0 - dist / ATTRACT_RANGE)
+		var speed := 350.0 * (1.0 - dist / effective_attract)
 		global_position += dir * speed * delta
 
 	if dist < PICKUP_RANGE:
 		collected = true
-		SaveData.add_exp(exp_value)
-		Audio.play_hit()
-		Game.spawn_damage_number(exp_value, global_position, Color(0.3, 0.6, 1.0))
+		# Apply Sanctum XP gain bonus on top of SaveData's perm_exp_mult
+		var bonus_exp := int(exp_value * (1.0 + Meta.sanctum_xp_gain))
+		SaveData.add_exp(bonus_exp)
+		Audio.play_pickup_exp()
+		Game.spawn_damage_number(bonus_exp, global_position, Color(0.3, 0.6, 1.0))
 		_fade_out()
 		return
 

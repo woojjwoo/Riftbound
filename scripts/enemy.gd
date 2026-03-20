@@ -1,10 +1,13 @@
 extends CharacterBody2D
 
-## Base enemy. Supports: melee, ranged, tank, flying, exploder types.
+## Base enemy. Supports multiple behavior types including melee, ranged, tank,
+## charger, exploder, shielded, splitter, summoner, poisoner, teleporter, voidcaller, flying.
 ## Can target player OR thralls. Defends rifts from thralls.
 ## Drops health orbs on death. Proximity extraction for thrall raising.
 
-@export_enum("melee", "ranged", "tank", "flying", "exploder") var enemy_type: String = "melee"
+@export_enum("melee", "ranged", "tank", "charger", "exploder", "shielded",
+	"splitter", "summoner", "poisoner", "teleporter", "voidcaller",
+	"flying") var enemy_type: String = "melee"
 @export var move_speed: float = 100.0
 @export var max_health: float = 40.0
 @export var contact_damage: float = 10.0
@@ -17,6 +20,39 @@ extends CharacterBody2D
 @export var sprite_idle: Texture2D
 @export var sprite_run: Texture2D
 @export var sprite_death: Texture2D
+
+# -- Charger config --
+@export var charge_speed_mult: float = 3.0
+@export var charge_duration: float = 0.4
+@export var charge_windup: float = 1.0
+@export var charge_cooldown_time: float = 3.0
+@export var charge_trigger_range: float = 200.0
+
+# -- Splitter config --
+@export var split_count: int = 2
+@export var split_scene: PackedScene
+
+# -- Summoner config --
+@export var summon_scene: PackedScene
+@export var summon_cooldown: float = 5.0
+@export var summon_count: int = 2
+@export var summon_range: float = 200.0
+
+# -- Poisoner config --
+@export var poison_drop_interval: float = 0.8
+@export var poison_radius: float = 20.0
+@export var poison_damage: float = 3.0
+@export var poison_duration: float = 4.0
+
+# -- Teleporter config --
+@export var teleport_cooldown: float = 3.0
+@export var teleport_range: float = 120.0
+
+# -- Voidcaller config --
+@export var pull_strength: float = 60.0
+@export var pull_radius: float = 150.0
+@export var pull_cooldown: float = 4.0
+@export var pull_duration: float = 2.0
 
 var current_health: float
 var player: Node2D = null
@@ -31,6 +67,30 @@ const RETARGET_INTERVAL: float = 1.5
 
 # Knockback
 var knockback_velocity: Vector2 = Vector2.ZERO
+
+# Charger state
+var _charge_timer: float = 0.0
+var _charge_state: int = 0  # 0=approach, 1=windup, 2=charging
+var _charge_dir: Vector2 = Vector2.ZERO
+var _charge_elapsed: float = 0.0
+var _windup_elapsed: float = 0.0
+
+# Summoner state
+var _summon_timer: float = 0.0
+
+# Poisoner state
+var _poison_timer: float = 0.0
+
+# Teleporter state
+var _teleport_timer: float = 0.0
+
+# Voidcaller state
+var _pull_timer: float = 0.0
+var _pulling: bool = false
+var _pull_elapsed: float = 0.0
+
+# Draw helpers
+var _draw_timer: float = 0.0
 
 # Shield
 var has_shield: bool = false
@@ -62,6 +122,18 @@ func _ready() -> void:
 		"exploder":
 			sprite.modulate = Color(1.0, 0.5, 0.3)
 			scale *= 0.8
+		"shielded":
+			has_shield = true
+			shield_hits = 0
+			shield_max_hits = 3
+		"summoner":
+			_summon_timer = summon_cooldown * 0.5
+		"teleporter":
+			_teleport_timer = teleport_cooldown * 0.5
+		"voidcaller":
+			_pull_timer = pull_cooldown * 0.5
+		"charger":
+			_charge_timer = charge_cooldown_time * 0.3
 
 func _find_player() -> void:
 	var players := get_tree().get_nodes_in_group("player")
@@ -76,6 +148,7 @@ func _physics_process(delta: float) -> void:
 	ranged_timer -= delta
 	fly_time += delta
 	retarget_timer -= delta
+	_draw_timer += delta
 
 	# Retarget periodically
 	if retarget_timer <= 0.0:
@@ -104,44 +177,65 @@ func _physics_process(delta: float) -> void:
 			sprite.position.y = sin(fly_time * 4.0) * fly_amplitude * 0.3
 		"exploder":
 			dir = dir * 1.5
+		"charger":
+			_process_charger(delta, dir, dist)
+			# charger handles its own velocity
+			knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
+			velocity += knockback_velocity
+			move_and_slide()
+			# Skip default movement below
+			_animate_sprite()
+			_process_contact_damage()
+			queue_redraw()
+			return
+		"summoner":
+			_process_summoner(delta, dir, dist)
+			knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
+			velocity += knockback_velocity
+			move_and_slide()
+			_animate_sprite()
+			_process_contact_damage()
+			queue_redraw()
+			return
+		"poisoner":
+			_process_poisoner(delta, dir, dist)
+			knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
+			velocity += knockback_velocity
+			move_and_slide()
+			_animate_sprite()
+			_process_contact_damage()
+			queue_redraw()
+			return
+		"teleporter":
+			_process_teleporter(delta, dir, dist)
+			knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
+			velocity += knockback_velocity
+			move_and_slide()
+			_animate_sprite()
+			_process_contact_damage()
+			queue_redraw()
+			return
+		"voidcaller":
+			_process_voidcaller(delta, dir, dist)
+			knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
+			velocity += knockback_velocity
+			move_and_slide()
+			_animate_sprite()
+			_process_contact_damage()
+			queue_redraw()
+			return
 
 	knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
 	velocity = dir * move_speed + knockback_velocity
 	move_and_slide()
 
-	# Animate
-	if velocity.length() > 10:
-		if sprite_run:
-			sprite.texture = sprite_run
-	else:
-		if sprite_idle:
-			sprite.texture = sprite_idle
-	sprite.hframes = 6
-	sprite.frame = int(Time.get_ticks_msec() / 120) % 6
+	_animate_sprite()
 
 	if enemy_type == "exploder" and dist < explode_radius * 2:
 		var pulse := 0.5 + 0.5 * sin(fly_time * 10.0)
 		sprite.modulate = Color(1.0, 0.3 + 0.4 * pulse, 0.2)
 
-	# Contact damage — hits player AND thralls
-	if contact_timer <= 0.0:
-		for i in get_slide_collision_count():
-			var collision := get_slide_collision(i)
-			var collider := collision.get_collider()
-			if collider.has_method("take_damage"):
-				if collider.is_in_group("player"):
-					if enemy_type == "exploder":
-						die()
-					else:
-						collider.take_damage(contact_damage, global_position)
-						contact_timer = 1.0
-					break
-				elif collider.is_in_group("thralls"):
-					# Deal reduced damage to thralls
-					collider.take_damage(contact_damage * 0.6, global_position)
-					contact_timer = 0.8
-					break
-
+	_process_contact_damage()
 	queue_redraw()
 
 func _retarget() -> void:
@@ -170,6 +264,156 @@ func _retarget() -> void:
 		target_node = closest_thrall
 	else:
 		target_node = player
+
+func _animate_sprite() -> void:
+	if velocity.length() > 10:
+		if sprite_run:
+			sprite.texture = sprite_run
+	else:
+		if sprite_idle:
+			sprite.texture = sprite_idle
+	sprite.hframes = 6
+	sprite.frame = int(Time.get_ticks_msec() / 120) % 6
+
+func _process_contact_damage() -> void:
+	if contact_timer <= 0.0:
+		for i in get_slide_collision_count():
+			var collision := get_slide_collision(i)
+			var collider := collision.get_collider()
+			if collider.has_method("take_damage"):
+				if collider.is_in_group("player"):
+					if enemy_type == "exploder":
+						die()
+					else:
+						collider.take_damage(contact_damage, global_position)
+						contact_timer = 1.0
+					break
+				elif collider.is_in_group("thralls"):
+					collider.take_damage(contact_damage * 0.6, global_position)
+					contact_timer = 0.8
+					break
+
+## ---- NEW BEHAVIOR PROCESSORS ----
+
+func _process_charger(delta: float, dir: Vector2, dist: float) -> void:
+	_charge_timer -= delta
+	match _charge_state:
+		0:  # Approach
+			velocity = dir * move_speed
+			if dist <= charge_trigger_range and _charge_timer <= 0.0:
+				_charge_state = 1
+				_windup_elapsed = 0.0
+				_charge_dir = dir
+		1:  # Windup — pause and flash
+			velocity = Vector2.ZERO
+			_windup_elapsed += delta
+			var flash := 0.5 + 0.5 * sin(_windup_elapsed * 20.0)
+			sprite.modulate = Color(1.0 + flash, 1.0 - flash * 0.5, 1.0 - flash * 0.5)
+			if _windup_elapsed >= charge_windup:
+				_charge_state = 2
+				_charge_elapsed = 0.0
+				_charge_dir = global_position.direction_to(player.global_position) if player else dir
+				sprite.modulate = Color.WHITE
+		2:  # Charging
+			velocity = _charge_dir * move_speed * charge_speed_mult
+			_charge_elapsed += delta
+			if _charge_elapsed >= charge_duration:
+				_charge_state = 0
+				_charge_timer = charge_cooldown_time
+
+func _process_summoner(delta: float, dir: Vector2, dist: float) -> void:
+	_summon_timer -= delta
+	if dist < summon_range * 0.4:
+		velocity = -dir * move_speed
+	elif dist > summon_range:
+		velocity = dir * move_speed
+	else:
+		velocity = Vector2.ZERO
+		if _summon_timer <= 0.0:
+			_do_summon()
+			_summon_timer = summon_cooldown
+
+func _process_poisoner(delta: float, dir: Vector2, _dist: float) -> void:
+	velocity = dir * move_speed * 0.8
+	_poison_timer -= delta
+	if _poison_timer <= 0.0:
+		_drop_poison()
+		_poison_timer = poison_drop_interval
+
+func _process_teleporter(delta: float, dir: Vector2, dist: float) -> void:
+	_teleport_timer -= delta
+	velocity = dir * move_speed
+	if _teleport_timer <= 0.0 and dist > teleport_range * 0.5:
+		_do_teleport()
+		_teleport_timer = teleport_cooldown
+
+func _process_voidcaller(delta: float, dir: Vector2, dist: float) -> void:
+	_pull_timer -= delta
+	if dist < pull_radius * 0.4:
+		velocity = -dir * move_speed
+	elif dist > pull_radius * 1.2:
+		velocity = dir * move_speed
+	else:
+		velocity = Vector2.ZERO
+
+	if _pulling:
+		_pull_elapsed += delta
+		if _pull_elapsed >= pull_duration:
+			_pulling = false
+		else:
+			if player and dist > 30.0:
+				var pull_dir := player.global_position.direction_to(global_position)
+				var strength := pull_strength * (1.0 - _pull_elapsed / pull_duration)
+				player.velocity += pull_dir * strength * delta * 60.0
+	elif _pull_timer <= 0.0 and dist <= pull_radius:
+		_pulling = true
+		_pull_elapsed = 0.0
+		_pull_timer = pull_cooldown
+
+## ---- ABILITY IMPLEMENTATIONS ----
+
+func _do_summon() -> void:
+	if summon_scene == null:
+		return
+	for i in range(summon_count):
+		var angle := randf() * TAU
+		var offset := Vector2(cos(angle), sin(angle)) * 30.0
+		var minion := summon_scene.instantiate()
+		minion.global_position = global_position + offset
+		minion.max_health *= 0.4
+		minion.contact_damage *= 0.5
+		minion.extraction_chance = 0.1
+		get_tree().current_scene.add_child(minion)
+
+func _drop_poison() -> void:
+	var pool := Node2D.new()
+	pool.global_position = global_position
+	pool.set_script(preload("res://scripts/poison_pool.gd"))
+	pool.setup(poison_radius, poison_damage, poison_duration)
+	get_tree().current_scene.add_child(pool)
+
+func _do_teleport() -> void:
+	if player == null:
+		return
+	var angle := randf() * TAU
+	var offset := Vector2(cos(angle), sin(angle)) * randf_range(50.0, teleport_range)
+	var target_pos := player.global_position + offset
+	var tween := create_tween()
+	tween.tween_property(sprite, "modulate:a", 0.0, 0.15)
+	tween.tween_callback(func():
+		global_position = target_pos
+	)
+	tween.tween_property(sprite, "modulate:a", 1.0, 0.15)
+
+func _split() -> void:
+	if split_scene == null:
+		return
+	for i in range(split_count):
+		var angle := float(i) / float(split_count) * TAU
+		var offset := Vector2(cos(angle), sin(angle)) * 20.0
+		var child := split_scene.instantiate()
+		child.global_position = global_position + offset
+		get_tree().current_scene.add_child(child)
 
 func _shoot_at(target: Node2D) -> void:
 	if projectile_scene == null or target == null:
@@ -225,6 +469,10 @@ func take_damage(amount: float) -> void:
 	var scale_tween := create_tween()
 	scale_tween.tween_property(sprite, "scale", Vector2(1.0, 1.0), 0.15).set_ease(Tween.EASE_OUT)
 
+	# Hit spark particles + small screen shake
+	Effects.spawn_hit_sparks(global_position, Effects.ENEMY_COLORS.get(enemy_type, Color.WHITE))
+	Game.request_shake(2.0)
+
 	if current_health <= 0.0:
 		die()
 
@@ -234,8 +482,14 @@ func die() -> void:
 	Game.request_shake(3.0)
 	Audio.play_kill()
 
+	# Death explosion particles + medium screen shake
+	Effects.spawn_death_explosion(global_position, enemy_type)
+	Game.request_shake(5.0)
+
 	if enemy_type == "exploder":
 		_explode()
+	elif enemy_type == "splitter":
+		_split()
 
 	if sprite_death:
 		sprite.texture = sprite_death
@@ -313,9 +567,36 @@ func _get_base_color() -> Color:
 func _draw() -> void:
 	if is_dying:
 		return
+
+	# Shield ring
 	if has_shield:
 		var shield_alpha := 0.3 + 0.1 * sin(Time.get_ticks_msec() * 0.005)
 		draw_arc(Vector2.ZERO, 16.0, 0, TAU, 16, Color(0.3, 0.6, 1.0, shield_alpha), 2.0)
+		# Shield pips
+		for i in range(shield_hits, shield_max_hits):
+			var angle := float(i) / float(shield_max_hits) * TAU - PI / 2.0
+			var pip_pos := Vector2(cos(angle), sin(angle)) * 18.0
+			draw_circle(pip_pos, 2.5, Color(0.4, 0.7, 1.0, 0.8))
+
+	# Voidcaller pull ring
+	if enemy_type == "voidcaller" and _pulling:
+		var pulse := _pull_elapsed / pull_duration
+		var ring_alpha := 0.3 * (1.0 - pulse)
+		var ring_color := Color(0.6, 0.1, 0.9, ring_alpha)
+		var ring_radius := pull_radius * (0.3 + 0.7 * pulse)
+		draw_arc(Vector2.ZERO, ring_radius, 0.0, TAU, 24, ring_color, 2.0)
+
+	# Charger windup indicator
+	if enemy_type == "charger" and _charge_state == 1:
+		var progress := _windup_elapsed / charge_windup
+		var indicator_color := Color(1.0, 0.3, 0.1, 0.4 + 0.4 * progress)
+		draw_arc(Vector2.ZERO, 22.0, -PI / 2.0, -PI / 2.0 + TAU * progress, 16,
+			indicator_color, 3.0)
+
+	# Summoner aura
+	if enemy_type == "summoner":
+		var aura_alpha := 0.1 + 0.05 * sin(_draw_timer * 2.0)
+		draw_circle(Vector2.ZERO, 15.0, Color(0.3, 0.9, 0.2, aura_alpha))
 
 	if current_health >= max_health:
 		return

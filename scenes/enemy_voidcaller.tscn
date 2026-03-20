@@ -1,26 +1,26 @@
-[gd_scene load_steps=7 format=3 uid="uid://enemy_flying001"]
+[gd_scene load_steps=6 format=3 uid="uid://enemy_voidcaller001"]
 
 [ext_resource type="Script" path="res://scripts/enemy.gd" id="1"]
 [ext_resource type="Texture2D" path="res://sprites/orc_shaman/Idle-Sheet.png" id="2"]
 [ext_resource type="Texture2D" path="res://sprites/orc_shaman/Run-Sheet.png" id="3"]
 [ext_resource type="Texture2D" path="res://sprites/orc_shaman/Death-Sheet.png" id="4"]
-[ext_resource type="PackedScene" uid="uid://proj001" path="res://scenes/projectile.tscn" id="5"]
 
 [sub_resource type="CircleShape2D" id="1"]
-radius = 10.0
+radius = 12.0
 
-[node name="EnemyFlying" type="CharacterBody2D"]
+[node name="EnemyVoidcaller" type="CharacterBody2D"]
 collision_layer = 2
 collision_mask = 1
 script = ExtResource("1")
-enemy_type = "flying"
-move_speed = 120.0
-max_health = 30.0
+enemy_type = "voidcaller"
+move_speed = 50.0
+max_health = 40.0
 contact_damage = 8.0
-extraction_chance = 0.2
-projectile_scene = ExtResource("5")
-attack_range = 160.0
-ranged_cooldown = 2.5
+extraction_chance = 0.25
+pull_strength = 60.0
+pull_radius = 150.0
+pull_cooldown = 4.0
+pull_duration = 2.0
 sprite_idle = ExtResource("2")
 sprite_run = ExtResource("3")
 sprite_death = ExtResource("4")
@@ -29,6 +29,7 @@ sprite_death = ExtResource("4")
 texture = ExtResource("2")
 hframes = 6
 texture_filter = 0
+modulate = Color(0.5, 0.2, 0.9, 1.0)
 
 [node name="CollisionShape" type="CollisionShape2D" parent="."]
 shape = SubResource("1")

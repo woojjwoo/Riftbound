@@ -58,7 +58,7 @@ func setup(player: Node2D, type: String) -> void:
 			max_health = 30.0
 			sprite_idle = load("res://sprites/skeleton/Idle-Sheet.png")
 			sprite_run = load("res://sprites/skeleton/Run-Sheet.png")
-		"ranged":
+		"ranged", "flying":
 			attack_range = 150.0
 			attack_damage = 10.0
 			attack_cooldown = 1.2
@@ -66,7 +66,7 @@ func setup(player: Node2D, type: String) -> void:
 			max_health = 20.0
 			sprite_idle = load("res://sprites/skeleton_mage/Idle-Sheet.png")
 			sprite_run = load("res://sprites/skeleton_mage/Run-Sheet.png")
-		"tank":
+		"tank", "shielded":
 			attack_range = 50.0
 			attack_damage = 8.0
 			attack_cooldown = 1.5
@@ -75,6 +75,54 @@ func setup(player: Node2D, type: String) -> void:
 			scale *= 1.3
 			sprite_idle = load("res://sprites/skeleton_warrior/Idle-Sheet.png")
 			sprite_run = load("res://sprites/skeleton_warrior/Run-Sheet.png")
+		"charger":
+			attack_range = 60.0
+			attack_damage = 20.0
+			attack_cooldown = 2.0
+			follow_speed = 200.0
+			max_health = 35.0
+			sprite_idle = load("res://sprites/skeleton_warrior/Idle-Sheet.png")
+			sprite_run = load("res://sprites/skeleton_warrior/Run-Sheet.png")
+		"exploder":
+			attack_range = 70.0
+			attack_damage = 12.0
+			attack_cooldown = 1.0
+			follow_speed = 190.0
+			max_health = 25.0
+			sprite_idle = load("res://sprites/skeleton/Idle-Sheet.png")
+			sprite_run = load("res://sprites/skeleton/Run-Sheet.png")
+		"splitter":
+			attack_range = 50.0
+			attack_damage = 12.0
+			attack_cooldown = 0.9
+			follow_speed = 180.0
+			max_health = 25.0
+			sprite_idle = load("res://sprites/skeleton/Idle-Sheet.png")
+			sprite_run = load("res://sprites/skeleton/Run-Sheet.png")
+		"summoner", "voidcaller":
+			attack_range = 130.0
+			attack_damage = 8.0
+			attack_cooldown = 1.5
+			follow_speed = 155.0
+			max_health = 25.0
+			sprite_idle = load("res://sprites/skeleton_mage/Idle-Sheet.png")
+			sprite_run = load("res://sprites/skeleton_mage/Run-Sheet.png")
+		"poisoner":
+			attack_range = 100.0
+			attack_damage = 10.0
+			attack_cooldown = 1.0
+			follow_speed = 165.0
+			max_health = 25.0
+			sprite_idle = load("res://sprites/skeleton_mage/Idle-Sheet.png")
+			sprite_run = load("res://sprites/skeleton_mage/Run-Sheet.png")
+		"teleporter":
+			attack_range = 60.0
+			attack_damage = 16.0
+			attack_cooldown = 1.0
+			follow_speed = 200.0
+			max_health = 25.0
+			sprite_idle = load("res://sprites/skeleton_mage/Idle-Sheet.png")
+			sprite_run = load("res://sprites/skeleton_mage/Run-Sheet.png")
 		_:
 			attack_range = 50.0
 			attack_damage = 15.0

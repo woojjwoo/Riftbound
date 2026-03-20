@@ -6,8 +6,15 @@ extends Node2D
 @export var enemy_melee_scene: PackedScene
 @export var enemy_ranged_scene: PackedScene
 @export var enemy_tank_scene: PackedScene
-@export var enemy_flying_scene: PackedScene
+@export var enemy_charger_scene: PackedScene
 @export var enemy_exploder_scene: PackedScene
+@export var enemy_shielded_scene: PackedScene
+@export var enemy_splitter_scene: PackedScene
+@export var enemy_summoner_scene: PackedScene
+@export var enemy_poisoner_scene: PackedScene
+@export var enemy_teleporter_scene: PackedScene
+@export var enemy_voidcaller_scene: PackedScene
+@export var enemy_flying_scene: PackedScene
 @export var boss_scene: PackedScene
 
 @export var spawn_interval: float = 2.0
@@ -16,14 +23,22 @@ extends Node2D
 @export var boss_spawn_at_kills: int = 20
 @export var telegraph_delay: float = 0.6
 
+## Which world we are in (0-5). Controls which enemy pool is active.
+@export var current_world: int = 0
+
 var spawn_timer: float = 0.0
 var boss_spawned: bool = false
 var player: Node2D = null
 
 var SpawnTelegraph: GDScript = preload("res://scripts/spawn_telegraph.gd")
 
+## World-specific enemy pools. Each world introduces new enemy types.
+## Structure: Array of {scene, weight} dicts per world.
+var _world_pools: Array[Array] = []
+
 func _ready() -> void:
 	spawn_timer = spawn_interval
+	_build_world_pools()
 
 func _process(delta: float) -> void:
 	if Game.is_game_over or Game.boss_killed:
@@ -59,46 +74,98 @@ func try_spawn() -> void:
 	var pos := get_spawn_position()
 	_spawn_with_telegraph(scene, pos)
 
+func _build_world_pools() -> void:
+	# World 0: The Dark Realm — basic enemies only
+	_world_pools.append(_make_pool([
+		[enemy_melee_scene, 50],
+		[enemy_ranged_scene, 30],
+		[enemy_tank_scene, 20],
+	]))
+	# World 1: Scorched Sands — introduces chargers and exploders
+	_world_pools.append(_make_pool([
+		[enemy_melee_scene, 30],
+		[enemy_ranged_scene, 15],
+		[enemy_charger_scene, 30],
+		[enemy_exploder_scene, 25],
+	]))
+	# World 2: Frozen Wastes — introduces shielded and splitters
+	_world_pools.append(_make_pool([
+		[enemy_melee_scene, 20],
+		[enemy_ranged_scene, 15],
+		[enemy_shielded_scene, 30],
+		[enemy_splitter_scene, 25],
+		[enemy_tank_scene, 10],
+	]))
+	# World 3: Toxic Marshes — introduces summoners and poisoners
+	_world_pools.append(_make_pool([
+		[enemy_melee_scene, 15],
+		[enemy_summoner_scene, 25],
+		[enemy_poisoner_scene, 25],
+		[enemy_exploder_scene, 15],
+		[enemy_ranged_scene, 10],
+		[enemy_flying_scene, 10],
+	]))
+	# World 4: The Void — introduces teleporters and voidcallers
+	_world_pools.append(_make_pool([
+		[enemy_teleporter_scene, 25],
+		[enemy_voidcaller_scene, 20],
+		[enemy_shielded_scene, 15],
+		[enemy_charger_scene, 15],
+		[enemy_splitter_scene, 15],
+		[enemy_ranged_scene, 10],
+	]))
+	# World 5: Celestial Realm — all enemy types
+	_world_pools.append(_make_pool([
+		[enemy_charger_scene, 12],
+		[enemy_exploder_scene, 12],
+		[enemy_shielded_scene, 12],
+		[enemy_splitter_scene, 12],
+		[enemy_summoner_scene, 12],
+		[enemy_poisoner_scene, 10],
+		[enemy_teleporter_scene, 12],
+		[enemy_voidcaller_scene, 10],
+		[enemy_melee_scene, 4],
+		[enemy_tank_scene, 4],
+	]))
+
+func _make_pool(entries: Array) -> Array:
+	var pool: Array = []
+	for entry in entries:
+		if entry[0] != null:
+			pool.append({"scene": entry[0], "weight": entry[1]})
+	return pool
+
 func _pick_enemy_scene() -> PackedScene:
-	var roll := randf()
-	var kills := Game.kill_count
+	var world_idx := clampi(current_world, 0, _world_pools.size() - 1)
+	var pool: Array = _world_pools[world_idx] if world_idx < _world_pools.size() else []
 
-	# Early game: melee only
-	if kills < 5:
+	if pool.is_empty():
 		return enemy_melee_scene
 
-	# Kills 5-9: mostly melee, some ranged
-	if kills < 10:
-		if roll < 0.7:
-			return enemy_melee_scene
-		elif enemy_ranged_scene:
-			return enemy_ranged_scene
-		return enemy_melee_scene
+	# Progressive unlock: early kills only use first few entries
+	var available_count: int = pool.size()
+	if Game.kill_count < 5:
+		available_count = mini(1, pool.size())
+	elif Game.kill_count < 15:
+		available_count = mini(2, pool.size())
+	elif Game.kill_count < 25:
+		available_count = mini(3, pool.size())
+	elif Game.kill_count < 40:
+		available_count = mini(4, pool.size())
 
-	# Mid game (10-14): mix in tanks and flying
-	if kills < 15:
-		if roll < 0.35:
-			return enemy_melee_scene
-		elif roll < 0.55 and enemy_ranged_scene:
-			return enemy_ranged_scene
-		elif roll < 0.75 and enemy_tank_scene:
-			return enemy_tank_scene
-		elif enemy_flying_scene:
-			return enemy_flying_scene
-		return enemy_melee_scene
+	# Weighted random selection from available entries
+	var total_weight: int = 0
+	for i in range(available_count):
+		total_weight += pool[i]["weight"]
 
-	# Late mid (15-19): all types including exploders
-	if roll < 0.2:
-		return enemy_melee_scene
-	elif roll < 0.35 and enemy_ranged_scene:
-		return enemy_ranged_scene
-	elif roll < 0.5 and enemy_tank_scene:
-		return enemy_tank_scene
-	elif roll < 0.7 and enemy_flying_scene:
-		return enemy_flying_scene
-	elif roll < 0.85 and enemy_exploder_scene:
-		return enemy_exploder_scene
-	return enemy_melee_scene
+	var roll := randi() % max(total_weight, 1)
+	var cumulative: int = 0
+	for i in range(available_count):
+		cumulative += pool[i]["weight"]
+		if roll < cumulative:
+			return pool[i]["scene"]
+
+	return pool[0]["scene"] if not pool.is_empty() else enemy_melee_scene
 
 func _spawn_with_telegraph(scene: PackedScene, pos: Vector2) -> void:
 	# Show telegraph
@@ -124,6 +191,7 @@ func _do_spawn(scene: PackedScene, pos: Vector2) -> void:
 
 func spawn_boss() -> void:
 	boss_spawned = true
+	Audio.play_boss_spawn()
 	var pos := get_spawn_position()
 
 	# Big telegraph for boss

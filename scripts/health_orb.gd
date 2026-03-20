@@ -39,6 +39,7 @@ func _process(delta: float) -> void:
 		collected = true
 		if player.has_method("heal"):
 			player.heal(heal_amount)
+		Audio.play_pickup_health()
 		_fade_out()
 		return
 

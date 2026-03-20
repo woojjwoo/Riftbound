@@ -48,8 +48,19 @@ var narrative_text: String = ""
 # Equipment HUD overlay — draws equipped items in bottom-right corner
 var equip_hud: Control = null
 
+## XP bar (created in code)
+var xp_bar: ProgressBar = null
+var level_label: Label = null
+
+## Ability UI nodes (created in code)
+var ability_select_ui: Node = null
+var ability_cooldown_ui: Node = null
+
+## Queue of pending level-ups waiting for ability selection
+var pending_level_ups: int = 0
+
 func _ready() -> void:
-	Audio.start_music()
+	Audio.start_music(Game.current_world)
 	game_over_panel.visible = false
 	arise_label.visible = false
 	boss_health_bar.visible = false
@@ -70,6 +81,8 @@ func _ready() -> void:
 	Game.process_changed.connect(_on_process_changed)
 	Game.upgrade_available.connect(_on_upgrade_available)
 	Game.victory.connect(_on_victory)
+	Game.xp_changed.connect(_on_xp_changed)
+	Game.level_up.connect(_on_level_up)
 
 	upgrade_btn1.pressed.connect(_on_upgrade_selected.bind(0))
 	upgrade_btn2.pressed.connect(_on_upgrade_selected.bind(1))
@@ -89,6 +102,10 @@ func _ready() -> void:
 	_setup_equip_hud()
 	SaveData.equipment_changed.connect(_on_equipment_changed)
 
+	# XP bar and ability UI
+	_create_xp_bar()
+	_create_ability_ui()
+
 	await get_tree().process_frame
 	var players := get_tree().get_nodes_in_group("player")
 	if players.size() > 0:
@@ -97,6 +114,9 @@ func _ready() -> void:
 		health_bar.max_value = player.max_health
 		health_bar.value = player.current_health
 		health_display = player.current_health
+		# Connect ability cooldown UI to the player's ability manager
+		if player.ability_manager and ability_cooldown_ui:
+			ability_cooldown_ui.setup(player.ability_manager)
 
 func _process(delta: float) -> void:
 	thrall_label.text = "Thralls: %d" % Game.thrall_count
@@ -157,15 +177,23 @@ func _on_health_changed(current: float, _max_hp: float) -> void:
 
 func _on_game_over() -> void:
 	game_over_panel.visible = true
-	game_over_stats.text = "World: %s\nRifts Sealed: %d / %d\nEnemies Slain: %d\nThralls Bound: %d\nCoins: %d" % [
+	# Calculate Soul Essence earned this run
+	var essence_earned := Meta.calculate_run_essence(
+		Game.kill_count, Game.run_worlds_cleared, Game.run_bosses_killed)
+	var essence_text := ""
+	if essence_earned > 0:
+		essence_text = "\nSoul Essence Earned: +%d" % essence_earned
+	game_over_stats.text = "World: %s\nRifts Sealed: %d / %d\nEnemies Slain: %d\nThralls Bound: %d\nCoins: %d%s" % [
 		Game.get_world_config().get("name", "Unknown"),
-		Game.rifts_closed, Game.total_rifts, Game.kill_count, Game.thrall_count, SaveData.coins]
+		Game.rifts_closed, Game.total_rifts, Game.kill_count, Game.thrall_count, SaveData.coins,
+		essence_text]
 	game_over_panel.modulate.a = 0.0
 	var tween := create_tween()
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.tween_property(game_over_panel, "modulate:a", 1.0, 0.5)
 
 func _on_restart() -> void:
+	Audio.play_ui_click()
 	Game.restart()
 
 func _on_thrall_gained() -> void:
@@ -236,6 +264,7 @@ func _on_upgrade_selected(index: int) -> void:
 		current_upgrades[index]["apply"].call()
 		Game.apply_upgrade(current_upgrades[index]["name"])
 		_update_active_upgrades()
+		Audio.play_ui_confirm()
 	upgrade_panel.visible = false
 	get_tree().paused = false
 
@@ -328,6 +357,80 @@ func _update_boss_health_bar() -> void:
 	else:
 		boss_health_bar.visible = false
 		boss_name_label.visible = false
+
+# --- XP Bar and Ability UI ---
+
+func _create_xp_bar() -> void:
+	xp_bar = ProgressBar.new()
+	xp_bar.name = "XPBar"
+	xp_bar.offset_left = 20.0
+	xp_bar.offset_top = 42.0
+	xp_bar.offset_right = 220.0
+	xp_bar.offset_bottom = 52.0
+	xp_bar.max_value = Game.xp_to_next_level
+	xp_bar.value = Game.current_xp
+	xp_bar.show_percentage = false
+	var fill_style := StyleBoxFlat.new()
+	fill_style.bg_color = Color(0.6, 0.3, 1.0)
+	fill_style.set_corner_radius_all(2)
+	xp_bar.add_theme_stylebox_override("fill", fill_style)
+	var bg_style := StyleBoxFlat.new()
+	bg_style.bg_color = Color(0.15, 0.1, 0.2)
+	bg_style.set_corner_radius_all(2)
+	xp_bar.add_theme_stylebox_override("background", bg_style)
+	add_child(xp_bar)
+	level_label = Label.new()
+	level_label.name = "LevelLabel"
+	level_label.offset_left = 225.0
+	level_label.offset_top = 38.0
+	level_label.offset_right = 320.0
+	level_label.offset_bottom = 55.0
+	level_label.text = "Lv.1"
+	add_child(level_label)
+
+func _create_ability_ui() -> void:
+	var ability_select_path := "res://scripts/ability_select_ui.gd"
+	if ResourceLoader.exists(ability_select_path):
+		var AbilitySelectScript := preload("res://scripts/ability_select_ui.gd")
+		ability_select_ui = AbilitySelectScript.new()
+		ability_select_ui.name = "AbilitySelectUI"
+		ability_select_ui.process_mode = Node.PROCESS_MODE_ALWAYS
+		ability_select_ui.ability_chosen.connect(_on_ability_chosen)
+		add_child(ability_select_ui)
+	var ability_cd_path := "res://scripts/ability_cooldown_ui.gd"
+	if ResourceLoader.exists(ability_cd_path):
+		var AbilityCooldownScript := preload("res://scripts/ability_cooldown_ui.gd")
+		ability_cooldown_ui = AbilityCooldownScript.new()
+		ability_cooldown_ui.name = "AbilityCooldownUI"
+		add_child(ability_cooldown_ui)
+
+func _on_xp_changed(current: int, needed: int) -> void:
+	if xp_bar:
+		xp_bar.max_value = needed
+		xp_bar.value = current
+
+func _on_level_up(new_level: int) -> void:
+	if level_label:
+		level_label.text = "Lv.%d" % new_level
+	pending_level_ups += 1
+	if pending_level_ups == 1:
+		_show_next_ability_selection()
+
+func _show_next_ability_selection() -> void:
+	if pending_level_ups <= 0:
+		return
+	if ability_select_ui and player and player.ability_manager:
+		ability_select_ui.show_selection(player.ability_manager)
+
+func _on_ability_chosen(id: String) -> void:
+	if player and player.ability_manager:
+		player.ability_manager.unlock_ability(id)
+		var level: int = player.ability_manager.get_ability_level(id)
+		if ability_cooldown_ui:
+			ability_cooldown_ui.update_level(id, level)
+	pending_level_ups -= 1
+	if pending_level_ups > 0:
+		_show_next_ability_selection()
 
 # --- Equipment HUD Overlay ---
 

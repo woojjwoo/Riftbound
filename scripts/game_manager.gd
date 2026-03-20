@@ -42,6 +42,21 @@ signal upgrade_available
 signal rift_closed_signal(rift_number: int)
 signal world_portal_spawned
 
+# Soul Essence earned notification (emitted at run end for UI display)
+signal soul_essence_earned(amount: int)
+
+# XP / Leveling
+signal xp_changed(current: int, needed: int)
+signal level_up(new_level: int)
+
+var current_xp: int = 0
+var current_level: int = 1
+var xp_to_next_level: int = 10
+
+# Track worlds cleared during this run (for Soul Essence calculation)
+var run_worlds_cleared: int = 0
+var run_bosses_killed: int = 0
+
 # Hit freeze
 var _freeze_timer: float = 0.0
 var _freeze_prev_scale: float = 1.0
@@ -105,9 +120,22 @@ func get_world_config() -> Dictionary:
 func on_enemy_killed() -> void:
 	kill_count += 1
 	enemy_killed.emit()
+	add_xp(5)
+
+func add_xp(amount: int) -> void:
+	current_xp += amount
+	xp_changed.emit(current_xp, xp_to_next_level)
+	while current_xp >= xp_to_next_level:
+		current_xp -= xp_to_next_level
+		current_level += 1
+		# Each level requires more XP (scaling formula)
+		xp_to_next_level = 10 + (current_level - 1) * 5
+		level_up.emit(current_level)
+		xp_changed.emit(current_xp, xp_to_next_level)
 
 func on_boss_killed() -> void:
 	boss_killed = true
+	run_bosses_killed += 1
 	SaveData.total_bosses_killed += 1
 	Audio.play_victory()
 
@@ -140,6 +168,9 @@ func on_rift_closed(rift_number: int) -> void:
 		var mid_threshold := ceili(total_rifts / 2.0)
 		if rifts_closed >= mid_threshold:
 			_transition_to(GameProcess.MID_GAME)
+
+func on_world_cleared() -> void:
+	run_worlds_cleared += 1
 
 func _spawn_world_portal() -> void:
 	var players := get_tree().get_nodes_in_group("player")
@@ -254,6 +285,9 @@ func trigger_game_over() -> void:
 	SaveData.total_runs += 1
 	SaveData.total_kills += kill_count
 	SaveData.save_game()
+	# Award Soul Essence for the run
+	var earned := Meta.award_run_essence(kill_count, run_worlds_cleared, run_bosses_killed)
+	soul_essence_earned.emit(earned)
 	get_tree().paused = true
 	game_over.emit()
 
@@ -267,6 +301,8 @@ func restart() -> void:
 
 func restart_for_next_world() -> void:
 	_reset_run_state()
+	# Crossfade to the new world's music
+	Audio.change_world_music(current_world)
 	get_tree().paused = false
 	get_tree().reload_current_scene()
 	# Re-emit process state after scene reload so new UI picks it up
@@ -294,6 +330,11 @@ func _reset_run_state() -> void:
 	upgrade_regen = 0.0
 	upgrade_cooldown_mult = 1.0
 	upgrade_thrall_speed_mult = 1.0
+	current_xp = 0
+	current_level = 1
+	xp_to_next_level = 10
+	run_worlds_cleared = 0
+	run_bosses_killed = 0
 	# Apply permanent upgrades from save data
 	var w_config := get_world_config()
 	total_rifts = w_config.get("rifts", 5)
@@ -369,6 +410,9 @@ func get_power_level() -> float:
 	# Permanent upgrades from save
 	power += SaveData.perm_attack_mult * 0.3
 	power += SaveData.perm_thrall_damage * 0.2
+	# Meta-progression (Sanctum) bonuses
+	power += Meta.sanctum_base_damage * 0.2
+	power += Meta.sanctum_max_health / 200.0
 	# Equipment power — sum stat bonuses across all 6 equipped slots
 	for slot_idx in range(Equipment.SLOT_INFO.size()):
 		var equip_bonus := SaveData.get_equip_bonus(slot_idx)

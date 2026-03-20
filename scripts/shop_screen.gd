@@ -19,15 +19,18 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_ESCAPE:
+				Audio.play_ui_cancel()
 				get_tree().change_scene_to_file("res://scenes/title_screen.tscn")
 			KEY_UP, KEY_W:
 				selected_index = max(0, selected_index - 1)
 				if selected_index < scroll_offset:
 					scroll_offset = selected_index
+				Audio.play_ui_click()
 			KEY_DOWN, KEY_S:
 				selected_index = min(SaveData.SHOP_UPGRADES.size() - 1, selected_index + 1)
 				if selected_index >= scroll_offset + VISIBLE_ITEMS:
 					scroll_offset = selected_index - VISIBLE_ITEMS + 1
+				Audio.play_ui_click()
 			KEY_ENTER, KEY_SPACE:
 				if selected_index >= 0:
 					_try_buy(selected_index)
@@ -66,10 +69,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _try_buy(index: int) -> void:
 	if SaveData.buy_upgrade(index):
+		Audio.play_ui_confirm()
 		Audio.play_upgrade()
 		Game.request_shake(3.0)
 	else:
-		Audio.play_hit()
+		Audio.play_ui_error()
 
 func _draw() -> void:
 	var vp := get_viewport_rect().size
