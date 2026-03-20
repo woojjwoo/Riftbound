@@ -227,7 +227,7 @@ func _physics_process(delta: float) -> void:
 
 	# Normal movement
 	knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
-	var ability_speed := ability_manager.get_speed_multiplier() if ability_manager else 1.0
+	var ability_speed: float = ability_manager.get_speed_multiplier() if ability_manager else 1.0
 	var effective_speed := move_speed * Game.upgrade_speed_mult * ability_speed
 	velocity = input.normalized() * effective_speed + knockback_velocity
 	move_and_slide()
