@@ -165,7 +165,7 @@ func _draw() -> void:
 		var upgrade_color: Color = upgrade["color"]
 
 		# Background
-		var bg_alpha := 0.9 if is_selected else 0.7
+		var bg_alpha = 0.9 if is_selected else 0.7
 		var bg_color := Color(0.1, 0.06, 0.16, bg_alpha)
 		if is_selected:
 			bg_color = Color(0.15, 0.08, 0.25, bg_alpha)
@@ -181,7 +181,7 @@ func _draw() -> void:
 		draw_rect(Rect2(item_x, y, 4, item_h - 5), upgrade_color)
 
 		# Name
-		var name_color := Color(0.95, 0.9, 1.0) if can_afford else Color(0.5, 0.45, 0.55)
+		var name_color = Color(0.95, 0.9, 1.0) if can_afford else Color(0.5, 0.45, 0.55)
 		if is_maxed:
 			name_color = Color(0.4, 0.8, 0.3)
 		draw_string(font, Vector2(item_x + 14, y + 20), upgrade["name"],
@@ -234,7 +234,7 @@ func _draw() -> void:
 			draw_string(font, Vector2(item_x + item_w - 70, y + 38), "MAXED",
 				HORIZONTAL_ALIGNMENT_RIGHT, 60, 12, Color(0.4, 0.8, 0.3))
 		else:
-			var cost_color := Color(0.6, 0.3, 1.0) if can_afford else Color(0.6, 0.25, 0.25)
+			var cost_color = Color(0.6, 0.3, 1.0) if can_afford else Color(0.6, 0.25, 0.25)
 			_draw_soul_essence_icon(Vector2(item_x + item_w - 75, y + 27), 4.0)
 			draw_string(font, Vector2(item_x + item_w - 65, y + 38), "%d" % cost,
 				HORIZONTAL_ALIGNMENT_RIGHT, 55, 11, cost_color)

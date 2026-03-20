@@ -203,7 +203,7 @@ func _physics_process(delta: float) -> void:
 	# Dash
 	dash_cooldown_timer -= delta
 	if Input.is_action_just_pressed("dash") and dash_cooldown_timer <= 0.0 and not is_dashing:
-		var dash_dir := input.normalized() if input.length() > 0.1 else _get_facing_vector()
+		var dash_dir = input.normalized() if input.length() > 0.1 else _get_facing_vector()
 		_start_dash(dash_dir)
 
 	# Recall thralls
@@ -228,7 +228,7 @@ func _physics_process(delta: float) -> void:
 	# Normal movement
 	knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
 	var ability_speed: float = ability_manager.get_speed_multiplier() if ability_manager else 1.0
-	var effective_speed := move_speed * Game.upgrade_speed_mult * ability_speed
+	var effective_speed: float = move_speed * Game.upgrade_speed_mult * ability_speed
 	velocity = input.normalized() * effective_speed + knockback_velocity
 	move_and_slide()
 
@@ -407,11 +407,11 @@ func take_damage(amount: float, from_pos: Vector2 = Vector2.ZERO) -> void:
 	var reduced := amount * (1.0 - SkillTree.bonus_damage_reduction)
 	# Bone shield absorption
 	if ability_manager and ability_manager.bone_shield_charges > 0:
-		var absorbed := ability_manager.try_absorb_damage(reduced)
+		var absorbed: float = ability_manager.try_absorb_damage(reduced)
 		reduced -= absorbed
 	# Soul link damage distribution
 	if ability_manager and ability_manager.soul_link_active:
-		var shared := ability_manager.distribute_soul_link_damage(reduced)
+		var shared: float = ability_manager.distribute_soul_link_damage(reduced)
 		reduced -= shared
 	if reduced <= 0.0:
 		return

@@ -158,5 +158,5 @@ func _draw_tutorial() -> void:
 	var indicator_y := banner_y + banner_h + 8.0
 	for i in range(steps.size()):
 		var dot_x := cx - float(steps.size()) * 6.0 + float(i) * 12.0
-		var dot_color := Color(0.5, 0.3, 0.8, alpha) if i <= current_step else Color(0.3, 0.2, 0.4, alpha * 0.5)
+		var dot_color = Color(0.5, 0.3, 0.8, alpha) if i <= current_step else Color(0.3, 0.2, 0.4, alpha * 0.5)
 		draw_node.draw_circle(Vector2(dot_x, indicator_y), 3.0, dot_color)

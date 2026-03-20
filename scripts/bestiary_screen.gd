@@ -117,7 +117,7 @@ func _on_draw() -> void:
 
 		# Name
 		var name_text: String = entry["name"] if known else "???"
-		var name_color := Color(0.9, 0.85, 1.0) if is_selected else Color(0.6, 0.55, 0.7)
+		var name_color = Color(0.9, 0.85, 1.0) if is_selected else Color(0.6, 0.55, 0.7)
 		if not known:
 			name_color = Color(0.4, 0.35, 0.45)
 		draw_node.draw_string(font, Vector2(list_x + 22, y), name_text,

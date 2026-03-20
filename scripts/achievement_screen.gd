@@ -128,11 +128,11 @@ func _draw() -> void:
 	for i in range(categories.size()):
 		var tx := tab_start + float(i) * tab_w
 		var is_active := i == current_category
-		var tab_bg := Color(0.2, 0.15, 0.3, 0.9) if is_active else Color(0.1, 0.08, 0.15, 0.6)
+		var tab_bg = Color(0.2, 0.15, 0.3, 0.9) if is_active else Color(0.1, 0.08, 0.15, 0.6)
 		draw_rect(Rect2(tx + 2, tab_y, tab_w - 4, 25), tab_bg)
 		if is_active:
 			draw_rect(Rect2(tx + 2, tab_y, tab_w - 4, 25), Color(1.0, 0.85, 0.3, 0.5), false, 1.5)
-		var tab_color := Color(1.0, 0.9, 0.5) if is_active else Color(0.5, 0.45, 0.6)
+		var tab_color = Color(1.0, 0.9, 0.5) if is_active else Color(0.5, 0.45, 0.6)
 		draw_string(font, Vector2(tx + 6, tab_y + 17), category_names[i],
 			HORIZONTAL_ALIGNMENT_LEFT, int(tab_w - 12), 11, tab_color)
 
@@ -175,14 +175,14 @@ func _draw() -> void:
 			var icon_x := item_x + 8.0
 			var icon_y := y + 8.0
 			var icon_size := ITEM_HEIGHT - 20.0
-			var icon_bg := Color(0.15, 0.1, 0.25, 0.8) if is_unlocked else Color(0.08, 0.06, 0.12, 0.6)
+			var icon_bg = Color(0.15, 0.1, 0.25, 0.8) if is_unlocked else Color(0.08, 0.06, 0.12, 0.6)
 			draw_rect(Rect2(icon_x, icon_y, icon_size, icon_size), icon_bg)
-			var icon_border := Color(1.0, 0.85, 0.3, 0.6) if is_unlocked else Color(0.3, 0.25, 0.4, 0.4)
+			var icon_border = Color(1.0, 0.85, 0.3, 0.6) if is_unlocked else Color(0.3, 0.25, 0.4, 0.4)
 			draw_rect(Rect2(icon_x, icon_y, icon_size, icon_size), icon_border, false, 1.0)
 
 			# Icon text
 			var icon_text: String = def.get("icon", "?") if is_unlocked else "?"
-			var icon_color := Color(1.0, 0.85, 0.3, 1.0) if is_unlocked else Color(0.3, 0.3, 0.4)
+			var icon_color = Color(1.0, 0.85, 0.3, 1.0) if is_unlocked else Color(0.3, 0.3, 0.4)
 			draw_string(font, Vector2(icon_x + 4.0, icon_y + icon_size / 2.0 + 5.0),
 				icon_text, HORIZONTAL_ALIGNMENT_LEFT, int(icon_size - 8), 12, icon_color)
 
@@ -192,13 +192,13 @@ func _draw() -> void:
 
 			# Name
 			var name_text: String = def["name"] if is_unlocked else "???"
-			var name_color := Color(1.0, 0.85, 0.3) if is_unlocked else Color(0.4, 0.4, 0.5)
+			var name_color = Color(1.0, 0.85, 0.3) if is_unlocked else Color(0.4, 0.4, 0.5)
 			draw_string(font, Vector2(text_x, y + 25.0), name_text,
 				HORIZONTAL_ALIGNMENT_LEFT, text_w, 14, name_color)
 
 			# Description
 			var desc_text: String = def["desc"] if is_unlocked else "Locked"
-			var desc_color := Color(0.7, 0.65, 0.85) if is_unlocked else Color(0.35, 0.35, 0.4)
+			var desc_color = Color(0.7, 0.65, 0.85) if is_unlocked else Color(0.35, 0.35, 0.4)
 			draw_string(font, Vector2(text_x, y + 45.0), desc_text,
 				HORIZONTAL_ALIGNMENT_LEFT, text_w, 11, desc_color)
 

@@ -260,7 +260,7 @@ func _physics_process(delta: float) -> void:
 			return
 
 	knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
-	var effective_speed := move_speed * (1.0 - _slow_amount if _slow_timer > 0.0 else 1.0)
+	var effective_speed = move_speed * (1.0 - _slow_amount if _slow_timer > 0.0 else 1.0)
 
 	# AI: Retreat when low HP (ranged/summoner/poisoner flee below 25% HP)
 	if current_health < max_health * 0.25 and enemy_type in ["ranged", "summoner", "poisoner", "flying"]:
@@ -276,7 +276,7 @@ func _physics_process(delta: float) -> void:
 	if enemy_type in ["melee", "charger", "tank"] and not _retreat_active:
 		if _flank_offset == Vector2.ZERO:
 			# Pick a flank side based on instance ID for consistency
-			var side := 1.0 if get_instance_id() % 2 == 0 else -1.0
+			var side = 1.0 if get_instance_id() % 2 == 0 else -1.0
 			_flank_offset = Vector2(-dir.y, dir.x) * side
 		if dist > 60.0:
 			dir = (dir + _flank_offset * 0.35).normalized()
@@ -509,7 +509,7 @@ func _shoot_at(target: Node2D) -> void:
 	var proj := projectile_scene.instantiate()
 	proj.global_position = global_position
 	# Use correct target group based on who we're shooting at
-	var group := "thralls" if target.is_in_group("thralls") else "player"
+	var group = "thralls" if target.is_in_group("thralls") else "player"
 	proj.setup(dir, contact_damage, group)
 	scene.add_child(proj)
 	Audio.play_shoot()
@@ -793,5 +793,5 @@ func _draw() -> void:
 	var bar_y: float = -20.0
 	var health_ratio := current_health / max_health
 	draw_rect(Rect2(-bar_width / 2, bar_y, bar_width, bar_height), Color(0.2, 0.2, 0.2, 0.8))
-	var fill_color := Color(0.2, 0.8, 0.2) if health_ratio > 0.5 else Color(0.8, 0.2, 0.2)
+	var fill_color = Color(0.2, 0.8, 0.2) if health_ratio > 0.5 else Color(0.8, 0.2, 0.2)
 	draw_rect(Rect2(-bar_width / 2, bar_y, bar_width * health_ratio, bar_height), fill_color)

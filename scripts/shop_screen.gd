@@ -131,14 +131,14 @@ func _draw() -> void:
 		var is_selected := idx == selected_index
 
 		# Background
-		var bg_color := Color(0.12, 0.1, 0.18, 0.8) if not is_selected else Color(0.2, 0.15, 0.3, 0.9)
+		var bg_color = Color(0.12, 0.1, 0.18, 0.8) if not is_selected else Color(0.2, 0.15, 0.3, 0.9)
 		draw_rect(Rect2(item_x, y, item_w, item_h - 5), bg_color)
 
 		if is_selected:
 			draw_rect(Rect2(item_x, y, item_w, item_h - 5), Color(0.6, 0.4, 1.0, 0.4), false, 2.0)
 
 		# Name
-		var name_color := Color(0.9, 0.85, 1.0) if can_afford else Color(0.5, 0.5, 0.5)
+		var name_color = Color(0.9, 0.85, 1.0) if can_afford else Color(0.5, 0.5, 0.5)
 		draw_string(font, Vector2(item_x + 10, y + 18), upgrade["name"],
 			HORIZONTAL_ALIGNMENT_LEFT, 150, 14, name_color)
 
@@ -152,7 +152,7 @@ func _draw() -> void:
 		for j in range(max_level):
 			var seg_x := bar_x + float(j) * (bar_w / float(max_level))
 			var seg_w := bar_w / float(max_level) - 2
-			var seg_color := Color(0.4, 0.8, 0.3) if j < level else Color(0.2, 0.2, 0.2, 0.5)
+			var seg_color = Color(0.4, 0.8, 0.3) if j < level else Color(0.2, 0.2, 0.2, 0.5)
 			draw_rect(Rect2(seg_x, y + 12, seg_w, 10), seg_color)
 
 		# Level text
@@ -165,7 +165,7 @@ func _draw() -> void:
 			draw_string(font, Vector2(item_x + item_w - 80, y + 35), "MAX",
 				HORIZONTAL_ALIGNMENT_RIGHT, 70, 12, Color(0.4, 0.8, 0.3))
 		else:
-			var cost_color := Color(1.0, 0.9, 0.3) if can_afford else Color(0.8, 0.3, 0.3)
+			var cost_color = Color(1.0, 0.9, 0.3) if can_afford else Color(0.8, 0.3, 0.3)
 			draw_string(font, Vector2(item_x + item_w - 80, y + 35), "%d coins" % cost,
 				HORIZONTAL_ALIGNMENT_RIGHT, 70, 10, cost_color)
 

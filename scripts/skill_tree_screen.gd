@@ -123,7 +123,7 @@ func _on_draw() -> void:
 		if is_selected:
 			draw_node.draw_rect(Rect2(tx, tab_y - 12, tab_width - 10, 24), Color(path_color.r, path_color.g, path_color.b, 0.2))
 			draw_node.draw_rect(Rect2(tx, tab_y - 12, tab_width - 10, 24), Color(path_color.r, path_color.g, path_color.b, 0.6), false, 1.5)
-		var tab_col := path_color if is_selected else Color(0.4, 0.35, 0.5)
+		var tab_col = path_color if is_selected else Color(0.4, 0.35, 0.5)
 		var unlocked_count: int = SkillTree.unlocked[i].size()
 		var total_count: int = path_data["skills"].size()
 		draw_node.draw_string(font, Vector2(tx + 5, tab_y + 3), "%s (%d/%d)" % [path_data["name"], unlocked_count, total_count],
@@ -151,7 +151,7 @@ func _on_draw() -> void:
 
 		# Connection line to next node
 		if i < skills.size() - 1:
-			var line_color := path_color if is_unlocked else Color(0.25, 0.2, 0.35, 0.5)
+			var line_color = path_color if is_unlocked else Color(0.25, 0.2, 0.35, 0.5)
 			draw_node.draw_line(Vector2(cx, ny + 40), Vector2(cx, ny + node_h - 5), line_color, 1.5)
 
 		# Node background
@@ -176,12 +176,12 @@ func _on_draw() -> void:
 		draw_node.draw_rect(Rect2(node_x, ny, node_w, node_h - 8), border_color, false, 1.5)
 
 		# Skill name
-		var name_color := path_color if is_unlocked else (Color(0.8, 0.75, 0.9) if is_next else Color(0.4, 0.35, 0.5))
+		var name_color = path_color if is_unlocked else (Color(0.8, 0.75, 0.9) if is_next else Color(0.4, 0.35, 0.5))
 		draw_node.draw_string(font, Vector2(node_x + 10, ny + 18), skill["name"],
 			HORIZONTAL_ALIGNMENT_LEFT, 200, 12, name_color)
 
 		# Skill description
-		var desc_color := Color(0.6, 0.55, 0.7) if is_unlocked or is_next else Color(0.35, 0.3, 0.45)
+		var desc_color = Color(0.6, 0.55, 0.7) if is_unlocked or is_next else Color(0.35, 0.3, 0.45)
 		draw_node.draw_string(font, Vector2(node_x + 10, ny + 35), skill["desc"],
 			HORIZONTAL_ALIGNMENT_LEFT, 200, 10, desc_color)
 
@@ -192,7 +192,7 @@ func _on_draw() -> void:
 		else:
 			var cost: int = skill["cost"]
 			var can_afford := Meta.soul_essence >= cost and is_next
-			var cost_col := Color(0.3, 1.0, 0.4) if can_afford else Color(0.6, 0.5, 0.7)
+			var cost_col = Color(0.3, 1.0, 0.4) if can_afford else Color(0.6, 0.5, 0.7)
 			draw_node.draw_string(font, Vector2(node_x + node_w - 80, ny + 18), "%d SE" % cost,
 				HORIZONTAL_ALIGNMENT_LEFT, 70, 10, cost_col)
 			if not is_next and not is_unlocked:

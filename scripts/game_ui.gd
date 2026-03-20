@@ -110,7 +110,7 @@ func _ready() -> void:
 
 	# Set world label and show intro narrative
 	var config := Game.get_world_config()
-	var ng_suffix := " (NG+%d)" % Game.ng_plus_cycle if Game.ng_plus_cycle > 0 else ""
+	var ng_suffix = " (NG+%d)" % Game.ng_plus_cycle if Game.ng_plus_cycle > 0 else ""
 	world_label.text = "World %d: %s%s" % [Game.current_world + 1, config.get("name", "Unknown"), ng_suffix]
 	_show_narrative(config.get("intro", ""), 6.0)
 
@@ -694,7 +694,7 @@ func _draw_equip_hud() -> void:
 			# Upgrade level text
 			var level: int = item["level"]
 			var level_text := "+%d" % level
-			var level_color := Color(1.0, 1.0, 1.0, 0.7) if level == 0 else Color(1.0, 0.9, 0.4, 0.9)
+			var level_color = Color(1.0, 1.0, 1.0, 0.7) if level == 0 else Color(1.0, 0.9, 0.4, 0.9)
 			equip_hud.draw_string(ThemeDB.fallback_font, Vector2(cx + 9.0, cy + 4.0), level_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, level_color)
 
 func _draw_diamond_filled(center: Vector2, size: float, color: Color) -> void:

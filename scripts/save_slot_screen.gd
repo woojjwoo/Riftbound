@@ -117,7 +117,7 @@ func _on_draw() -> void:
 		var is_active := (i == SaveData.current_slot)
 
 		# Card background
-		var bg_color := Color(0.15, 0.1, 0.25, 0.9) if is_selected else Color(0.08, 0.05, 0.12, 0.8)
+		var bg_color = Color(0.15, 0.1, 0.25, 0.9) if is_selected else Color(0.08, 0.05, 0.12, 0.8)
 		draw_node.draw_rect(Rect2(x, y, card_w, card_h), bg_color)
 
 		# Border

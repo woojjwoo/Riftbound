@@ -74,8 +74,8 @@ func _draw_summary() -> void:
 	var y := py + 30
 
 	# Title
-	var title := "VICTORY — RUN COMPLETE" if is_victory else "THE NECROMANCER FALLS"
-	var title_color := Color(0.4, 1.0, 0.5, alpha) if is_victory else Color(1.0, 0.3, 0.3, alpha)
+	var title = "VICTORY — RUN COMPLETE" if is_victory else "THE NECROMANCER FALLS"
+	var title_color = Color(0.4, 1.0, 0.5, alpha) if is_victory else Color(1.0, 0.3, 0.3, alpha)
 	node.draw_string(font, Vector2(cx - 120, y), title,
 		HORIZONTAL_ALIGNMENT_CENTER, 240, 18, title_color)
 

@@ -109,7 +109,7 @@ func _gen_corridors(templates: Array, count: int) -> void:
 		var gap := randf_range(60.0, 100.0)
 		for i in range(per_corridor):
 			var along := (float(i) - per_corridor / 2.0) * 50.0
-			var sign_val := 1.0 if i % 2 == 0 else -1.0
+			var sign_val = 1.0 if i % 2 == 0 else -1.0
 			var pos := perp * along + side * (gap * sign_val)
 			if pos.length() < PLAYER_SAFE_ZONE:
 				continue

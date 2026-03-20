@@ -215,7 +215,7 @@ func take_damage(amount: float, from_pos: Vector2 = Vector2.ZERO) -> void:
 		knockback_velocity_thrall = (global_position - from_pos).normalized() * 100.0
 	sprite.modulate = Color(3, 3, 3)
 	var tween := create_tween()
-	var base_color := Color(1.0, 0.8, 0.4) if mode == ThrallMode.COMMANDED else Color(0.4, 1.0, 0.9)
+	var base_color = Color(1.0, 0.8, 0.4) if mode == ThrallMode.COMMANDED else Color(0.4, 1.0, 0.9)
 	tween.tween_property(sprite, "modulate", base_color, 0.1)
 	if current_health <= 0.0:
 		_die()
@@ -293,7 +293,7 @@ func _physics_process(delta: float) -> void:
 				# Use formation positioning
 				var thralls := get_tree().get_nodes_in_group("thralls")
 				var total := thralls.size()
-				var facing := leader.velocity.normalized() if leader.velocity.length() > 10 else Vector2.DOWN
+				var facing = leader.velocity.normalized() if leader.velocity.length() > 10 else Vector2.DOWN
 				var target_pos := leader.global_position + Game.get_formation_offset(formation_index, total, facing)
 				var dist := global_position.distance_to(target_pos)
 				if dist > 15.0:
@@ -370,12 +370,12 @@ func _do_attack() -> void:
 			_aoe_attack(effective_damage)
 	else:
 		# Splitter: double-strike (attack twice)
-		var strikes := 2 if thrall_type == "splitter" else 1
+		var strikes = 2 if thrall_type == "splitter" else 1
 		for _i in range(strikes):
 			if current_target and is_instance_valid(current_target) and current_target.has_method("take_damage"):
-				var strike_dmg := effective_damage * (0.7 if thrall_type == "splitter" else 1.0)
+				var strike_dmg = effective_damage * (0.7 if thrall_type == "splitter" else 1.0)
 				current_target.take_damage(strike_dmg)
-				var dmg_color := Color(0.8, 0.4, 1.0) if not is_enemy else Color(0.4, 1.0, 0.9)
+				var dmg_color = Color(0.8, 0.4, 1.0) if not is_enemy else Color(0.4, 1.0, 0.9)
 				Game.spawn_damage_number(strike_dmg, current_target.global_position, dmg_color)
 
 		# Melee lifesteal on enemies only
@@ -413,7 +413,7 @@ func _taunt() -> void:
 				enemy.knockback_velocity = pull_dir * 80.0
 	sprite.modulate = Color(1.0, 0.8, 0.3)
 	var tween := create_tween()
-	var base_color := Color(1.0, 0.8, 0.4) if mode == ThrallMode.COMMANDED else Color(0.4, 1.0, 0.9)
+	var base_color = Color(1.0, 0.8, 0.4) if mode == ThrallMode.COMMANDED else Color(0.4, 1.0, 0.9)
 	tween.tween_property(sprite, "modulate", base_color, 0.3)
 
 ## Charger thrall: dash at target periodically
@@ -443,7 +443,7 @@ func _process_charger_ability(delta: float) -> void:
 			if _charge_elapsed >= 0.35:
 				_charge_state = 0
 				_charge_timer = 3.0
-				var base_color := Color(1.0, 0.8, 0.4) if mode == ThrallMode.COMMANDED else Color(0.4, 1.0, 0.9)
+				var base_color = Color(1.0, 0.8, 0.4) if mode == ThrallMode.COMMANDED else Color(0.4, 1.0, 0.9)
 				sprite.modulate = base_color
 
 ## Exploder thrall: self-destruct at low HP for big AOE
@@ -508,7 +508,7 @@ func _process_buff_aura(delta: float) -> void:
 				# Visual feedback
 				thrall.sprite.modulate = Color(0.6, 1.0, 0.4)
 				var tween := thrall.create_tween()
-				var base := Color(1.0, 0.8, 0.4) if thrall.mode == ThrallMode.COMMANDED else Color(0.4, 1.0, 0.9)
+				var base = Color(1.0, 0.8, 0.4) if thrall.mode == ThrallMode.COMMANDED else Color(0.4, 1.0, 0.9)
 				tween.tween_property(thrall.sprite, "modulate", base, 0.5)
 
 ## Healer: summoner/voidcaller thralls periodically heal the player and nearby thralls
@@ -534,7 +534,7 @@ func _process_heal_aura(delta: float) -> void:
 	# VFX
 	sprite.modulate = Color(0.3, 1.0, 0.5)
 	var tween := create_tween()
-	var base_col := Color(1.0, 0.8, 0.4) if mode == ThrallMode.COMMANDED else Color(0.4, 1.0, 0.9)
+	var base_col = Color(1.0, 0.8, 0.4) if mode == ThrallMode.COMMANDED else Color(0.4, 1.0, 0.9)
 	tween.tween_property(sprite, "modulate", base_col, 0.3)
 
 ## Ranged Volley: ranged/flying thralls fire a burst of projectiles periodically
@@ -562,7 +562,7 @@ func _process_volley(delta: float) -> void:
 				scene.add_child(proj)
 	sprite.modulate = Color(1.0, 0.6, 1.0)
 	var tween := create_tween()
-	var base_col := Color(1.0, 0.8, 0.4) if mode == ThrallMode.COMMANDED else Color(0.4, 1.0, 0.9)
+	var base_col = Color(1.0, 0.8, 0.4) if mode == ThrallMode.COMMANDED else Color(0.4, 1.0, 0.9)
 	tween.tween_property(sprite, "modulate", base_col, 0.2)
 
 ## Called by enemies when they die near this thrall
@@ -592,7 +592,7 @@ func _evolve() -> void:
 	# Flash sprite
 	sprite.modulate = Color(3.0, 3.0, 3.0)
 	var tween := create_tween()
-	var tier_color := Color(0.4, 1.0, 0.4) if evolution_tier == 1 else Color(1.0, 0.85, 0.3)
+	var tier_color = Color(0.4, 1.0, 0.4) if evolution_tier == 1 else Color(1.0, 0.85, 0.3)
 	tween.tween_property(sprite, "modulate", tier_color, 0.4)
 	tween.tween_property(sprite, "modulate", Color(0.4, 1.0, 0.9), 0.3)
 

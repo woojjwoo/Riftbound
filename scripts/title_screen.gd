@@ -356,7 +356,7 @@ func _draw() -> void:
 	# Challenge button (below bestiary)
 	var challenge_y := bestiary_y + 38
 	var chal_count := Challenges.get_active_count()
-	var chal_label := "C: Challenges" if chal_count == 0 else "C: Challenges (%d)" % chal_count
+	var chal_label = "C: Challenges" if chal_count == 0 else "C: Challenges (%d)" % chal_count
 	draw_rect(Rect2(cx - 60, challenge_y - 15, 120, 30), Color(0.12, 0.08, 0.18, 0.8))
 	draw_rect(Rect2(cx - 60, challenge_y - 15, 120, 30), Color(1.0, 0.5, 0.3, 0.4), false, 1.0)
 	draw_string(font, Vector2(cx - 50, challenge_y + 5), chal_label,

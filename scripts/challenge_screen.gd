@@ -76,13 +76,13 @@ func _on_draw() -> void:
 			draw_node.draw_rect(Rect2(cx - 180, y - 14, 360, row_h - 4), Color(0.3, 0.2, 0.5, 0.4))
 
 		# Active indicator
-		var check_color := Color(0.3, 1.0, 0.4) if is_active else Color(0.3, 0.3, 0.35)
-		var check_text := "[X]" if is_active else "[ ]"
+		var check_color = Color(0.3, 1.0, 0.4) if is_active else Color(0.3, 0.3, 0.35)
+		var check_text = "[X]" if is_active else "[ ]"
 		draw_node.draw_string(font, Vector2(cx - 170, y), check_text,
 			HORIZONTAL_ALIGNMENT_LEFT, 30, 12, check_color)
 
 		# Name
-		var name_color := Color(1.0, 0.8, 0.3) if is_active else (Color(0.9, 0.85, 1.0) if is_selected else Color(0.6, 0.55, 0.7))
+		var name_color = Color(1.0, 0.8, 0.3) if is_active else (Color(0.9, 0.85, 1.0) if is_selected else Color(0.6, 0.55, 0.7))
 		draw_node.draw_string(font, Vector2(cx - 138, y), mod["name"],
 			HORIZONTAL_ALIGNMENT_LEFT, 120, 13, name_color)
 

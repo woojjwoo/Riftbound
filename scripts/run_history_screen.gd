@@ -129,13 +129,13 @@ func _on_draw() -> void:
 			draw_node.draw_rect(Rect2(30, y - 12, vp.x - 60, row_h - 2), Color(0.3, 0.2, 0.5, 0.3))
 
 		# Rank
-		var rank_color := Color(1.0, 0.85, 0.3) if i == 0 else (Color(0.8, 0.8, 0.9) if i == 1 else (Color(0.8, 0.5, 0.3) if i == 2 else Color(0.5, 0.45, 0.6)))
+		var rank_color = Color(1.0, 0.85, 0.3) if i == 0 else (Color(0.8, 0.8, 0.9) if i == 1 else (Color(0.8, 0.5, 0.3) if i == 2 else Color(0.5, 0.45, 0.6)))
 		draw_node.draw_string(font, Vector2(col_rank, y), "%d" % (i + 1),
 			HORIZONTAL_ALIGNMENT_LEFT, 20, 10, rank_color)
 
 		# Result
-		var result_text := "Victory" if is_victory else "Defeat"
-		var result_color := Color(0.3, 1.0, 0.4) if is_victory else Color(0.8, 0.3, 0.3)
+		var result_text = "Victory" if is_victory else "Defeat"
+		var result_color = Color(0.3, 1.0, 0.4) if is_victory else Color(0.8, 0.3, 0.3)
 		draw_node.draw_string(font, Vector2(col_result, y), result_text,
 			HORIZONTAL_ALIGNMENT_LEFT, 80, 10, result_color)
 
@@ -159,13 +159,13 @@ func _on_draw() -> void:
 
 		# NG+
 		var ng: int = run.get("ng_plus", 0)
-		var ng_text := "-" if ng == 0 else "+%d" % ng
+		var ng_text = "-" if ng == 0 else "+%d" % ng
 		draw_node.draw_string(font, Vector2(col_ng, y), ng_text,
 			HORIZONTAL_ALIGNMENT_LEFT, 40, 10, Color(1.0, 0.6, 0.2) if ng > 0 else Color(0.4, 0.35, 0.5))
 
 		# Challenge count
 		var chal_count: int = run.get("challenges", []).size()
-		var chal_text := "-" if chal_count == 0 else "%d" % chal_count
+		var chal_text = "-" if chal_count == 0 else "%d" % chal_count
 		draw_node.draw_string(font, Vector2(col_chal, y), chal_text,
 			HORIZONTAL_ALIGNMENT_LEFT, 60, 10, Color(1.0, 0.5, 0.3) if chal_count > 0 else Color(0.4, 0.35, 0.5))
 

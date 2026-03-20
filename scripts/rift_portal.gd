@@ -65,7 +65,7 @@ func _process(delta: float) -> void:
 
 	if spawn_timer <= 0.0:
 		# Swarming mutation: spawn 2 enemies at once
-		var spawn_count := 2 if "swarming" in mutations else 1
+		var spawn_count = 2 if "swarming" in mutations else 1
 		for _i in range(spawn_count):
 			_spawn_enemy()
 		spawn_timer = effective_interval
@@ -177,7 +177,7 @@ func _do_spawn(scene: PackedScene, pos: Vector2) -> void:
 	if power > 1.5:
 		shield_chance += (power - 1.5) * 0.15
 	if shield_chance > 0.0 and randf() < shield_chance and enemy.has_method("enable_shield"):
-		var shield_hits := 3 if power < 2.0 else 4
+		var shield_hits = 3 if power < 2.0 else 4
 		enemy.enable_shield(shield_hits)
 
 func _spawn_hazard() -> void:

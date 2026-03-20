@@ -75,7 +75,7 @@ func show_skill(skill: Dictionary, unlocked: bool, pos: Vector2) -> void:
 	var desc: String = skill.get("desc", "")
 	var cost: int = skill.get("cost", 0)
 
-	var name_color := Color(0.3, 1.0, 0.5) if unlocked else Color(0.8, 0.7, 1.0)
+	var name_color = Color(0.3, 1.0, 0.5) if unlocked else Color(0.8, 0.7, 1.0)
 	tooltip_lines.append({"text": name_text, "color": name_color, "size": 13})
 	tooltip_lines.append({"text": desc, "color": Color(0.6, 0.55, 0.7), "size": 10})
 
@@ -95,7 +95,7 @@ func show_achievement(achievement: Dictionary, unlocked: bool, pos: Vector2) -> 
 	var name_text: String = achievement.get("name", "")
 	var desc: String = achievement.get("desc", "")
 
-	var name_color := Color(1.0, 0.85, 0.3) if unlocked else Color(0.6, 0.55, 0.7)
+	var name_color = Color(1.0, 0.85, 0.3) if unlocked else Color(0.6, 0.55, 0.7)
 	tooltip_lines.append({"text": name_text, "color": name_color, "size": 13})
 	tooltip_lines.append({"text": desc, "color": Color(0.6, 0.55, 0.7), "size": 10})
 

@@ -199,8 +199,8 @@ func _on_draw() -> void:
 	draw_node.draw_rect(Rect2(Vector2.ZERO, vp), Color(0.03, 0.02, 0.06, 0.95))
 
 	# Mode tabs
-	var craft_col := Color(1.0, 0.85, 0.4) if mode == Mode.CRAFT else Color(0.4, 0.35, 0.5)
-	var enchant_col := Color(0.6, 0.3, 1.0) if mode == Mode.ENCHANT else Color(0.4, 0.35, 0.5)
+	var craft_col = Color(1.0, 0.85, 0.4) if mode == Mode.CRAFT else Color(0.4, 0.35, 0.5)
+	var enchant_col = Color(0.6, 0.3, 1.0) if mode == Mode.ENCHANT else Color(0.4, 0.35, 0.5)
 	draw_node.draw_string(font, Vector2(cx - 100, 30), "CRAFT", HORIZONTAL_ALIGNMENT_LEFT, 60, 14, craft_col)
 	draw_node.draw_string(font, Vector2(cx - 30, 30), "|", HORIZONTAL_ALIGNMENT_LEFT, 10, 14, Color(0.3, 0.25, 0.4))
 	draw_node.draw_string(font, Vector2(cx - 10, 30), "ENCHANT", HORIZONTAL_ALIGNMENT_LEFT, 80, 14, enchant_col)
@@ -266,8 +266,8 @@ func _draw_craft_mode(vp: Vector2, cx: float, font: Font) -> void:
 			draw_node.draw_rect(Rect2(30, y - 12, vp.x - 60, row_h - 2), Color(0.3, 0.2, 0.5, 0.3))
 
 		# Selection marker
-		var sel_text := "[X]" if is_selected else "[ ]"
-		var sel_color := Color(1.0, 0.9, 0.3) if is_selected else Color(0.4, 0.35, 0.5)
+		var sel_text = "[X]" if is_selected else "[ ]"
+		var sel_color = Color(1.0, 0.9, 0.3) if is_selected else Color(0.4, 0.35, 0.5)
 		draw_node.draw_string(font, Vector2(col_sel, y), sel_text, HORIZONTAL_ALIGNMENT_LEFT, 25, 10, sel_color)
 
 		# Name
@@ -300,7 +300,7 @@ func _draw_craft_mode(vp: Vector2, cx: float, font: Font) -> void:
 			var first_rarity: int = inv[selected_items[0]]["rarity"]
 			var cost := Equipment.get_craft_cost(first_rarity)
 			var can_craft := SaveData.coins >= cost
-			var cost_color := Color(0.3, 1.0, 0.4) if can_craft else Color(1.0, 0.3, 0.3)
+			var cost_color = Color(0.3, 1.0, 0.4) if can_craft else Color(1.0, 0.3, 0.3)
 			draw_node.draw_string(font, Vector2(160, summary_y), "Cost: %d coins" % cost,
 				HORIZONTAL_ALIGNMENT_LEFT, 120, 11, cost_color)
 			draw_node.draw_string(font, Vector2(300, summary_y), "C: Craft!",
@@ -355,8 +355,8 @@ func _draw_enchant_mode(vp: Vector2, cx: float, font: Font) -> void:
 			draw_node.draw_rect(Rect2(30, y - 12, vp.x - 60, row_h - 2), Color(0.3, 0.2, 0.5, 0.3))
 
 		# Source label
-		var src_text := "EQP" if entry["source"] == "equipped" else "INV"
-		var src_color := Color(0.3, 0.8, 0.5) if entry["source"] == "equipped" else Color(0.5, 0.45, 0.6)
+		var src_text = "EQP" if entry["source"] == "equipped" else "INV"
+		var src_color = Color(0.3, 0.8, 0.5) if entry["source"] == "equipped" else Color(0.5, 0.45, 0.6)
 		draw_node.draw_string(font, Vector2(col_src, y), src_text, HORIZONTAL_ALIGNMENT_LEFT, 40, 10, src_color)
 
 		# Name
@@ -391,8 +391,8 @@ func _draw_enchant_mode(vp: Vector2, cx: float, font: Font) -> void:
 		var item: Dictionary = all_items[cursor]["item"]
 		var cost := Equipment.get_enchant_cost(item["rarity"])
 		var can_afford := SaveData.coins >= cost
-		var cost_color := Color(0.3, 1.0, 0.4) if can_afford else Color(1.0, 0.3, 0.3)
-		var action_text := "Reroll" if item.has("enchant") else "Enchant"
+		var cost_color = Color(0.3, 1.0, 0.4) if can_afford else Color(1.0, 0.3, 0.3)
+		var action_text = "Reroll" if item.has("enchant") else "Enchant"
 		draw_node.draw_string(font, Vector2(40, summary_y), "%s Cost: %d coins" % [action_text, cost],
 			HORIZONTAL_ALIGNMENT_LEFT, 180, 11, cost_color)
 		draw_node.draw_string(font, Vector2(240, summary_y), "ENTER/E: %s" % action_text,

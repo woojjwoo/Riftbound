@@ -293,7 +293,7 @@ func _draw_story(vp: Vector2, cx: float, cy: float, font: Font) -> void:
 	# Continue prompt
 	if story_complete or story_line_index >= story_lines.size():
 		var blink := 0.4 + 0.6 * sin(time * 3.0)
-		var prompt_text := "Click to continue..." if story_line_index < story_lines.size() else "Click to proceed..."
+		var prompt_text = "Click to continue..." if story_line_index < story_lines.size() else "Click to proceed..."
 		draw_string(font, Vector2(cx - 80, vp.y - 40), prompt_text,
 			HORIZONTAL_ALIGNMENT_CENTER, 160, 12, Color(0.6, 0.5, 0.8, blink))
 
@@ -361,7 +361,7 @@ func _draw_upgrade(vp: Vector2, cx: float, cy: float, font: Font) -> void:
 		var is_selected := i == selected_slot
 
 		# Background
-		var bg := Color(0.12, 0.1, 0.18, 0.8) if not is_selected else Color(0.2, 0.15, 0.3, 0.9)
+		var bg = Color(0.12, 0.1, 0.18, 0.8) if not is_selected else Color(0.2, 0.15, 0.3, 0.9)
 		draw_rect(Rect2(slot_x, y, slot_w, slot_h - 5), bg)
 		if is_selected:
 			draw_rect(Rect2(slot_x, y, slot_w, slot_h - 5), Color(0.6, 0.4, 1.0, 0.4), false, 2.0)
@@ -404,7 +404,7 @@ func _draw_upgrade(vp: Vector2, cx: float, cy: float, font: Font) -> void:
 				var rate := Equipment.get_success_rate(equip["level"], thrall_count)
 				var can_afford := SaveData.coins >= cost
 
-				var btn_bg := Color(0.15, 0.12, 0.25, 0.8) if can_afford else Color(0.1, 0.08, 0.12, 0.6)
+				var btn_bg = Color(0.15, 0.12, 0.25, 0.8) if can_afford else Color(0.1, 0.08, 0.12, 0.6)
 				draw_rect(Rect2(btn_x, y + 5, btn_w, slot_h - 15), btn_bg)
 				if is_selected and can_afford:
 					draw_rect(Rect2(btn_x, y + 5, btn_w, slot_h - 15), Color(0.4, 0.8, 0.3, 0.3), false, 1.5)
@@ -414,7 +414,7 @@ func _draw_upgrade(vp: Vector2, cx: float, cy: float, font: Font) -> void:
 					Color(1.0, 0.9, 0.3) if can_afford else Color(0.5, 0.4, 0.4))
 
 				# Success rate with color coding
-				var rate_color := Color(0.3, 0.9, 0.3) if rate >= 0.75 else (
+				var rate_color = Color(0.3, 0.9, 0.3) if rate >= 0.75 else (
 					Color(1.0, 0.8, 0.2) if rate >= 0.45 else Color(0.9, 0.3, 0.3))
 				draw_string(font, Vector2(btn_x + 5, y + 40), "Success: %d%%" % int(rate * 100),
 					HORIZONTAL_ALIGNMENT_LEFT, int(btn_w - 10), 11, rate_color)
@@ -434,7 +434,7 @@ func _draw_upgrade(vp: Vector2, cx: float, cy: float, font: Font) -> void:
 	# Upgrade result message
 	if result_timer > 0.0:
 		var result_alpha := minf(result_timer, 1.0)
-		var result_color := Color(0.3, 1.0, 0.4, result_alpha) if "SUCCESS" in upgrade_result else Color(1.0, 0.3, 0.3, result_alpha)
+		var result_color = Color(0.3, 1.0, 0.4, result_alpha) if "SUCCESS" in upgrade_result else Color(1.0, 0.3, 0.3, result_alpha)
 		draw_string(font, Vector2(cx - 120, vp.y - 80), upgrade_result,
 			HORIZONTAL_ALIGNMENT_CENTER, 240, 16, result_color)
 

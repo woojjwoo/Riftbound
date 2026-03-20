@@ -257,7 +257,7 @@ func _draw_equipment(vp: Vector2, font: Font) -> void:
 		var is_selected := (focus == Focus.EQUIPMENT and i == equip_cursor)
 
 		# Background
-		var bg := Color(0.12, 0.1, 0.18, 0.8) if not is_selected else Color(0.2, 0.15, 0.3, 0.9)
+		var bg = Color(0.12, 0.1, 0.18, 0.8) if not is_selected else Color(0.2, 0.15, 0.3, 0.9)
 		draw_rect(Rect2(slot_x, y, slot_w, slot_h - 4), bg)
 		if is_selected:
 			var pulse := 0.3 + 0.1 * sin(time * 3.0)
@@ -303,7 +303,7 @@ func _draw_equipment(vp: Vector2, font: Font) -> void:
 			var pip_y := y + 58.0
 			var max_pips := mini(equip["level"], 15)
 			for p in range(mini(max_pips, 10)):
-				var pip_col := Color(0.4, 0.8, 0.3) if p < equip["level"] else Color(0.2, 0.2, 0.2)
+				var pip_col = Color(0.4, 0.8, 0.3) if p < equip["level"] else Color(0.2, 0.2, 0.2)
 				draw_rect(Rect2(pip_x + float(p) * 5.0, pip_y, 3.0, 6.0), pip_col)
 
 func _draw_inventory(vp: Vector2, font: Font) -> void:
@@ -335,11 +335,11 @@ func _draw_inventory(vp: Vector2, font: Font) -> void:
 			var rc := Equipment.get_rarity_color(item["rarity"])
 
 			# Cell background
-			var bg := Color(0.1, 0.08, 0.15, 0.7) if not is_selected else Color(0.18, 0.13, 0.28, 0.9)
+			var bg = Color(0.1, 0.08, 0.15, 0.7) if not is_selected else Color(0.18, 0.13, 0.28, 0.9)
 			draw_rect(Rect2(x, y, cell_w - 4, cell_h - 4), bg)
 
 			# Rarity border
-			var border_alpha := 0.5 if not is_selected else (0.6 + 0.2 * sin(time * 3.0))
+			var border_alpha = 0.5 if not is_selected else (0.6 + 0.2 * sin(time * 3.0))
 			draw_rect(Rect2(x, y, cell_w - 4, cell_h - 4),
 				Color(rc.r, rc.g, rc.b, border_alpha), false, 1.5 if is_selected else 1.0)
 

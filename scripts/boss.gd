@@ -143,7 +143,7 @@ func _physics_process(delta: float) -> void:
 	sprite.flip_h = dir.x < 0
 
 	# Apply slow to movement
-	var speed_mult := 1.0 - (_slow_amount if _slow_timer > 0.0 else 0.0)
+	var speed_mult = 1.0 - (_slow_amount if _slow_timer > 0.0 else 0.0)
 
 	# World-specific periodic abilities
 	if _special_timer <= 0.0 and state == BossState.CHASE:
@@ -306,7 +306,7 @@ func _do_summon() -> void:
 	# Spawn 2-3 small melee enemies around the boss
 	Audio.play_boss_enrage()
 	Game.request_shake(6.0)
-	var count := 2 if not enraged else 3
+	var count = 2 if not enraged else 3
 	var melee_scene := load("res://scenes/enemy_melee.tscn")
 	for i in range(count):
 		var angle := float(i) / float(count) * TAU
@@ -573,7 +573,7 @@ func _boss_sand_barrage() -> void:
 		return
 	Audio.play_boss_sand_barrage()
 	var base_dir := global_position.direction_to(player.global_position)
-	var spread := 5 if not enraged else 8
+	var spread = 5 if not enraged else 8
 	var melee_scene := load("res://scenes/enemy_melee.tscn")
 	for i in range(spread):
 		var angle := (float(i) - float(spread) / 2.0) * 0.2
@@ -594,7 +594,7 @@ func _boss_frost_ring() -> void:
 		return
 	Audio.play_boss_frost_ring()
 	Game.request_shake(6.0)
-	var radius := 140.0 if not enraged else 200.0
+	var radius = 140.0 if not enraged else 200.0
 	if player and global_position.distance_to(player.global_position) < radius:
 		# Slow the player temporarily
 		var original_speed := player.move_speed
@@ -610,7 +610,7 @@ func _boss_frost_ring() -> void:
 ## Swamp Horror: drops poison pools around the arena
 func _boss_poison_pools() -> void:
 	Audio.play_boss_poison_pools()
-	var count := 3 if not enraged else 5
+	var count = 3 if not enraged else 5
 	for i in range(count):
 		var angle := randf() * TAU
 		var dist := randf_range(60.0, 180.0)
@@ -630,7 +630,7 @@ func _boss_void_pull() -> void:
 		return
 	Audio.play_boss_void_pull()
 	Game.request_shake(8.0)
-	var pull_strength := 150.0 if not enraged else 220.0
+	var pull_strength = 150.0 if not enraged else 220.0
 	var dir := player.global_position.direction_to(global_position)
 	player.knockback_velocity += dir * pull_strength
 	Effects.spawn_particles(global_position, Color(0.6, 0.1, 0.9), 20, 0.6)
@@ -700,7 +700,7 @@ func _draw() -> void:
 		for i in range(3):
 			var pip_x := -8.0 + float(i) * 8.0
 			var pip_y := -22.0
-			var pip_color := Color(1.0, 0.3, 0.2, 0.8) if i < current_phase else Color(0.3, 0.3, 0.3, 0.4)
+			var pip_color = Color(1.0, 0.3, 0.2, 0.8) if i < current_phase else Color(0.3, 0.3, 0.3, 0.4)
 			draw_circle(Vector2(pip_x, pip_y), 2.5, pip_color)
 
 	# Charge windup line
@@ -738,5 +738,5 @@ func _draw() -> void:
 	var health_ratio := current_health / max_health
 	draw_rect(Rect2(-bar_width / 2, bar_y, bar_width, bar_height), Color(0.2, 0.2, 0.2, 0.8))
 	draw_rect(Rect2(-bar_width / 2, bar_y, bar_width, bar_height), Color(0.8, 0.7, 0.2, 0.8), false, 1.0)
-	var fill_color := Color(0.8, 0.2, 0.2) if enraged else Color(0.8, 0.6, 0.1)
+	var fill_color = Color(0.8, 0.2, 0.2) if enraged else Color(0.8, 0.6, 0.1)
 	draw_rect(Rect2(-bar_width / 2, bar_y, bar_width * health_ratio, bar_height), fill_color)
