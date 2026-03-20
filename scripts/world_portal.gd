@@ -52,6 +52,19 @@ func _enter_portal() -> void:
 	SaveData.complete_world(Game.current_world)
 	SaveData.total_runs += 1
 	SaveData.total_kills += Game.kill_count
+	# Record run history for world completion
+	SaveData.add_run_to_history({
+		"kills": Game.kill_count,
+		"worlds_cleared": Game.run_worlds_cleared + 1,
+		"bosses_killed": Game.run_bosses_killed,
+		"thralls": Game.thrall_count,
+		"world": Game.current_world,
+		"level": Game.current_level,
+		"victory": true,
+		"ng_plus": Game.ng_plus_cycle,
+		"challenges": SaveData.active_challenges.duplicate(),
+		"run_number": SaveData.total_runs,
+	})
 	SaveData.save_game()
 
 	# Track world cleared for Soul Essence and award at run boundaries

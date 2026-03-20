@@ -36,8 +36,21 @@ var slam_radius: float = 100.0
 var slam_damage: float = 30.0
 var pattern_index: int = 0
 
+# Phase transition system
+var current_phase: int = 0  # 0=full, 1=75%, 2=50%, 3=25%
+const PHASE_THRESHOLDS: Array[float] = [0.75, 0.50, 0.25]
+var phase_transition_active: bool = false
+
 # World-specific boss abilities
 var boss_world: int = 0
+var _draw_timer: float = 0.0
+
+# Debuffs (from legendary procs)
+var _slow_timer: float = 0.0
+var _slow_amount: float = 0.0
+var _burn_timer: float = 0.0
+var _burn_dps: float = 0.0
+
 var _special_timer: float = 0.0
 var _special_active: bool = false
 var _barrage_count: int = 0
@@ -63,6 +76,7 @@ func _ready() -> void:
 		slam_damage *= dmg_scale
 		charge_speed *= (1.0 + (power - 1.0) * 0.15)
 
+	max_health *= Challenges.get_boss_hp_mult()
 	current_health = max_health
 	base_speed = move_speed
 	add_to_group("enemies")
@@ -112,10 +126,24 @@ func _physics_process(delta: float) -> void:
 	state_timer -= delta
 	pattern_timer -= delta
 	_special_timer -= delta
+	_draw_timer += delta
+
+	# Process debuffs
+	if _slow_timer > 0.0:
+		_slow_timer -= delta
+	if _burn_timer > 0.0:
+		_burn_timer -= delta
+		current_health -= _burn_dps * delta
+		if current_health <= 0.0 and not is_dying:
+			die()
+			return
 
 	var dir := global_position.direction_to(player.global_position)
 	var dist := global_position.distance_to(player.global_position)
 	sprite.flip_h = dir.x < 0
+
+	# Apply slow to movement
+	var speed_mult := 1.0 - (_slow_amount if _slow_timer > 0.0 else 0.0)
 
 	# World-specific periodic abilities
 	if _special_timer <= 0.0 and state == BossState.CHASE:
@@ -129,7 +157,7 @@ func _physics_process(delta: float) -> void:
 	match state:
 		BossState.CHASE:
 			knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 8.0 * delta)
-			velocity = dir * move_speed + knockback_velocity
+			velocity = dir * move_speed * speed_mult + knockback_velocity
 			move_and_slide()
 
 		BossState.CHARGE_WINDUP:
@@ -337,6 +365,9 @@ func take_damage(amount: float) -> void:
 		Game.hit_freeze(0.12)
 		Audio.play_boss_enrage()
 
+	# Phase transitions at 75%, 50%, 25%
+	_check_phase_transition()
+
 	if current_health <= 0.0:
 		die()
 
@@ -378,6 +409,58 @@ func _on_death_complete(death_pos: Vector2) -> void:
 		if rift.has_method("take_damage"):
 			rift.take_damage(rift.max_health * 0.4)
 	queue_free()
+
+## Phase transition system
+func _check_phase_transition() -> void:
+	if phase_transition_active or is_dying:
+		return
+	var health_pct := current_health / max_health
+	var new_phase := 0
+	for i in range(PHASE_THRESHOLDS.size()):
+		if health_pct <= PHASE_THRESHOLDS[i]:
+			new_phase = i + 1
+	if new_phase > current_phase:
+		current_phase = new_phase
+		_trigger_phase_transition(new_phase)
+
+func _trigger_phase_transition(phase: int) -> void:
+	phase_transition_active = true
+
+	# Visual burst
+	Game.hit_freeze(0.15)
+	Game.request_shake(12.0)
+	Audio.play_boss_enrage()
+	Effects.spawn_particles(global_position, enrage_color, 20, 0.5)
+
+	# Phase-specific buffs
+	match phase:
+		1:  # 75% — speed boost
+			move_speed = base_speed * 1.2
+			charge_speed *= 1.1
+		2:  # 50% — damage boost + faster patterns
+			contact_damage *= 1.2
+			slam_damage *= 1.2
+			pattern_timer = 0.0  # Trigger attack immediately
+		3:  # 25% — full enrage + all bonuses
+			move_speed = base_speed * enrage_speed_mult * 1.2
+			charge_speed *= 1.15
+			contact_damage *= 1.15
+			slam_damage *= 1.15
+
+	# Phase transition animation — brief invulnerability pulse
+	sprite.modulate = Color(3.0, 3.0, 3.0)
+	var tween := create_tween()
+	tween.tween_property(sprite, "modulate", enrage_color if enraged else world_color, 0.5)
+	tween.tween_callback(func(): phase_transition_active = false)
+
+	# Spawn a shockwave at transition
+	var scene := get_tree().current_scene
+	if scene:
+		var vfx := Node2D.new()
+		vfx.global_position = global_position
+		vfx.set_script(preload("res://scripts/explosion_vfx.gd"))
+		vfx.set("max_radius", 120.0)
+		scene.add_child(vfx)
 
 ## World-specific boss specials
 func _get_special_cooldown() -> float:
@@ -477,6 +560,16 @@ func _boss_eternal_wrath() -> void:
 			3: _boss_poison_pools()
 			4: _boss_void_pull()
 
+## Apply slow debuff from legendary proc
+func apply_slow(amount: float, duration: float) -> void:
+	_slow_amount = amount
+	_slow_timer = duration
+
+## Apply burn debuff from legendary proc
+func apply_burn(dps: float, duration: float) -> void:
+	_burn_dps = dps
+	_burn_timer = duration
+
 func get_enemy_type() -> String:
 	return "tank"
 
@@ -491,12 +584,47 @@ func _draw() -> void:
 		draw_circle(Vector2.ZERO, shadow_radius, Color(0.0, 0.0, 0.0, 0.2 * t))
 		draw_arc(Vector2.ZERO, shadow_radius, 0, TAU, 24, Color(enrage_color.r, enrage_color.g, enrage_color.b, 0.4 * t), 2.0)
 
+	# Phase transition pulse ring
+	if phase_transition_active:
+		var pulse := 0.5 + 0.5 * sin(_draw_timer * 15.0)
+		draw_arc(Vector2.ZERO, 30.0 + pulse * 20.0, 0, TAU, 24,
+			Color(enrage_color.r, enrage_color.g, enrage_color.b, 0.4 * pulse), 3.0)
+
+	# Phase indicators (pips below health bar)
+	if current_phase > 0:
+		for i in range(3):
+			var pip_x := -8.0 + float(i) * 8.0
+			var pip_y := -22.0
+			var pip_color := Color(1.0, 0.3, 0.2, 0.8) if i < current_phase else Color(0.3, 0.3, 0.3, 0.4)
+			draw_circle(Vector2(pip_x, pip_y), 2.5, pip_color)
+
 	# Charge windup line
 	if state == BossState.CHARGE_WINDUP and player:
 		var dir := global_position.direction_to(player.global_position)
 		var end := dir * 200.0
 		var alpha := 0.3 + 0.3 * sin(state_timer * 15.0)
 		draw_line(Vector2.ZERO, end, Color(enrage_color.r, enrage_color.g, enrage_color.b, alpha), 2.0)
+
+	# Debuff indicators
+	if _slow_timer > 0.0:
+		var slow_alpha := minf(_slow_timer, 1.0)
+		draw_circle(Vector2.ZERO, 22.0, Color(0.3, 0.6, 1.0, 0.06 * slow_alpha))
+		for i in range(6):
+			var angle := float(i) / 6.0 * TAU + _draw_timer * 3.0
+			var pos := Vector2(cos(angle), sin(angle)) * 18.0
+			draw_circle(pos, 2.0, Color(0.4, 0.7, 1.0, 0.5 * slow_alpha))
+		var font := ThemeDB.fallback_font
+		draw_string(font, Vector2(-12, 20), "SLOW", HORIZONTAL_ALIGNMENT_CENTER, 24, 8, Color(0.4, 0.7, 1.0, 0.5 * slow_alpha))
+
+	if _burn_timer > 0.0:
+		var burn_alpha := minf(_burn_timer, 1.0)
+		for i in range(7):
+			var seed_val := float(i) * 73.1
+			var fx := sin(_draw_timer * 6.0 + seed_val) * 14.0
+			var fy := -10.0 - abs(sin(_draw_timer * 8.0 + seed_val * 0.5)) * 12.0
+			var flame_size := 2.0 + sin(_draw_timer * 10.0 + seed_val) * 0.8
+			var flame_color := Color(1.0, 0.4 + 0.3 * sin(_draw_timer * 7.0 + seed_val), 0.1, 0.6 * burn_alpha)
+			draw_circle(Vector2(fx, fy), flame_size, flame_color)
 
 	# Health bar
 	var bar_width: float = 40.0

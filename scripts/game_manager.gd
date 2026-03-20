@@ -60,6 +60,11 @@ var run_bosses_killed: int = 0
 # New Game+ cycle (synced from SaveData on start)
 var ng_plus_cycle: int = 0
 
+# Thrall formation
+enum Formation { SPREAD, LINE, CLUSTER, ORBIT }
+var current_formation: Formation = Formation.SPREAD
+signal formation_changed(formation: Formation)
+
 # Hit freeze
 var _freeze_timer: float = 0.0
 var _freeze_prev_scale: float = 1.0
@@ -208,8 +213,8 @@ func spawn_equip_drop(pos: Vector2, equip: Dictionary) -> void:
 ## Spawn coin and EXP drops at a position (called from enemy death)
 func spawn_drops(pos: Vector2, enemy_type: String) -> void:
 	var config := get_world_config()
-	var coin_mult: float = config.get("coin_mult", 1.0) * (1.0 + ng_plus_cycle * 0.3)
-	var exp_mult: float = config.get("exp_mult", 1.0) * (1.0 + ng_plus_cycle * 0.2)
+	var coin_mult: float = config.get("coin_mult", 1.0) * (1.0 + ng_plus_cycle * 0.3) * (1.0 + Challenges.get_total_coin_bonus())
+	var exp_mult: float = config.get("exp_mult", 1.0) * (1.0 + ng_plus_cycle * 0.2) * (1.0 + Challenges.get_total_exp_bonus())
 
 	# Coin value by enemy type
 	var coin_val := 1
@@ -273,8 +278,8 @@ func spawn_drops(pos: Vector2, enemy_type: String) -> void:
 ## Spawn boss-tier drops (more coins, more EXP)
 func spawn_boss_drops(pos: Vector2) -> void:
 	var config := get_world_config()
-	var coin_mult: float = config.get("coin_mult", 1.0) * (1.0 + ng_plus_cycle * 0.3)
-	var exp_mult: float = config.get("exp_mult", 1.0) * (1.0 + ng_plus_cycle * 0.2)
+	var coin_mult: float = config.get("coin_mult", 1.0) * (1.0 + ng_plus_cycle * 0.3) * (1.0 + Challenges.get_total_coin_bonus())
+	var exp_mult: float = config.get("exp_mult", 1.0) * (1.0 + ng_plus_cycle * 0.2) * (1.0 + Challenges.get_total_exp_bonus())
 	var scene := get_tree().current_scene
 	if scene == null:
 		return
@@ -302,6 +307,19 @@ func trigger_game_over() -> void:
 	# Save progress even on death
 	SaveData.total_runs += 1
 	SaveData.total_kills += kill_count
+	# Record run history
+	SaveData.add_run_to_history({
+		"kills": kill_count,
+		"worlds_cleared": run_worlds_cleared,
+		"bosses_killed": run_bosses_killed,
+		"thralls": thrall_count,
+		"world": current_world,
+		"level": current_level,
+		"victory": false,
+		"ng_plus": ng_plus_cycle,
+		"challenges": SaveData.active_challenges.duplicate(),
+		"run_number": SaveData.total_runs,
+	})
 	SaveData.save_game()
 	# Award Soul Essence for the run
 	var earned := Meta.award_run_essence(kill_count, run_worlds_cleared, run_bosses_killed)
@@ -465,7 +483,50 @@ func get_enemy_dmg_mult() -> float:
 	return get_ng_plus_mult(get_world_config().get("dmg_mult", 1.0), 0.3)
 
 func get_enemy_count_mult() -> float:
-	return get_ng_plus_mult(get_world_config().get("enemy_mult", 1.0), 0.2)
+	return get_ng_plus_mult(get_world_config().get("enemy_mult", 1.0), 0.2) * Challenges.get_enemy_count_mult()
+
+func cycle_formation() -> void:
+	current_formation = (current_formation + 1) % Formation.size() as Formation
+	formation_changed.emit(current_formation)
+
+func get_formation_name() -> String:
+	match current_formation:
+		Formation.SPREAD: return "Spread"
+		Formation.LINE: return "Line"
+		Formation.CLUSTER: return "Cluster"
+		Formation.ORBIT: return "Orbit"
+	return "Spread"
+
+## Get formation offset for a thrall given its index and total count
+func get_formation_offset(index: int, total: int, facing: Vector2) -> Vector2:
+	if total <= 0:
+		return Vector2.ZERO
+	match current_formation:
+		Formation.SPREAD:
+			# Semi-circle behind the player
+			var angle_range := PI * 0.8
+			var start_angle := facing.angle() + PI - angle_range / 2.0
+			var angle_step := angle_range / maxf(total - 1, 1)
+			var angle := start_angle + angle_step * index
+			return Vector2(cos(angle), sin(angle)) * follow_distance_for_formation(total)
+		Formation.LINE:
+			# Line perpendicular to facing direction
+			var perp := Vector2(-facing.y, facing.x).normalized()
+			var offset_idx := float(index) - float(total - 1) / 2.0
+			return -facing.normalized() * 40.0 + perp * offset_idx * 25.0
+		Formation.CLUSTER:
+			# Tight cluster behind player
+			var angle := float(index) / float(total) * TAU
+			var radius := 25.0 + float(index % 3) * 10.0
+			return -facing.normalized() * 30.0 + Vector2(cos(angle), sin(angle)) * radius
+		Formation.ORBIT:
+			# Circle around player
+			var angle := float(index) / float(total) * TAU
+			return Vector2(cos(angle), sin(angle)) * follow_distance_for_formation(total)
+	return Vector2.ZERO
+
+func follow_distance_for_formation(total: int) -> float:
+	return 50.0 + min(total, 8) * 5.0
 
 func _apply_health_upgrade() -> void:
 	var players := get_tree().get_nodes_in_group("player")

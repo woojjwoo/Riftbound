@@ -39,6 +39,7 @@ var attack_cooldown: float = 0.8
 
 var attack_timer: float = 0.0
 var current_target: Node2D = null
+var formation_index: int = 0
 
 # Abilities
 var attack_count: int = 0
@@ -158,6 +159,8 @@ func setup(player: Node2D, type: String) -> void:
 			sprite_run = load("res://sprites/skeleton/Run-Sheet.png")
 	max_health += SaveData.perm_thrall_health
 	current_health = max_health
+	# Assign formation index based on current thrall count
+	formation_index = get_tree().get_nodes_in_group("thralls").size()
 
 func _ready() -> void:
 	sprite.modulate = Color(0.4, 1.0, 0.9, 1.0)
@@ -262,9 +265,14 @@ func _physics_process(delta: float) -> void:
 				else:
 					move_dir = global_position.direction_to(current_target.global_position)
 			else:
-				var dist := global_position.distance_to(leader.global_position)
-				if dist > follow_distance:
-					move_dir = global_position.direction_to(leader.global_position)
+				# Use formation positioning
+				var thralls := get_tree().get_nodes_in_group("thralls")
+				var total := thralls.size()
+				var facing := leader.velocity.normalized() if leader.velocity.length() > 10 else Vector2.DOWN
+				var target_pos := leader.global_position + Game.get_formation_offset(formation_index, total, facing)
+				var dist := global_position.distance_to(target_pos)
+				if dist > 15.0:
+					move_dir = global_position.direction_to(target_pos)
 
 		ThrallMode.COMMANDED:
 			if current_target and is_instance_valid(current_target):

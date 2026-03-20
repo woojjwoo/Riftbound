@@ -28,6 +28,7 @@ Equipment="*res://scripts/equipment_data.gd"
 Effects="*res://scripts/effects_manager.gd"
 Meta="*res://scripts/meta_progression.gd"
 Achievements="*res://scripts/achievement_manager.gd"
+Challenges="*res://scripts/challenge_modifiers.gd"
 
 [display]
 

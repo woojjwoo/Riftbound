@@ -48,6 +48,16 @@ var tutorial_completed: bool = false
 # New Game+ cycle (0 = first playthrough, 1 = NG+, 2 = NG++, etc.)
 var ng_plus_cycle: int = 0
 
+# Bestiary — tracks enemies encountered and kill counts
+var bestiary: Dictionary = {}  # { "melee": kill_count, "ranged": kill_count, ... }
+
+# Run history — stores past run results
+var run_history: Array[Dictionary] = []
+const MAX_RUN_HISTORY: int = 50
+
+# Challenge modifiers — active mutators for next run
+var active_challenges: Array[String] = []
+
 # Cached achievement data — loaded before AchievementManager is ready
 var _cached_achievements: Dictionary = {}
 
@@ -206,6 +216,14 @@ func mark_story_seen(world_id: int) -> void:
 		stories_seen.append(world_id)
 		save_game()
 
+func record_enemy_kill(enemy_type: String) -> void:
+	bestiary[enemy_type] = bestiary.get(enemy_type, 0) + 1
+
+func add_run_to_history(run_data: Dictionary) -> void:
+	run_history.push_front(run_data)
+	if run_history.size() > MAX_RUN_HISTORY:
+		run_history.resize(MAX_RUN_HISTORY)
+
 func complete_world(world_id: int) -> void:
 	if world_id not in worlds_completed:
 		worlds_completed.append(world_id)
@@ -245,6 +263,9 @@ func save_game() -> void:
 		"run_bests": run_bests,
 		"tutorial_completed": tutorial_completed,
 		"ng_plus_cycle": ng_plus_cycle,
+		"bestiary": bestiary,
+		"run_history": run_history,
+		"active_challenges": active_challenges,
 	}
 	var json_string := JSON.stringify(data)
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -329,6 +350,24 @@ func load_game() -> void:
 	tutorial_completed = bool(data.get("tutorial_completed", false))
 	# New Game+
 	ng_plus_cycle = clampi(int(data.get("ng_plus_cycle", 0)), 0, 99)
+	# Bestiary
+	var saved_bestiary = data.get("bestiary", {})
+	if saved_bestiary is Dictionary:
+		bestiary = saved_bestiary
+	# Run history
+	var saved_history = data.get("run_history", [])
+	run_history = []
+	if saved_history is Array:
+		for entry in saved_history:
+			if entry is Dictionary:
+				run_history.append(entry)
+	# Challenge modifiers
+	var saved_challenges = data.get("active_challenges", [])
+	active_challenges = []
+	if saved_challenges is Array:
+		for c in saved_challenges:
+			if c is String:
+				active_challenges.append(c)
 	# Achievements — stored for AchievementManager to load on its own _ready
 	var saved_achievements = data.get("achievements", {})
 	if saved_achievements is Dictionary:
@@ -365,6 +404,12 @@ func _migrate_v2_to_v3(data: Dictionary) -> void:
 		data["tutorial_completed"] = false
 	if not data.has("ng_plus_cycle"):
 		data["ng_plus_cycle"] = 0
+	if not data.has("bestiary"):
+		data["bestiary"] = {}
+	if not data.has("run_history"):
+		data["run_history"] = []
+	if not data.has("active_challenges"):
+		data["active_challenges"] = []
 	data["save_version"] = 3
 
 func _get_achievements_data() -> Dictionary:
@@ -412,6 +457,9 @@ func reset_save() -> void:
 	run_bests = {}
 	tutorial_completed = false
 	ng_plus_cycle = 0
+	bestiary = {}
+	run_history = []
+	active_challenges = []
 	var ach_node := get_node_or_null("/root/Achievements")
 	if ach_node:
 		ach_node.unlocked = {}

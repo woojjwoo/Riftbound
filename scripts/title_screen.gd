@@ -33,8 +33,14 @@ func _unhandled_input(event: InputEvent) -> void:
 				_open_shop()
 			KEY_Q:
 				_open_sanctum()
+			KEY_B:
+				_open_bestiary()
 			KEY_I:
 				_open_achievements()
+			KEY_C:
+				_open_challenges()
+			KEY_H:
+				_open_run_history()
 			KEY_O:
 				_open_settings()
 			KEY_ENTER, KEY_SPACE:
@@ -68,8 +74,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			_open_achievements()
 			return
 
-		# Settings button region (drawn at cy + 299)
-		var settings_btn_y := cy + 299 - 15
+		# Bestiary button region (drawn at cy + 299)
+		var bestiary_btn_y := cy + 299 - 15
+		if my > bestiary_btn_y and my < bestiary_btn_y + 30 and mx > cx - 60 and mx < cx + 60:
+			_open_bestiary()
+			return
+
+		# Settings button region (drawn at cy + 337)
+		var settings_btn_y := cy + 337 - 15
 		if my > settings_btn_y and my < settings_btn_y + 30 and mx > cx - 60 and mx < cx + 60:
 			_open_settings()
 			return
@@ -102,6 +114,24 @@ func _open_sanctum() -> void:
 
 func _open_achievements() -> void:
 	get_tree().change_scene_to_file("res://scenes/achievement_screen.tscn")
+
+func _open_run_history() -> void:
+	var history := CanvasLayer.new()
+	history.set_script(preload("res://scripts/run_history_screen.gd"))
+	history.closed.connect(func(): history.queue_free())
+	add_child(history)
+
+func _open_challenges() -> void:
+	var challenge := CanvasLayer.new()
+	challenge.set_script(preload("res://scripts/challenge_screen.gd"))
+	challenge.closed.connect(func(): challenge.queue_free())
+	add_child(challenge)
+
+func _open_bestiary() -> void:
+	var bestiary := CanvasLayer.new()
+	bestiary.set_script(preload("res://scripts/bestiary_screen.gd"))
+	bestiary.closed.connect(func(): bestiary.queue_free())
+	add_child(bestiary)
 
 func _open_settings() -> void:
 	var settings := CanvasLayer.new()
@@ -220,8 +250,32 @@ func _draw() -> void:
 	draw_string(font, Vector2(cx - 55, ach_y + 5), "I: Achievements %s" % ach_progress,
 		HORIZONTAL_ALIGNMENT_CENTER, 110, 11, Color(0.7, 0.6, 0.9))
 
-	# Settings button (below achievements)
-	var settings_y := ach_y + 38
+	# Bestiary button (below achievements)
+	var bestiary_y := ach_y + 38
+	draw_rect(Rect2(cx - 60, bestiary_y - 15, 120, 30), Color(0.12, 0.08, 0.18, 0.8))
+	draw_rect(Rect2(cx - 60, bestiary_y - 15, 120, 30), Color(0.8, 0.5, 0.3, 0.4), false, 1.0)
+	draw_string(font, Vector2(cx - 30, bestiary_y + 5), "B: Bestiary",
+		HORIZONTAL_ALIGNMENT_CENTER, 60, 12, Color(0.8, 0.6, 0.4))
+
+	# Challenge button (below bestiary)
+	var challenge_y := bestiary_y + 38
+	var chal_count := Challenges.get_active_count()
+	var chal_label := "C: Challenges" if chal_count == 0 else "C: Challenges (%d)" % chal_count
+	draw_rect(Rect2(cx - 60, challenge_y - 15, 120, 30), Color(0.12, 0.08, 0.18, 0.8))
+	draw_rect(Rect2(cx - 60, challenge_y - 15, 120, 30), Color(1.0, 0.5, 0.3, 0.4), false, 1.0)
+	draw_string(font, Vector2(cx - 50, challenge_y + 5), chal_label,
+		HORIZONTAL_ALIGNMENT_CENTER, 100, 11, Color(1.0, 0.6, 0.3))
+
+	# Run History button (below challenges)
+	var history_y := challenge_y + 38
+	var history_count := SaveData.run_history.size()
+	draw_rect(Rect2(cx - 60, history_y - 15, 120, 30), Color(0.12, 0.08, 0.18, 0.8))
+	draw_rect(Rect2(cx - 60, history_y - 15, 120, 30), Color(0.5, 0.7, 0.9, 0.4), false, 1.0)
+	draw_string(font, Vector2(cx - 50, history_y + 5), "H: History (%d)" % history_count,
+		HORIZONTAL_ALIGNMENT_CENTER, 100, 11, Color(0.5, 0.7, 0.9))
+
+	# Settings button (below history)
+	var settings_y := history_y + 38
 	draw_rect(Rect2(cx - 60, settings_y - 15, 120, 30), Color(0.12, 0.08, 0.18, 0.8))
 	draw_rect(Rect2(cx - 60, settings_y - 15, 120, 30), Color(0.6, 0.6, 0.7, 0.4), false, 1.0)
 	draw_string(font, Vector2(cx - 30, settings_y + 5), "O: Settings",

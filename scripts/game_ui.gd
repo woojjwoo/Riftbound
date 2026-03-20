@@ -178,7 +178,7 @@ func _process(delta: float) -> void:
 	if Game.thrall_count == 0:
 		command_hint.text = "Kill enemies nearby to extract thralls"
 	else:
-		command_hint.text = "RMB: Command Thralls  |  R: Recall"
+		command_hint.text = "RMB: Command  |  R: Recall  |  F: Formation"
 
 func _on_health_changed(current: float, _max_hp: float) -> void:
 	# Damage vignette flash when health decreases
@@ -292,6 +292,13 @@ func _on_victory() -> void:
 		_show_run_summary(true)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and event.keycode == KEY_F:
+		if not Game.is_game_over:
+			Game.cycle_formation()
+			Audio.play_ui_click()
+			_show_narrative("Formation: %s" % Game.get_formation_name(), 1.5)
+			return
+
 	if event is InputEventKey and event.pressed and event.keycode == KEY_TAB:
 		if not Game.is_game_over and not inventory_open:
 			if upgrade_panel.visible or victory_panel.visible:

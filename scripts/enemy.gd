@@ -117,10 +117,11 @@ func _ready() -> void:
 	# Apply world difficulty scaling to base stats
 	var hp_mult: float = Game.get_enemy_hp_mult()
 	var dmg_mult: float = Game.get_enemy_dmg_mult()
-	max_health *= hp_mult
+	max_health *= hp_mult * Challenges.get_enemy_hp_mult()
 	contact_damage *= dmg_mult
 	explode_damage *= dmg_mult
 	poison_damage *= dmg_mult
+	move_speed *= Challenges.get_enemy_speed_mult()
 
 	current_health = max_health
 	add_to_group("enemies")
@@ -518,6 +519,7 @@ func take_damage(amount: float) -> void:
 func die() -> void:
 	is_dying = true
 	Game.on_enemy_killed()
+	SaveData.record_enemy_kill(enemy_type)
 	Game.request_shake(3.0)
 	Audio.play_kill()
 
@@ -654,6 +656,30 @@ func _draw() -> void:
 	if enemy_type == "summoner":
 		var aura_alpha := 0.1 + 0.05 * sin(_draw_timer * 2.0)
 		draw_circle(Vector2.ZERO, 15.0, Color(0.3, 0.9, 0.2, aura_alpha))
+
+	# Debuff indicators
+	if _slow_timer > 0.0:
+		# Frost/slow indicator — blue snowflake particles orbiting
+		var slow_alpha := minf(_slow_timer, 1.0)
+		draw_circle(Vector2.ZERO, 14.0, Color(0.3, 0.6, 1.0, 0.08 * slow_alpha))
+		for i in range(4):
+			var angle := float(i) / 4.0 * TAU + _draw_timer * 3.0
+			var pos := Vector2(cos(angle), sin(angle)) * 12.0
+			draw_circle(pos, 1.5, Color(0.4, 0.7, 1.0, 0.6 * slow_alpha))
+		# Small "SLOW" text
+		var font := ThemeDB.fallback_font
+		draw_string(font, Vector2(-10, 14), "SLOW", HORIZONTAL_ALIGNMENT_CENTER, 20, 7, Color(0.4, 0.7, 1.0, 0.5 * slow_alpha))
+
+	if _burn_timer > 0.0:
+		# Burn indicator — flickering orange/red flames
+		var burn_alpha := minf(_burn_timer, 1.0)
+		for i in range(5):
+			var seed_val := float(i) * 73.1
+			var fx := sin(_draw_timer * 6.0 + seed_val) * 8.0
+			var fy := -6.0 - abs(sin(_draw_timer * 8.0 + seed_val * 0.5)) * 8.0
+			var flame_size := 1.5 + sin(_draw_timer * 10.0 + seed_val) * 0.5
+			var flame_color := Color(1.0, 0.4 + 0.3 * sin(_draw_timer * 7.0 + seed_val), 0.1, 0.6 * burn_alpha)
+			draw_circle(Vector2(fx, fy), flame_size, flame_color)
 
 	if current_health >= max_health:
 		return
