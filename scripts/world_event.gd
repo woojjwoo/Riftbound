@@ -103,7 +103,7 @@ func _cursed_chest_effect(player: Node2D) -> void:
 		player.take_damage(damage, global_position)
 	# Guaranteed rare+ equipment
 	var min_rarity = Equipment.Rarity.RARE if Game.current_world >= 2 else Equipment.Rarity.UNCOMMON
-	var rarity := min_rarity
+	var rarity: int = min_rarity
 	if randf() < 0.3:
 		rarity = mini(rarity + 1, Equipment.Rarity.LEGENDARY)
 	var equip := Equipment.create_equipment(randi() % 6, rarity)
