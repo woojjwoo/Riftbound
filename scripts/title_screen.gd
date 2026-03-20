@@ -43,6 +43,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				_open_run_history()
 			KEY_G:
 				_open_crafting()
+			KEY_D:
+				_open_daily()
+			KEY_T:
+				_open_skill_tree()
 			KEY_O:
 				_open_settings()
 			KEY_ENTER, KEY_SPACE:
@@ -88,8 +92,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			_open_crafting()
 			return
 
-		# Settings button region (drawn at cy + 375)
-		var settings_btn_y := cy + 375 - 15
+		# Skill Tree button region (drawn at cy + 375)
+		var skill_btn_y := cy + 375 - 15
+		if my > skill_btn_y and my < skill_btn_y + 30 and mx > cx - 60 and mx < cx + 60:
+			_open_skill_tree()
+			return
+
+		# Settings button region (drawn at cy + 413)
+		var settings_btn_y := cy + 413 - 15
 		if my > settings_btn_y and my < settings_btn_y + 30 and mx > cx - 60 and mx < cx + 60:
 			_open_settings()
 			return
@@ -135,11 +145,23 @@ func _open_challenges() -> void:
 	challenge.closed.connect(func(): challenge.queue_free())
 	add_child(challenge)
 
+func _open_daily() -> void:
+	var daily := CanvasLayer.new()
+	daily.set_script(preload("res://scripts/daily_challenge.gd"))
+	daily.closed.connect(func(): daily.queue_free())
+	add_child(daily)
+
 func _open_crafting() -> void:
 	var crafting := CanvasLayer.new()
 	crafting.set_script(preload("res://scripts/crafting_screen.gd"))
 	crafting.closed.connect(func(): crafting.queue_free())
 	add_child(crafting)
+
+func _open_skill_tree() -> void:
+	var tree := CanvasLayer.new()
+	tree.set_script(preload("res://scripts/skill_tree_screen.gd"))
+	tree.closed.connect(func(): tree.queue_free())
+	add_child(tree)
 
 func _open_bestiary() -> void:
 	var bestiary := CanvasLayer.new()
@@ -295,8 +317,16 @@ func _draw() -> void:
 	draw_string(font, Vector2(cx - 30, craft_y + 5), "G: Crafting",
 		HORIZONTAL_ALIGNMENT_CENTER, 60, 12, Color(1.0, 0.85, 0.4))
 
-	# Settings button (below crafting)
-	var settings_y := craft_y + 38
+	# Skill Tree button (below crafting)
+	var skill_y := craft_y + 38
+	var skill_count := SkillTree.get_total_unlocked()
+	draw_rect(Rect2(cx - 60, skill_y - 15, 120, 30), Color(0.12, 0.08, 0.18, 0.8))
+	draw_rect(Rect2(cx - 60, skill_y - 15, 120, 30), Color(0.6, 0.2, 0.9, 0.4), false, 1.0)
+	draw_string(font, Vector2(cx - 45, skill_y + 5), "T: Skills (%d/15)" % skill_count,
+		HORIZONTAL_ALIGNMENT_CENTER, 90, 11, Color(0.6, 0.35, 0.9))
+
+	# Settings button (below skill tree)
+	var settings_y := skill_y + 38
 	draw_rect(Rect2(cx - 60, settings_y - 15, 120, 30), Color(0.12, 0.08, 0.18, 0.8))
 	draw_rect(Rect2(cx - 60, settings_y - 15, 120, 30), Color(0.6, 0.6, 0.7, 0.4), false, 1.0)
 	draw_string(font, Vector2(cx - 30, settings_y + 5), "O: Settings",

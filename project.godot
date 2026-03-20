@@ -29,6 +29,7 @@ Effects="*res://scripts/effects_manager.gd"
 Meta="*res://scripts/meta_progression.gd"
 Achievements="*res://scripts/achievement_manager.gd"
 Challenges="*res://scripts/challenge_modifiers.gd"
+SkillTree="*res://scripts/skill_tree.gd"
 
 [display]
 

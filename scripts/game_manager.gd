@@ -65,6 +65,14 @@ enum Formation { SPREAD, LINE, CLUSTER, ORBIT }
 var current_formation: Formation = Formation.SPREAD
 signal formation_changed(formation: Formation)
 
+# Thrall synergy bonuses (recalculated when thralls change)
+var synergy_thrall_damage_mult: float = 1.0
+var synergy_thrall_speed_mult: float = 1.0
+var synergy_thrall_defense_mult: float = 1.0
+var synergy_extraction_bonus: float = 0.0
+var active_synergies: Array[String] = []
+signal synergies_changed(synergies: Array[String])
+
 # Combo / kill streak system
 var combo_count: int = 0
 var combo_timer: float = 0.0
@@ -90,6 +98,7 @@ var upgrade_thrall_speed_mult: float = 1.0
 var DamageNumber: GDScript = preload("res://scripts/damage_number.gd")
 var CoinPickup: GDScript = preload("res://scripts/coin_pickup.gd")
 var ExpOrb: GDScript = preload("res://scripts/exp_orb.gd")
+var WorldEvent: GDScript = preload("res://scripts/world_event.gd")
 var WorldPortal: GDScript = preload("res://scripts/world_portal.gd")
 var EquipDrop: GDScript = preload("res://scripts/equip_drop.gd")
 
@@ -188,9 +197,55 @@ func on_boss_spawned() -> void:
 func on_thrall_gained() -> void:
 	thrall_count += 1
 	thrall_gained.emit()
+	_recalculate_synergies()
 
 func on_thrall_lost() -> void:
 	thrall_count = max(thrall_count - 1, 0)
+	_recalculate_synergies()
+
+func _recalculate_synergies() -> void:
+	synergy_thrall_damage_mult = 1.0
+	synergy_thrall_speed_mult = 1.0
+	synergy_thrall_defense_mult = 1.0
+	synergy_extraction_bonus = 0.0
+	active_synergies = []
+
+	# Count thrall types
+	var type_counts: Dictionary = {}
+	var total := 0
+	for thrall in get_tree().get_nodes_in_group("thralls"):
+		var t: String = thrall.thrall_type
+		type_counts[t] = type_counts.get(t, 0) + 1
+		total += 1
+
+	# Vanguard: 2+ tank/shielded — all thralls take 15% less damage
+	var tank_count: int = type_counts.get("tank", 0) + type_counts.get("shielded", 0)
+	if tank_count >= 2:
+		synergy_thrall_defense_mult = 0.85
+		active_synergies.append("Vanguard (-15%% DMG taken)")
+
+	# Artillery: 2+ ranged/flying — ranged thralls +20% damage
+	var ranged_count: int = type_counts.get("ranged", 0) + type_counts.get("flying", 0)
+	if ranged_count >= 2:
+		synergy_thrall_damage_mult *= 1.2
+		active_synergies.append("Artillery (+20%% Ranged DMG)")
+
+	# Swarm: 4+ thralls total — all thralls +10% speed
+	if total >= 4:
+		synergy_thrall_speed_mult *= 1.1
+		active_synergies.append("Swarm (+10%% Speed)")
+
+	# Legion: 6+ thralls total — all thralls +10% damage
+	if total >= 6:
+		synergy_thrall_damage_mult *= 1.1
+		active_synergies.append("Legion (+10%% DMG)")
+
+	# Diversity: 4+ different types — +5% extraction
+	if type_counts.size() >= 4:
+		synergy_extraction_bonus = 0.05
+		active_synergies.append("Diversity (+5%% Extract)")
+
+	synergies_changed.emit(active_synergies)
 
 func on_rift_closed(rift_number: int) -> void:
 	rifts_closed += 1
@@ -207,6 +262,9 @@ func on_rift_closed(rift_number: int) -> void:
 		# Upgrade reward for closing a rift
 		upgrade_available.emit()
 		Audio.play_upgrade()
+		# Chance to spawn a world event near the closed rift
+		if randf() < 0.6:
+			_spawn_world_event()
 
 		var mid_threshold := ceili(total_rifts / 2.0)
 		if rifts_closed >= mid_threshold:
@@ -214,6 +272,33 @@ func on_rift_closed(rift_number: int) -> void:
 
 func on_world_cleared() -> void:
 	run_worlds_cleared += 1
+
+func _spawn_world_event() -> void:
+	var players := get_tree().get_nodes_in_group("player")
+	if players.is_empty():
+		return
+	var player := players[0]
+	var angle := randf() * TAU
+	var pos := player.global_position + Vector2(cos(angle), sin(angle)) * randf_range(80.0, 150.0)
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	var event := Node2D.new()
+	event.set_script(WorldEvent)
+	event.global_position = pos
+	# Random event type, weighted
+	var roll := randf()
+	var event_type: int
+	if roll < 0.35:
+		event_type = 0  # SHRINE
+	elif roll < 0.55:
+		event_type = 1  # CURSED_CHEST
+	elif roll < 0.80:
+		event_type = 2  # BLESSING_ALTAR
+	else:
+		event_type = 3  # MERCHANT
+	event.setup(event_type)
+	scene.add_child(event)
 
 func _spawn_world_portal() -> void:
 	var players := get_tree().get_nodes_in_group("player")
@@ -247,7 +332,7 @@ func spawn_equip_drop(pos: Vector2, equip: Dictionary) -> void:
 ## Spawn coin and EXP drops at a position (called from enemy death)
 func spawn_drops(pos: Vector2, enemy_type: String) -> void:
 	var config := get_world_config()
-	var coin_mult: float = config.get("coin_mult", 1.0) * (1.0 + ng_plus_cycle * 0.3) * (1.0 + Challenges.get_total_coin_bonus())
+	var coin_mult: float = config.get("coin_mult", 1.0) * (1.0 + ng_plus_cycle * 0.3) * (1.0 + Challenges.get_total_coin_bonus()) * (1.0 + SkillTree.bonus_coin_bonus)
 	var exp_mult: float = config.get("exp_mult", 1.0) * (1.0 + ng_plus_cycle * 0.2) * (1.0 + Challenges.get_total_exp_bonus())
 
 	# Coin value by enemy type
@@ -354,6 +439,13 @@ func trigger_game_over() -> void:
 		"challenges": SaveData.active_challenges.duplicate(),
 		"run_number": SaveData.total_runs,
 	})
+	# Track daily challenge best score
+	var date := Time.get_date_dict_from_system()
+	var daily_key := "daily_%d-%02d-%02d" % [date["year"], date["month"], date["day"]]
+	var run_score := kill_count + run_worlds_cleared * 100 + run_bosses_killed * 250
+	var old_best := int(SaveData.run_bests.get(daily_key, 0))
+	if run_score > old_best:
+		SaveData.run_bests[daily_key] = run_score
 	SaveData.save_game()
 	# Award Soul Essence for the run
 	var earned := Meta.award_run_essence(kill_count, run_worlds_cleared, run_bosses_killed)
@@ -487,6 +579,10 @@ func get_power_level() -> float:
 	# Meta-progression (Sanctum) bonuses
 	power += Meta.sanctum_base_damage * 0.2
 	power += Meta.sanctum_max_health / 200.0
+	# Skill tree bonuses
+	power += SkillTree.bonus_bolt_damage * 0.3
+	power += SkillTree.bonus_thrall_damage * 0.2
+	power += SkillTree.bonus_max_hp / 100.0
 	# Equipment power — sum stat bonuses across all 6 equipped slots
 	for slot_idx in range(Equipment.SLOT_INFO.size()):
 		var equip_bonus := SaveData.get_equip_bonus(slot_idx)

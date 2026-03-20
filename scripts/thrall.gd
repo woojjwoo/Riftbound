@@ -164,6 +164,7 @@ func setup(player: Node2D, type: String) -> void:
 			sprite_idle = load("res://sprites/skeleton/Idle-Sheet.png")
 			sprite_run = load("res://sprites/skeleton/Run-Sheet.png")
 	max_health += SaveData.perm_thrall_health
+	max_health *= (1.0 + SkillTree.bonus_thrall_hp)
 	current_health = max_health
 	# Assign formation index based on current thrall count
 	formation_index = get_tree().get_nodes_in_group("thralls").size()
@@ -194,7 +195,7 @@ func recall() -> void:
 func take_damage(amount: float, from_pos: Vector2 = Vector2.ZERO) -> void:
 	if is_dying:
 		return
-	current_health -= amount
+	current_health -= amount * Game.synergy_thrall_defense_mult
 	if from_pos != Vector2.ZERO:
 		knockback_velocity_thrall = (global_position - from_pos).normalized() * 100.0
 	sprite.modulate = Color(3, 3, 3)
@@ -256,7 +257,7 @@ func _physics_process(delta: float) -> void:
 			_process_buff_aura(delta)
 
 	# Movement
-	var effective_speed := follow_speed * Game.upgrade_thrall_speed_mult
+	var effective_speed := follow_speed * Game.upgrade_thrall_speed_mult * Game.synergy_thrall_speed_mult * (1.0 + SkillTree.bonus_thrall_speed)
 	var move_dir := Vector2.ZERO
 
 	match mode:
@@ -333,7 +334,7 @@ func _do_attack() -> void:
 		return
 
 	var ring_bonus := SaveData.get_equip_bonus(Equipment.Slot.RING)
-	var effective_damage := attack_damage * Game.upgrade_thrall_damage_mult * (1.0 + SaveData.perm_thrall_damage + ring_bonus)
+	var effective_damage := attack_damage * Game.upgrade_thrall_damage_mult * Game.synergy_thrall_damage_mult * (1.0 + SaveData.perm_thrall_damage + ring_bonus + SkillTree.bonus_thrall_damage)
 	attack_count += 1
 	var is_enemy := current_target.is_in_group("enemies")
 

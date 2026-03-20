@@ -94,6 +94,12 @@ func _ready() -> void:
 	move_speed *= (1.0 + set_bonuses["speed_mult"])
 	bolt_cooldown *= max(0.2, 1.0 - set_bonuses["cdr"])
 
+	# Apply skill tree bonuses
+	bolt_damage *= (1.0 + SkillTree.bonus_bolt_damage)
+	max_health += SkillTree.bonus_max_hp
+	move_speed *= (1.0 + SkillTree.bonus_move_speed)
+	bolt_cooldown *= max(0.2, 1.0 - SkillTree.bonus_attack_speed)
+
 	current_health = max_health + Game.upgrade_health_bonus
 	max_health += Game.upgrade_health_bonus
 	base_move_speed = move_speed
@@ -171,7 +177,7 @@ func _physics_process(delta: float) -> void:
 				is_invincible = false
 
 	# Health regen (run upgrade + permanent upgrade)
-	var total_regen := Game.upgrade_regen + SaveData.perm_regen
+	var total_regen := Game.upgrade_regen + SaveData.perm_regen + SkillTree.bonus_hp_regen
 	if total_regen > 0.0 and current_health < max_health:
 		regen_accumulator += total_regen * delta
 		if regen_accumulator >= 1.0:
@@ -342,7 +348,7 @@ func try_extract_nearby(enemy: Node2D, chance: float) -> void:
 	var effective_range := extraction_range + Game.upgrade_extraction_bonus * 100.0
 	if dist > effective_range:
 		return
-	var effective_chance := chance + Game.upgrade_extraction_bonus + SaveData.perm_extraction_bonus + Game.extraction_pity
+	var effective_chance := chance + Game.upgrade_extraction_bonus + SaveData.perm_extraction_bonus + Game.extraction_pity + SkillTree.bonus_extraction_chance
 	if randf() <= effective_chance:
 		Game.extraction_pity = 0.0
 		extract(enemy)
@@ -383,7 +389,8 @@ func take_damage(amount: float, from_pos: Vector2 = Vector2.ZERO) -> void:
 	if is_invincible or Game.boss_killed:
 		return
 
-	current_health -= amount
+	var reduced := amount * (1.0 - SkillTree.bonus_damage_reduction)
+	current_health -= reduced
 	current_health = max(current_health, 0.0)
 	health_changed.emit(current_health, max_health)
 
@@ -398,7 +405,7 @@ func take_damage(amount: float, from_pos: Vector2 = Vector2.ZERO) -> void:
 	tween.tween_property(sprite, "modulate", Color.WHITE, 0.15)
 
 	Game.request_shake(4.0)
-	Game.spawn_damage_number(amount, global_position, Color(1.0, 0.3, 0.3))
+	Game.spawn_damage_number(reduced, global_position, Color(1.0, 0.3, 0.3))
 
 	if current_health <= 0.0:
 		Game.trigger_game_over()

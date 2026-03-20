@@ -349,6 +349,64 @@ func get_craft_cost(rarity: int) -> int:
 		Rarity.EPIC: return 1000
 	return 0
 
+## Enchantment definitions
+const ENCHANTMENTS: Array[Dictionary] = [
+	{"key": "dmg", "name": "Fury", "desc": "+%d%% Damage", "value": 8, "color": Color(1.0, 0.4, 0.2)},
+	{"key": "hp", "name": "Vitality", "desc": "+%d Max HP", "value": 15, "color": Color(0.3, 1.0, 0.4)},
+	{"key": "spd", "name": "Haste", "desc": "+%d%% Speed", "value": 6, "color": Color(0.3, 0.7, 1.0)},
+	{"key": "life", "name": "Leech", "desc": "+%d%% Lifesteal", "value": 3, "color": Color(0.9, 0.2, 0.4)},
+	{"key": "cdr", "name": "Arcane", "desc": "+%d%% CDR", "value": 5, "color": Color(0.6, 0.3, 1.0)},
+]
+
+## Get enchantment cost based on item rarity
+func get_enchant_cost(rarity: int) -> int:
+	match rarity:
+		Rarity.COMMON: return 40
+		Rarity.UNCOMMON: return 100
+		Rarity.RARE: return 250
+		Rarity.EPIC: return 600
+		Rarity.LEGENDARY: return 1200
+	return 100
+
+## Apply a random enchantment to an item. Returns the enchantment key.
+func enchant_item(item: Dictionary) -> String:
+	var enchant := ENCHANTMENTS[randi() % ENCHANTMENTS.size()]
+	item["enchant"] = enchant["key"]
+	item["enchant_name"] = enchant["name"]
+	return enchant["key"]
+
+## Reroll an existing enchantment to a different one
+func reroll_enchant(item: Dictionary) -> String:
+	var old_key: String = item.get("enchant", "")
+	var available: Array[Dictionary] = []
+	for e in ENCHANTMENTS:
+		if e["key"] != old_key:
+			available.append(e)
+	if available.is_empty():
+		return old_key
+	var enchant := available[randi() % available.size()]
+	item["enchant"] = enchant["key"]
+	item["enchant_name"] = enchant["name"]
+	return enchant["key"]
+
+## Get enchantment info by key
+func get_enchant_info(key: String) -> Dictionary:
+	for e in ENCHANTMENTS:
+		if e["key"] == key:
+			return e
+	return {}
+
+## Get total enchantment bonuses from all equipped items
+func get_enchant_bonuses(equipped_items: Array[Dictionary]) -> Dictionary:
+	var bonuses := {"dmg": 0.0, "hp": 0.0, "spd": 0.0, "life": 0.0, "cdr": 0.0}
+	for item in equipped_items:
+		if item.is_empty() or not item.has("enchant"):
+			continue
+		var info := get_enchant_info(item["enchant"])
+		if not info.is_empty():
+			bonuses[info["key"]] += float(info["value"])
+	return bonuses
+
 ## Serialize equipment for save
 func equip_to_dict(equip: Dictionary) -> Dictionary:
 	var d := {"slot": equip["slot"], "rarity": equip["rarity"],
@@ -357,6 +415,9 @@ func equip_to_dict(equip: Dictionary) -> Dictionary:
 		d["proc"] = equip["proc"]
 		d["proc_name"] = equip.get("proc_name", "")
 		d["proc_desc"] = equip.get("proc_desc", "")
+	if equip.has("enchant"):
+		d["enchant"] = equip["enchant"]
+		d["enchant_name"] = equip.get("enchant_name", "")
 	return d
 
 ## Deserialize equipment from save
@@ -372,4 +433,8 @@ func dict_to_equip(data: Dictionary) -> Dictionary:
 		item["proc"] = str(data["proc"])
 		item["proc_name"] = str(data.get("proc_name", ""))
 		item["proc_desc"] = str(data.get("proc_desc", ""))
+	# Restore enchantment
+	if data.has("enchant"):
+		item["enchant"] = str(data["enchant"])
+		item["enchant_name"] = str(data.get("enchant_name", ""))
 	return item

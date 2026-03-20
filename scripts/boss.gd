@@ -447,6 +447,9 @@ func _trigger_phase_transition(phase: int) -> void:
 			contact_damage *= 1.15
 			slam_damage *= 1.15
 
+	# World-specific phase mechanics
+	_do_world_phase_mechanic(phase)
+
 	# Phase transition animation — brief invulnerability pulse
 	sprite.modulate = Color(3.0, 3.0, 3.0)
 	var tween := create_tween()
@@ -461,6 +464,81 @@ func _trigger_phase_transition(phase: int) -> void:
 		vfx.set_script(preload("res://scripts/explosion_vfx.gd"))
 		vfx.set("max_radius", 120.0)
 		scene.add_child(vfx)
+
+## World-specific phase transition mechanics
+func _do_world_phase_mechanic(phase: int) -> void:
+	match boss_world:
+		1:  # Sand Colossus: spawn sand traps (env hazards) on phase transition
+			var EnvHazard: GDScript = preload("res://scripts/env_hazard.gd")
+			var count := phase + 1
+			for i in range(count):
+				var angle := float(i) / float(count) * TAU
+				var pos := global_position + Vector2(cos(angle), sin(angle)) * (60.0 + phase * 20.0)
+				var hazard := Node2D.new()
+				hazard.set_script(EnvHazard)
+				hazard.global_position = pos
+				var current_scene := get_tree().current_scene
+				if current_scene:
+					current_scene.add_child(hazard)
+					hazard.setup(0, 30.0, 5.0 + phase * 2.0, 8.0)  # LAVA type
+		2:  # Frost Wyrm: freeze nearby thralls for 3 seconds
+			for thrall in get_tree().get_nodes_in_group("thralls"):
+				if global_position.distance_to(thrall.global_position) < 150.0 + phase * 30.0:
+					var orig_speed: float = thrall.follow_speed
+					thrall.follow_speed = 0.0
+					thrall.sprite.modulate = Color(0.4, 0.6, 1.0)
+					Effects.spawn_particles(thrall.global_position, Color(0.3, 0.7, 1.0), 8, 0.3)
+					get_tree().create_timer(2.0 + phase * 0.5).timeout.connect(func():
+						if is_instance_valid(thrall):
+							thrall.follow_speed = orig_speed
+							thrall.sprite.modulate = Color(0.4, 1.0, 0.9)
+					)
+		3:  # Swamp Horror: healing aura — regenerate HP over 4 seconds
+			var heal_amount := max_health * 0.05 * phase
+			var heal_ticks := 8
+			for i in range(heal_ticks):
+				get_tree().create_timer(0.5 * i).timeout.connect(func():
+					if is_instance_valid(self) and not is_dying:
+						current_health = minf(current_health + heal_amount / heal_ticks, max_health)
+						Effects.spawn_particles(global_position, Color(0.2, 0.9, 0.3), 4, 0.2)
+				)
+		4:  # Void Sovereign: teleport behind player + AoE burst
+			if player and is_instance_valid(player):
+				var behind := player.global_position + player.velocity.normalized() * -60.0
+				Effects.spawn_particles(global_position, Color(0.6, 0.1, 0.9), 12, 0.4)
+				global_position = behind
+				Effects.spawn_particles(global_position, Color(0.8, 0.2, 1.0), 16, 0.4)
+				# AoE damage at new position
+				if global_position.distance_to(player.global_position) < 80.0:
+					player.take_damage(slam_damage * 0.5, global_position)
+				Game.request_shake(10.0)
+		5:  # The Eternal One: spawn a mirror image at phase 3
+			if phase == 3:
+				var melee_scene := load("res://scenes/enemy_melee.tscn")
+				for i in range(2):
+					var angle := float(i) / 2.0 * TAU
+					var pos := global_position + Vector2(cos(angle), sin(angle)) * 80.0
+					var telegraph := Node2D.new()
+					telegraph.set_script(preload("res://scripts/spawn_telegraph.gd"))
+					telegraph.global_position = pos
+					var current_scene := get_tree().current_scene
+					if current_scene:
+						current_scene.add_child(telegraph)
+					get_tree().create_timer(0.6).timeout.connect(
+						_spawn_elite_minion.bind(melee_scene, pos))
+
+func _spawn_elite_minion(scene: PackedScene, pos: Vector2) -> void:
+	if is_dying or Game.is_game_over:
+		return
+	var enemy := scene.instantiate()
+	enemy.global_position = pos
+	enemy.max_health = max_health * 0.15
+	enemy.contact_damage = contact_damage * 0.5
+	var current := get_tree().current_scene
+	if current:
+		current.add_child(enemy)
+		if enemy.has_method("make_elite"):
+			enemy.make_elite("berserker")
 
 ## World-specific boss specials
 func _get_special_cooldown() -> float:
