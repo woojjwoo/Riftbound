@@ -65,6 +65,14 @@ enum Formation { SPREAD, LINE, CLUSTER, ORBIT }
 var current_formation: Formation = Formation.SPREAD
 signal formation_changed(formation: Formation)
 
+# Combo / kill streak system
+var combo_count: int = 0
+var combo_timer: float = 0.0
+var best_combo: int = 0
+const COMBO_WINDOW: float = 3.0  # seconds between kills to maintain combo
+signal combo_changed(count: int)
+signal combo_ended(final_count: int)
+
 # Hit freeze
 var _freeze_timer: float = 0.0
 var _freeze_prev_scale: float = 1.0
@@ -122,6 +130,12 @@ func _process(delta: float) -> void:
 		if _freeze_timer <= 0.0:
 			Engine.time_scale = _freeze_prev_scale
 
+	# Combo timer
+	if combo_count > 0:
+		combo_timer -= delta
+		if combo_timer <= 0.0:
+			_end_combo()
+
 ## Get current world config from WorldData
 func get_world_config() -> Dictionary:
 	return WorldData.get_config(current_world)
@@ -130,6 +144,26 @@ func on_enemy_killed() -> void:
 	kill_count += 1
 	enemy_killed.emit()
 	add_xp(5)
+	# Combo system
+	combo_count += 1
+	combo_timer = COMBO_WINDOW
+	if combo_count > best_combo:
+		best_combo = combo_count
+	combo_changed.emit(combo_count)
+	# Bonus rewards at combo milestones
+	if combo_count == 10 or combo_count == 25 or combo_count == 50 or combo_count % 50 == 0:
+		var bonus_coins := combo_count / 5
+		var pos := Vector2.ZERO
+		var players := get_tree().get_nodes_in_group("player")
+		if players.size() > 0:
+			pos = players[0].global_position
+		spawn_damage_number(bonus_coins, pos + Vector2(0, -40), Color(1.0, 0.9, 0.3))
+
+func _end_combo() -> void:
+	var final := combo_count
+	combo_count = 0
+	if final >= 5:
+		combo_ended.emit(final)
 
 func add_xp(amount: int) -> void:
 	current_xp += amount
@@ -372,6 +406,9 @@ func _reset_run_state() -> void:
 	xp_to_next_level = 10
 	run_worlds_cleared = 0
 	run_bosses_killed = 0
+	combo_count = 0
+	combo_timer = 0.0
+	best_combo = 0
 	# Apply permanent upgrades from save data
 	var w_config := get_world_config()
 	total_rifts = w_config.get("rifts", 5)

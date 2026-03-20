@@ -63,6 +63,10 @@ var ability_cooldown_ui: Node = null
 ## Queue of pending level-ups waiting for ability selection
 var pending_level_ups: int = 0
 
+## Combo display
+var combo_label: Label = null
+var combo_display_timer: float = 0.0
+
 func _ready() -> void:
 	Audio.start_music(Game.current_world)
 	game_over_panel.visible = false
@@ -114,6 +118,11 @@ func _ready() -> void:
 	# XP bar and ability UI
 	_create_xp_bar()
 	_create_ability_ui()
+
+	# Combo display
+	_create_combo_label()
+	Game.combo_changed.connect(_on_combo_changed)
+	Game.combo_ended.connect(_on_combo_ended)
 
 	# Tutorial overlay for first run
 	if not SaveData.tutorial_completed and Game.current_world == 0:
@@ -173,6 +182,13 @@ func _process(delta: float) -> void:
 			arise_label.modulate.a = narrative_timer / 2.0
 		if narrative_timer <= 0.0:
 			arise_label.visible = false
+
+	# Combo display fade
+	if combo_display_timer > 0.0:
+		combo_display_timer -= delta
+		if combo_display_timer <= 0.0 and combo_label:
+			combo_label.visible = false
+			combo_label.modulate.a = 1.0
 
 	# Command hint — show thrall count context
 	if Game.thrall_count == 0:
@@ -488,6 +504,50 @@ func _on_ability_chosen(id: String) -> void:
 	pending_level_ups -= 1
 	if pending_level_ups > 0:
 		_show_next_ability_selection()
+
+# --- Combo Display ---
+
+func _create_combo_label() -> void:
+	combo_label = Label.new()
+	combo_label.name = "ComboLabel"
+	combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	combo_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	combo_label.offset_left = -80.0
+	combo_label.offset_top = 70.0
+	combo_label.offset_right = 80.0
+	combo_label.offset_bottom = 100.0
+	combo_label.add_theme_font_size_override("font_size", 18)
+	combo_label.visible = false
+	add_child(combo_label)
+
+func _on_combo_changed(count: int) -> void:
+	if count < 3:
+		return
+	combo_display_timer = 3.5
+	combo_label.visible = true
+	var color: Color
+	if count >= 50:
+		color = Color(1.0, 0.3, 0.1)
+	elif count >= 25:
+		color = Color(1.0, 0.6, 0.1)
+	elif count >= 10:
+		color = Color(1.0, 0.9, 0.3)
+	else:
+		color = Color(0.8, 0.7, 1.0)
+	combo_label.text = "%d COMBO!" % count
+	combo_label.add_theme_color_override("font_color", color)
+	# Pop animation
+	combo_label.scale = Vector2(1.3, 1.3)
+	var tween := create_tween()
+	tween.tween_property(combo_label, "scale", Vector2(1.0, 1.0), 0.15).set_ease(Tween.EASE_OUT)
+
+func _on_combo_ended(final_count: int) -> void:
+	if final_count >= 5:
+		combo_label.text = "%d COMBO ENDED" % final_count
+		combo_label.add_theme_color_override("font_color", Color(0.6, 0.5, 0.7))
+		combo_display_timer = 2.0
+		var tween := create_tween()
+		tween.tween_property(combo_label, "modulate:a", 0.0, 1.5)
 
 # --- Equipment HUD Overlay ---
 

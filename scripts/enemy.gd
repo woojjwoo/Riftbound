@@ -103,6 +103,10 @@ var has_shield: bool = false
 var shield_hits: int = 0
 var shield_max_hits: int = 3
 
+# Elite variant
+var is_elite: bool = false
+var elite_type: String = ""  # "berserker", "armored", "swift", "vampiric"
+
 # Flying
 var fly_time: float = 0.0
 var fly_amplitude: float = 20.0
@@ -313,6 +317,10 @@ func _process_contact_damage() -> void:
 					else:
 						collider.take_damage(contact_damage, global_position)
 						contact_timer = 1.0
+						# Vampiric elite: heal on hit
+						if is_elite and elite_type == "vampiric":
+							var heal := contact_damage * 0.25
+							current_health = minf(current_health + heal, max_health)
 					break
 				elif collider.is_in_group("thralls"):
 					collider.take_damage(contact_damage * 0.6, global_position)
@@ -523,6 +531,12 @@ func die() -> void:
 	Game.request_shake(3.0)
 	Audio.play_kill()
 
+	# Notify nearby thralls for kill assist (evolution system)
+	for thrall in get_tree().get_nodes_in_group("thralls"):
+		if global_position.distance_to(thrall.global_position) < 150.0:
+			if thrall.has_method("record_kill_assist"):
+				thrall.record_kill_assist()
+
 	# Death explosion particles + medium screen shake
 	Effects.spawn_death_explosion(global_position, enemy_type)
 	Game.request_shake(5.0)
@@ -613,6 +627,27 @@ func enable_shield(hits: int = 3) -> void:
 	shield_hits = 0
 	shield_max_hits = hits
 
+## Make this enemy an elite variant with bonus stats and abilities
+func make_elite(type: String) -> void:
+	is_elite = true
+	elite_type = type
+	match type:
+		"berserker":
+			contact_damage *= 1.6
+			move_speed *= 1.15
+			max_health *= 1.2
+		"armored":
+			max_health *= 2.0
+			move_speed *= 0.85
+		"swift":
+			move_speed *= 1.5
+			max_health *= 0.9
+		"vampiric":
+			max_health *= 1.4
+	current_health = max_health
+	# Elites are slightly larger
+	scale *= 1.15
+
 func _get_base_color() -> Color:
 	match enemy_type:
 		"flying":
@@ -656,6 +691,23 @@ func _draw() -> void:
 	if enemy_type == "summoner":
 		var aura_alpha := 0.1 + 0.05 * sin(_draw_timer * 2.0)
 		draw_circle(Vector2.ZERO, 15.0, Color(0.3, 0.9, 0.2, aura_alpha))
+
+	# Elite indicator
+	if is_elite:
+		var elite_color: Color
+		match elite_type:
+			"berserker": elite_color = Color(1.0, 0.2, 0.1, 0.6)
+			"armored": elite_color = Color(0.6, 0.6, 0.7, 0.6)
+			"swift": elite_color = Color(0.2, 0.9, 1.0, 0.6)
+			"vampiric": elite_color = Color(0.8, 0.1, 0.3, 0.6)
+			_: elite_color = Color(1.0, 0.8, 0.2, 0.6)
+		var pulse := 0.7 + 0.3 * sin(_draw_timer * 3.0)
+		draw_arc(Vector2.ZERO, 20.0, 0, TAU, 16, Color(elite_color.r, elite_color.g, elite_color.b, elite_color.a * pulse), 2.0)
+		# Elite crown pips
+		for i in range(3):
+			var angle := float(i) / 3.0 * PI - PI / 2.0
+			var pip_pos := Vector2(cos(angle), sin(angle)) * 22.0
+			draw_circle(pip_pos, 2.0, elite_color)
 
 	# Debuff indicators
 	if _slow_timer > 0.0:

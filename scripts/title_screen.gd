@@ -41,6 +41,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				_open_challenges()
 			KEY_H:
 				_open_run_history()
+			KEY_G:
+				_open_crafting()
 			KEY_O:
 				_open_settings()
 			KEY_ENTER, KEY_SPACE:
@@ -80,8 +82,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			_open_bestiary()
 			return
 
-		# Settings button region (drawn at cy + 337)
-		var settings_btn_y := cy + 337 - 15
+		# Crafting button region (drawn at cy + 337)
+		var craft_btn_y := cy + 337 - 15
+		if my > craft_btn_y and my < craft_btn_y + 30 and mx > cx - 60 and mx < cx + 60:
+			_open_crafting()
+			return
+
+		# Settings button region (drawn at cy + 375)
+		var settings_btn_y := cy + 375 - 15
 		if my > settings_btn_y and my < settings_btn_y + 30 and mx > cx - 60 and mx < cx + 60:
 			_open_settings()
 			return
@@ -126,6 +134,12 @@ func _open_challenges() -> void:
 	challenge.set_script(preload("res://scripts/challenge_screen.gd"))
 	challenge.closed.connect(func(): challenge.queue_free())
 	add_child(challenge)
+
+func _open_crafting() -> void:
+	var crafting := CanvasLayer.new()
+	crafting.set_script(preload("res://scripts/crafting_screen.gd"))
+	crafting.closed.connect(func(): crafting.queue_free())
+	add_child(crafting)
 
 func _open_bestiary() -> void:
 	var bestiary := CanvasLayer.new()
@@ -274,8 +288,15 @@ func _draw() -> void:
 	draw_string(font, Vector2(cx - 50, history_y + 5), "H: History (%d)" % history_count,
 		HORIZONTAL_ALIGNMENT_CENTER, 100, 11, Color(0.5, 0.7, 0.9))
 
-	# Settings button (below history)
-	var settings_y := history_y + 38
+	# Crafting button (below history)
+	var craft_y := history_y + 38
+	draw_rect(Rect2(cx - 60, craft_y - 15, 120, 30), Color(0.12, 0.08, 0.18, 0.8))
+	draw_rect(Rect2(cx - 60, craft_y - 15, 120, 30), Color(1.0, 0.85, 0.4, 0.4), false, 1.0)
+	draw_string(font, Vector2(cx - 30, craft_y + 5), "G: Crafting",
+		HORIZONTAL_ALIGNMENT_CENTER, 60, 12, Color(1.0, 0.85, 0.4))
+
+	# Settings button (below crafting)
+	var settings_y := craft_y + 38
 	draw_rect(Rect2(cx - 60, settings_y - 15, 120, 30), Color(0.12, 0.08, 0.18, 0.8))
 	draw_rect(Rect2(cx - 60, settings_y - 15, 120, 30), Color(0.6, 0.6, 0.7, 0.4), false, 1.0)
 	draw_string(font, Vector2(cx - 30, settings_y + 5), "O: Settings",

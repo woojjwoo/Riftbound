@@ -63,6 +63,12 @@ var _blink_timer: float = 2.0
 var _buff_timer: float = 4.0
 var _buff_radius: float = 100.0
 
+# Evolution system
+var kill_assists: int = 0
+var evolution_tier: int = 0  # 0=base, 1=veteran, 2=elite
+const EVOLUTION_THRESHOLDS: Array[int] = [8, 20]  # kills needed for tier 1, tier 2
+var evolution_glow: float = 0.0
+
 @export var projectile_scene: PackedScene
 
 var sprite_idle: Texture2D
@@ -486,9 +492,71 @@ func _process_buff_aura(delta: float) -> void:
 				var base := Color(1.0, 0.8, 0.4) if thrall.mode == ThrallMode.COMMANDED else Color(0.4, 1.0, 0.9)
 				tween.tween_property(thrall.sprite, "modulate", base, 0.5)
 
+## Called by enemies when they die near this thrall
+func record_kill_assist() -> void:
+	kill_assists += 1
+	_check_evolution()
+
+func _check_evolution() -> void:
+	if evolution_tier >= EVOLUTION_THRESHOLDS.size():
+		return
+	if kill_assists >= EVOLUTION_THRESHOLDS[evolution_tier]:
+		_evolve()
+
+func _evolve() -> void:
+	evolution_tier += 1
+	# Stat bonuses per tier
+	attack_damage *= 1.2
+	max_health *= 1.15
+	current_health = minf(current_health + max_health * 0.3, max_health)
+	follow_speed *= 1.05
+	attack_cooldown *= 0.9
+	# VFX
+	Effects.spawn_level_up_burst(global_position)
+	Audio.play_level_up()
+	Game.request_shake(4.0)
+	evolution_glow = 1.0
+	# Flash sprite
+	sprite.modulate = Color(3.0, 3.0, 3.0)
+	var tween := create_tween()
+	var tier_color := Color(0.4, 1.0, 0.4) if evolution_tier == 1 else Color(1.0, 0.85, 0.3)
+	tween.tween_property(sprite, "modulate", tier_color, 0.4)
+	tween.tween_property(sprite, "modulate", Color(0.4, 1.0, 0.9), 0.3)
+
+func get_tier_name() -> String:
+	match evolution_tier:
+		0: return ""
+		1: return "Veteran"
+		2: return "Elite"
+	return ""
+
 func _draw() -> void:
 	if is_dying:
 		return
+
+	# Evolution tier indicator
+	if evolution_tier > 0:
+		var t := Time.get_ticks_msec() * 0.001
+		evolution_glow = maxf(evolution_glow - 0.02, 0.0)
+		var tier_color: Color
+		var ring_radius := 10.0
+		if evolution_tier == 1:
+			tier_color = Color(0.3, 0.9, 0.4, 0.4 + evolution_glow * 0.4)
+			ring_radius = 10.0
+		else:
+			tier_color = Color(1.0, 0.85, 0.3, 0.5 + evolution_glow * 0.4)
+			ring_radius = 12.0
+		var pulse := 0.8 + 0.2 * sin(t * 3.0)
+		draw_arc(Vector2.ZERO, ring_radius, 0, TAU, 12, Color(tier_color.r, tier_color.g, tier_color.b, tier_color.a * pulse), 1.5)
+		# Star pips for tier
+		for i in range(evolution_tier):
+			var angle := float(i) / float(evolution_tier) * PI - PI / 2.0
+			var pip_pos := Vector2(cos(angle), sin(angle)) * (ring_radius + 4.0)
+			draw_circle(pip_pos, 1.5, tier_color)
+		# Tier label
+		var font := ThemeDB.fallback_font
+		var label := get_tier_name()
+		draw_string(font, Vector2(-12, -20), label, HORIZONTAL_ALIGNMENT_CENTER, 24, 6, tier_color)
 
 	# Mode indicator
 	if mode == ThrallMode.COMMANDED:

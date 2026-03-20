@@ -325,6 +325,30 @@ func get_rarity_name(rarity: int) -> String:
 func get_slot_name(slot_id: int) -> String:
 	return SLOT_INFO[slot_id]["name"]
 
+## Crafting: combine 3 items of same rarity into 1 item of next rarity
+## Returns the crafted item, or {} if invalid
+func craft_upgrade(items: Array[Dictionary]) -> Dictionary:
+	if items.size() != 3:
+		return {}
+	var rarity: int = items[0]["rarity"]
+	for item in items:
+		if item["rarity"] != rarity:
+			return {}
+	if rarity >= Rarity.LEGENDARY:
+		return {}
+	var new_rarity: int = rarity + 1
+	var slot := randi() % SLOT_INFO.size()
+	return create_equipment(slot, new_rarity)
+
+## Get coin cost for crafting 3 items of a given rarity
+func get_craft_cost(rarity: int) -> int:
+	match rarity:
+		Rarity.COMMON: return 50
+		Rarity.UNCOMMON: return 150
+		Rarity.RARE: return 400
+		Rarity.EPIC: return 1000
+	return 0
+
 ## Serialize equipment for save
 func equip_to_dict(equip: Dictionary) -> Dictionary:
 	var d := {"slot": equip["slot"], "rarity": equip["rarity"],
