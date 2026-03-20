@@ -48,8 +48,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		var vp := get_viewport_rect().size
 		var start_y := 160.0
 		var item_h := 60.0
-		var mx := event.position.x
-		var my := event.position.y
+		var mx: float = event.position.x
+		var my: float = event.position.y
 		if mx > vp.x * 0.15 and mx < vp.x * 0.85:
 			for i in range(VISIBLE_ITEMS):
 				var idx := scroll_offset + i

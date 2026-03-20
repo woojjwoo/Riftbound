@@ -65,7 +65,7 @@ func _trigger_procs(enemy: Node2D) -> void:
 	var players := get_tree().get_nodes_in_group("player")
 	if players.is_empty():
 		return
-	var p := players[0]
+	var p: Node = players[0]
 	if p.proc_handler:
 		p.proc_handler.on_hit(enemy, damage)
 

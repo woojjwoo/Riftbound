@@ -604,7 +604,7 @@ func die() -> void:
 	# Register corpse position for Corpse Explosion ability
 	var players := get_tree().get_nodes_in_group("player")
 	if players.size() > 0:
-		var p := players[0]
+		var p: Node = players[0]
 		if p.ability_manager and p.ability_manager.has_method("register_corpse"):
 			p.ability_manager.register_corpse(global_position)
 		if p.proc_handler:

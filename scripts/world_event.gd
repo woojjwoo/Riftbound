@@ -48,7 +48,7 @@ func _interact() -> void:
 	var players := get_tree().get_nodes_in_group("player")
 	if players.is_empty():
 		return
-	var player := players[0]
+	var player: Node = players[0]
 
 	match event_type:
 		EventType.SHRINE:

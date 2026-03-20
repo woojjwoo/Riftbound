@@ -57,8 +57,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var vp := get_viewport_rect().size
-		var mx := event.position.x
-		var my := event.position.y
+		var mx: float = event.position.x
+		var my: float = event.position.y
 
 		# Category tabs
 		if my >= 85.0 and my <= 115.0:

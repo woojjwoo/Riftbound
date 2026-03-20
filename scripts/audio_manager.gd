@@ -598,7 +598,7 @@ func play_ng_plus() -> void:
 # =========================================================================
 
 func _get_player() -> AudioStreamPlayer:
-	var p := sfx_players[next_player]
+	var p: AudioStreamPlayer = sfx_players[next_player]
 	next_player = (next_player + 1) % MAX_SFX_PLAYERS
 	return p
 

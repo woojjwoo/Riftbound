@@ -50,7 +50,7 @@ func _process(delta: float) -> void:
 func _update_weather(delta: float) -> void:
 	var world_id := Game.current_world
 	for i in range(weather_particles.size()):
-		var p := weather_particles[i]
+		var p: Dictionary = weather_particles[i]
 		match world_id:
 			0:  # Dark Realm — rising soul wisps
 				p["y"] -= p["speed"] * delta

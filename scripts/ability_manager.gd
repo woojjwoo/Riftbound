@@ -301,7 +301,7 @@ func _do_soul_link(stats: Dictionary) -> void:
 func _end_soul_link() -> void:
 	soul_link_active = false
 	# Revert thrall damage boost
-	var boost := soul_link_stats.get("thrall_damage_boost", 0.15)
+	var boost: float = soul_link_stats.get("thrall_damage_boost", 0.15)
 	for thrall in get_tree().get_nodes_in_group("thralls"):
 		thrall.attack_damage /= (1.0 + boost)
 
@@ -309,7 +309,7 @@ func _end_soul_link() -> void:
 func distribute_soul_link_damage(amount: float) -> float:
 	if not soul_link_active:
 		return 0.0
-	var share := soul_link_stats.get("damage_share", 0.25)
+	var share: float = soul_link_stats.get("damage_share", 0.25)
 	var shared := amount * share
 	var thralls := get_tree().get_nodes_in_group("thralls")
 	if thralls.is_empty():

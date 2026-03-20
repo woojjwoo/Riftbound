@@ -34,7 +34,7 @@ func _process(delta: float) -> void:
 	if players.size() == 0:
 		return
 
-	var player := players[0]
+	var player: Node = players[0]
 	var dist := global_position.distance_to(player.global_position)
 
 	var effective_attract := ATTRACT_RANGE + Meta.sanctum_coin_magnet

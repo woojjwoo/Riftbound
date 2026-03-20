@@ -33,7 +33,7 @@ func _process(delta: float) -> void:
 
 	var players := get_tree().get_nodes_in_group("player")
 	if players.size() > 0:
-		var player := players[0]
+		var player: Node = players[0]
 		var dist := global_position.distance_to(player.global_position)
 		if dist < portal_radius:
 			_enter_portal()

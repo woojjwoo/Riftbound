@@ -460,7 +460,7 @@ func _update_boss_health_bar() -> void:
 		return
 	var bosses := get_tree().get_nodes_in_group("boss")
 	if bosses.size() > 0:
-		var boss := bosses[0]
+		var boss: Node = bosses[0]
 		boss_health_bar.max_value = boss.max_health
 		boss_health_display = lerp(boss_health_display, float(boss.current_health), 8.0 * get_process_delta_time())
 		boss_health_bar.value = boss_health_display

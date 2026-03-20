@@ -57,7 +57,7 @@ func _setup_rift_configs() -> void:
 	rift_configs = []
 	for i in range(total_rifts):
 		var base_idx := mini(i, base_configs.size() - 1)
-		var base := base_configs[base_idx]
+		var base: Dictionary = base_configs[base_idx]
 		rift_configs.append({
 			"hp": base["hp"] * hp_mult,
 			"interval": max(base["interval"] / enemy_mult, 0.8),

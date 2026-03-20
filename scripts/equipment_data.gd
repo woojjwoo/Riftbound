@@ -148,12 +148,12 @@ func create_equipment(slot_id: int, rarity: int, world_id: int = -1) -> Dictiona
 				if wp["world"] == world_id:
 					world_proc_options.append(wp)
 		if world_proc_options.size() > 0 and randf() < 0.3:
-			var proc := world_proc_options[randi() % world_proc_options.size()]
+			var proc: Dictionary = world_proc_options[randi() % world_proc_options.size()]
 			item["proc"] = proc["key"]
 			item["proc_name"] = proc["name"]
 			item["proc_desc"] = proc["desc"]
 		else:
-			var proc := LEGENDARY_PROCS[randi() % LEGENDARY_PROCS.size()]
+			var proc: Dictionary = LEGENDARY_PROCS[randi() % LEGENDARY_PROCS.size()]
 			item["proc"] = proc["key"]
 			item["proc_name"] = proc["name"]
 			item["proc_desc"] = proc["desc"]
@@ -430,7 +430,7 @@ func reroll_enchant(item: Dictionary) -> String:
 			available.append(e)
 	if available.is_empty():
 		return old_key
-	var enchant := available[randi() % available.size()]
+	var enchant: Dictionary = available[randi() % available.size()]
 	item["enchant"] = enchant["key"]
 	item["enchant_name"] = enchant["name"]
 	return enchant["key"]

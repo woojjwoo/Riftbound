@@ -307,7 +307,7 @@ func _spawn_world_event() -> void:
 	var players := get_tree().get_nodes_in_group("player")
 	if players.is_empty():
 		return
-	var player := players[0]
+	var player: Node = players[0]
 	var angle := randf() * TAU
 	var pos: Vector2 = player.global_position + Vector2(cos(angle), sin(angle)) * randf_range(80.0, 150.0)
 	var scene := get_tree().current_scene
@@ -342,7 +342,7 @@ func _spawn_world_portal() -> void:
 	var players := get_tree().get_nodes_in_group("player")
 	if players.is_empty():
 		return
-	var player := players[0]
+	var player: Node = players[0]
 	var angle := randf() * TAU
 	var pos: Vector2 = player.global_position + Vector2(cos(angle), sin(angle)) * 150.0
 
