@@ -54,13 +54,27 @@ func _on_body_entered(body: Node2D) -> void:
 			body.take_damage(damage, global_position)
 		else:
 			body.take_damage(damage)
+			# Trigger legendary proc effects on enemy hit (player bolts only)
+			if target_group == "enemies":
+				_trigger_procs(body)
 		Game.spawn_damage_number(damage, body.global_position, Color(1.0, 0.6, 0.2))
 		_spawn_hit_vfx(body.global_position)
 		queue_free()
 
+func _trigger_procs(enemy: Node2D) -> void:
+	var players := get_tree().get_nodes_in_group("player")
+	if players.is_empty():
+		return
+	var p := players[0]
+	if p.proc_handler:
+		p.proc_handler.on_hit(enemy, damage)
+
 func _spawn_hit_vfx(pos: Vector2) -> void:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
 	var vfx := Node2D.new()
 	vfx.set_script(HitVFX)
 	vfx.global_position = pos
 	vfx.setup(trail_color)
-	get_tree().current_scene.add_child(vfx)
+	scene.add_child(vfx)

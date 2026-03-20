@@ -57,6 +57,9 @@ var current_anim: String = "idle"
 ## Ability system
 var ability_manager: Node2D = null
 
+## Legendary proc handler
+var proc_handler: Node = null
+
 @onready var sprite: Sprite2D = $Sprite
 
 func _ready() -> void:
@@ -98,6 +101,7 @@ func _ready() -> void:
 	_load_sprites()
 	_set_animation("idle")
 	_setup_ability_manager()
+	_setup_proc_handler()
 	Game.level_up.connect(_on_level_up)
 
 func _load_sprites() -> void:
@@ -120,6 +124,13 @@ func _set_animation(anim_name: String) -> void:
 		sprite.texture = sprites[key]
 		sprite.hframes = 6
 		current_anim = anim_name
+
+func _setup_proc_handler() -> void:
+	var ProcScript := preload("res://scripts/proc_handler.gd")
+	proc_handler = ProcScript.new()
+	proc_handler.name = "ProcHandler"
+	add_child(proc_handler)
+	proc_handler.setup(self)
 
 func _setup_ability_manager() -> void:
 	var AbilityManagerScript := preload("res://scripts/ability_manager.gd")
@@ -275,10 +286,12 @@ func _command_thralls() -> void:
 		thrall.command_to(world_pos, target_entity)
 
 	# Spawn command marker
-	var marker := Node2D.new()
-	marker.set_script(preload("res://scripts/command_marker.gd"))
-	marker.global_position = world_pos
-	get_tree().current_scene.add_child(marker)
+	var scene := get_tree().current_scene
+	if scene:
+		var marker := Node2D.new()
+		marker.set_script(preload("res://scripts/command_marker.gd"))
+		marker.global_position = world_pos
+		scene.add_child(marker)
 	Audio.play_hit()
 
 func _recall_thralls() -> void:
@@ -313,7 +326,11 @@ func _spawn_afterimage() -> void:
 	ghost.global_position = global_position
 	ghost.modulate = Color(0.3, 0.5, 1.0, 0.5)
 	ghost.z_index = -1
-	get_tree().current_scene.add_child(ghost)
+	var scene := get_tree().current_scene
+	if scene == null:
+		ghost.queue_free()
+		return
+	scene.add_child(ghost)
 	var tween := ghost.create_tween()
 	tween.tween_property(ghost, "modulate:a", 0.0, 0.2)
 	tween.tween_callback(ghost.queue_free)
@@ -338,10 +355,14 @@ func force_extract(enemy: Node2D) -> void:
 func extract(enemy: Node2D) -> void:
 	var spawn_pos := enemy.global_position
 
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+
 	if arise_vfx_scene:
 		var vfx := arise_vfx_scene.instantiate()
 		vfx.global_position = spawn_pos
-		get_tree().current_scene.add_child(vfx)
+		scene.add_child(vfx)
 
 	var thrall_type: String = "melee"
 	if enemy.has_method("get_enemy_type"):
@@ -351,7 +372,7 @@ func extract(enemy: Node2D) -> void:
 		var thrall := thrall_scene.instantiate()
 		thrall.global_position = spawn_pos
 		thrall.setup(self, thrall_type)
-		get_tree().current_scene.add_child(thrall)
+		scene.add_child(thrall)
 
 	Audio.play_arise()
 	Game.on_thrall_gained()

@@ -49,6 +49,9 @@ var narrative_text: String = ""
 # Equipment HUD overlay — draws equipped items in bottom-right corner
 var equip_hud: Control = null
 
+## Minimap
+var minimap: Control = null
+
 ## XP bar (created in code)
 var xp_bar: ProgressBar = null
 var level_label: Label = null
@@ -104,9 +107,16 @@ func _ready() -> void:
 	_setup_equip_hud()
 	SaveData.equipment_changed.connect(_on_equipment_changed)
 
+	# Minimap
+	_create_minimap()
+
 	# XP bar and ability UI
 	_create_xp_bar()
 	_create_ability_ui()
+
+	# Tutorial overlay for first run
+	if not SaveData.tutorial_completed and Game.current_world == 0:
+		_create_tutorial()
 
 	await get_tree().process_frame
 	var players := get_tree().get_nodes_in_group("player")
@@ -178,21 +188,26 @@ func _on_health_changed(current: float, _max_hp: float) -> void:
 	health_display = current
 
 func _on_game_over() -> void:
+	# Show detailed run summary instead of basic panel
+	_show_run_summary(false)
+
+func _show_run_summary(victory: bool) -> void:
+	var RunSummary := preload("res://scripts/run_summary.gd")
+	var summary := CanvasLayer.new()
+	summary.set_script(RunSummary)
+	summary.process_mode = Node.PROCESS_MODE_ALWAYS
+	summary.setup(victory)
+	summary.closed.connect(_on_summary_closed)
+	add_child(summary)
+
+func _on_summary_closed() -> void:
+	# Show the restart panel after summary is dismissed
 	game_over_panel.visible = true
-	# Calculate Soul Essence earned this run
-	var essence_earned := Meta.calculate_run_essence(
-		Game.kill_count, Game.run_worlds_cleared, Game.run_bosses_killed)
-	var essence_text := ""
-	if essence_earned > 0:
-		essence_text = "\nSoul Essence Earned: +%d" % essence_earned
-	game_over_stats.text = "World: %s\nRifts Sealed: %d / %d\nEnemies Slain: %d\nThralls Bound: %d\nCoins: %d%s" % [
-		Game.get_world_config().get("name", "Unknown"),
-		Game.rifts_closed, Game.total_rifts, Game.kill_count, Game.thrall_count, SaveData.coins,
-		essence_text]
+	game_over_stats.text = "Click 'Rise Again' to restart"
 	game_over_panel.modulate.a = 0.0
 	var tween := create_tween()
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	tween.tween_property(game_over_panel, "modulate:a", 1.0, 0.5)
+	tween.tween_property(game_over_panel, "modulate:a", 1.0, 0.3)
 
 func _on_restart() -> void:
 	Audio.play_ui_click()
@@ -271,8 +286,9 @@ func _on_upgrade_selected(index: int) -> void:
 	get_tree().paused = false
 
 func _on_victory() -> void:
-	# Don't show victory panel — portal handles progression now
-	pass
+	# Portal handles world progression; summary shown on final victory
+	if Game.current_world >= WorldData.get_world_count() - 1:
+		_show_run_summary(true)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_TAB:
@@ -317,9 +333,19 @@ func _open_inventory() -> void:
 	inventory_open = true
 	get_tree().paused = true
 	var inv_scene := load("res://scenes/inventory_screen.tscn")
+	if inv_scene == null:
+		inventory_open = false
+		get_tree().paused = false
+		return
 	var inv_instance := inv_scene.instantiate()
 	inv_instance.tree_exited.connect(_on_inventory_closed)
-	get_tree().current_scene.add_child(inv_instance)
+	var scene := get_tree().current_scene
+	if scene:
+		scene.add_child(inv_instance)
+	else:
+		inv_instance.queue_free()
+		inventory_open = false
+		get_tree().paused = false
 
 func _on_inventory_closed() -> void:
 	inventory_open = false
@@ -368,6 +394,20 @@ func _update_boss_health_bar() -> void:
 		boss_name_label.visible = false
 
 # --- XP Bar and Ability UI ---
+
+func _create_tutorial() -> void:
+	var TutorialScript := preload("res://scripts/tutorial_overlay.gd")
+	var tutorial := CanvasLayer.new()
+	tutorial.set_script(TutorialScript)
+	tutorial.name = "TutorialOverlay"
+	add_child(tutorial)
+
+func _create_minimap() -> void:
+	var MinimapScript := preload("res://scripts/minimap.gd")
+	minimap = MinimapScript.new()
+	minimap.name = "Minimap"
+	minimap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(minimap)
 
 func _create_xp_bar() -> void:
 	xp_bar = ProgressBar.new()

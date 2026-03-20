@@ -4,7 +4,7 @@ extends Node
 ## Tracks coins, EXP, level, permanent upgrades between runs.
 
 const SAVE_PATH := "user://riftbound_save.dat"
-const SAVE_VERSION: int = 2  # Increment when save format changes
+const SAVE_VERSION: int = 3  # Increment when save format changes
 
 # Persistent currency
 var coins: int = 0
@@ -39,6 +39,12 @@ var inventory: Array[Dictionary] = []
 const MAX_INVENTORY: int = 30
 # Track which world transition stories have been seen
 var stories_seen: Array[int] = []
+# Run personal bests
+var run_bests: Dictionary = {}
+
+# Tutorial tracking
+var tutorial_completed: bool = false
+
 # Cached achievement data — loaded before AchievementManager is ready
 var _cached_achievements: Dictionary = {}
 
@@ -233,6 +239,8 @@ func save_game() -> void:
 		"audio_sfx_volume": audio_sfx_volume,
 		"audio_music_volume": audio_music_volume,
 		"achievements": _get_achievements_data(),
+		"run_bests": run_bests,
+		"tutorial_completed": tutorial_completed,
 	}
 	var json_string := JSON.stringify(data)
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -257,6 +265,8 @@ func load_game() -> void:
 	var version := int(data.get("save_version", 1))
 	if version < 2:
 		_migrate_v1_to_v2(data)
+	if version < 3:
+		_migrate_v2_to_v3(data)
 
 	coins = clampi(int(data.get("coins", 0)), 0, 9999999)
 	exp_points = clampi(int(data.get("exp_points", 0)), 0, 9999999)
@@ -307,6 +317,12 @@ func load_game() -> void:
 	audio_master_volume = clampf(float(data.get("audio_master_volume", 0.8)), 0.0, 1.0)
 	audio_sfx_volume = clampf(float(data.get("audio_sfx_volume", 0.8)), 0.0, 1.0)
 	audio_music_volume = clampf(float(data.get("audio_music_volume", 0.6)), 0.0, 1.0)
+	# Run bests
+	var saved_bests = data.get("run_bests", {})
+	if saved_bests is Dictionary:
+		run_bests = saved_bests
+	# Tutorial
+	tutorial_completed = bool(data.get("tutorial_completed", false))
 	# Achievements — stored for AchievementManager to load on its own _ready
 	var saved_achievements = data.get("achievements", {})
 	if saved_achievements is Dictionary:
@@ -334,6 +350,14 @@ func _migrate_v1_to_v2(data: Dictionary) -> void:
 			shop_levels_data.append(0)
 		data["shop_levels"] = shop_levels_data
 	data["save_version"] = 2
+
+## Migrate saves from version 2 to version 3 (legendary equipment, run bests, tutorial)
+func _migrate_v2_to_v3(data: Dictionary) -> void:
+	if not data.has("run_bests"):
+		data["run_bests"] = {}
+	if not data.has("tutorial_completed"):
+		data["tutorial_completed"] = false
+	data["save_version"] = 3
 
 func _get_achievements_data() -> Dictionary:
 	var node := get_node_or_null("/root/Achievements")
@@ -377,6 +401,8 @@ func reset_save() -> void:
 	audio_master_volume = 0.8
 	audio_sfx_volume = 0.8
 	audio_music_volume = 0.6
+	run_bests = {}
+	tutorial_completed = false
 	var ach_node := get_node_or_null("/root/Achievements")
 	if ach_node:
 		ach_node.unlocked = {}

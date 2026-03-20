@@ -92,6 +92,12 @@ var _pull_elapsed: float = 0.0
 # Draw helpers
 var _draw_timer: float = 0.0
 
+# Debuffs (from legendary procs)
+var _slow_timer: float = 0.0
+var _slow_amount: float = 0.0
+var _burn_timer: float = 0.0
+var _burn_dps: float = 0.0
+
 # Shield
 var has_shield: bool = false
 var shield_hits: int = 0
@@ -162,6 +168,16 @@ func _physics_process(delta: float) -> void:
 	if retarget_timer <= 0.0:
 		_retarget()
 		retarget_timer = RETARGET_INTERVAL
+
+	# Process debuffs
+	if _slow_timer > 0.0:
+		_slow_timer -= delta
+	if _burn_timer > 0.0:
+		_burn_timer -= delta
+		current_health -= _burn_dps * delta
+		if current_health <= 0.0 and not is_dying:
+			die()
+			return
 
 	# Use target_node for movement direction
 	var chase_target: Node2D = target_node if (target_node and is_instance_valid(target_node)) else player
@@ -234,7 +250,8 @@ func _physics_process(delta: float) -> void:
 			return
 
 	knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
-	velocity = dir * move_speed + knockback_velocity
+	var effective_speed := move_speed * (1.0 - _slow_amount if _slow_timer > 0.0 else 1.0)
+	velocity = dir * effective_speed + knockback_velocity
 	move_and_slide()
 
 	_animate_sprite()
@@ -383,6 +400,9 @@ func _process_voidcaller(delta: float, dir: Vector2, dist: float) -> void:
 func _do_summon() -> void:
 	if summon_scene == null:
 		return
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
 	for i in range(summon_count):
 		var angle := randf() * TAU
 		var offset := Vector2(cos(angle), sin(angle)) * 30.0
@@ -391,14 +411,17 @@ func _do_summon() -> void:
 		minion.max_health *= 0.4
 		minion.contact_damage *= 0.5
 		minion.extraction_chance = 0.1
-		get_tree().current_scene.add_child(minion)
+		scene.add_child(minion)
 
 func _drop_poison() -> void:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
 	var pool := Node2D.new()
 	pool.global_position = global_position
 	pool.set_script(preload("res://scripts/poison_pool.gd"))
 	pool.setup(poison_radius, poison_damage, poison_duration)
-	get_tree().current_scene.add_child(pool)
+	scene.add_child(pool)
 
 func _do_teleport() -> void:
 	if player == null:
@@ -416,15 +439,21 @@ func _do_teleport() -> void:
 func _split() -> void:
 	if split_scene == null:
 		return
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
 	for i in range(split_count):
 		var angle := float(i) / float(split_count) * TAU
 		var offset := Vector2(cos(angle), sin(angle)) * 20.0
 		var child := split_scene.instantiate()
 		child.global_position = global_position + offset
-		get_tree().current_scene.add_child(child)
+		scene.add_child(child)
 
 func _shoot_at(target: Node2D) -> void:
 	if projectile_scene == null or target == null:
+		return
+	var scene := get_tree().current_scene
+	if scene == null:
 		return
 	var dir := global_position.direction_to(target.global_position)
 	var proj := projectile_scene.instantiate()
@@ -432,7 +461,7 @@ func _shoot_at(target: Node2D) -> void:
 	# Use correct target group based on who we're shooting at
 	var group := "thralls" if target.is_in_group("thralls") else "player"
 	proj.setup(dir, contact_damage, group)
-	get_tree().current_scene.add_child(proj)
+	scene.add_child(proj)
 	Audio.play_shoot()
 
 func take_damage(amount: float) -> void:
@@ -447,11 +476,13 @@ func take_damage(amount: float) -> void:
 			Game.spawn_damage_number(0, global_position, Color(0.3, 0.6, 1.0))
 			Game.request_shake(4.0)
 			# Shield break VFX — expanding ring
-			var vfx := Node2D.new()
-			vfx.global_position = global_position
-			vfx.set_script(preload("res://scripts/explosion_vfx.gd"))
-			vfx.set("max_radius", 30.0)
-			get_tree().current_scene.add_child(vfx)
+			var shield_scene := get_tree().current_scene
+			if shield_scene:
+				var vfx := Node2D.new()
+				vfx.global_position = global_position
+				vfx.set_script(preload("res://scripts/explosion_vfx.gd"))
+				vfx.set("max_radius", 30.0)
+				shield_scene.add_child(vfx)
 			sprite.modulate = Color(0.3, 0.6, 1.0)
 			var flash_tween := create_tween()
 			flash_tween.tween_property(sprite, "modulate", Color.WHITE, 0.2)
@@ -509,10 +540,12 @@ func die() -> void:
 	if randf() < 0.2:
 		_spawn_health_orb()
 
-	# Proximity-based extraction
+	# Proximity-based extraction + proc on kill
 	var players := get_tree().get_nodes_in_group("player")
 	if players.size() > 0:
 		var p := players[0]
+		if p.proc_handler:
+			p.proc_handler.on_kill(self)
 		if Game.guaranteed_extractions > 0:
 			p.force_extract(self)
 			Game.guaranteed_extractions -= 1
@@ -543,16 +576,32 @@ func _explode() -> void:
 	_spawn_explosion_vfx()
 
 func _spawn_explosion_vfx() -> void:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
 	var vfx := Node2D.new()
 	vfx.global_position = global_position
 	vfx.set_script(preload("res://scripts/explosion_vfx.gd"))
-	get_tree().current_scene.add_child(vfx)
+	scene.add_child(vfx)
 
 func _spawn_health_orb() -> void:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
 	var orb := Node2D.new()
 	orb.global_position = global_position
 	orb.set_script(preload("res://scripts/health_orb.gd"))
-	get_tree().current_scene.add_child(orb)
+	scene.add_child(orb)
+
+## Apply slow debuff from legendary proc
+func apply_slow(amount: float, duration: float) -> void:
+	_slow_amount = amount
+	_slow_timer = duration
+
+## Apply burn debuff from legendary proc
+func apply_burn(dps: float, duration: float) -> void:
+	_burn_dps = dps
+	_burn_timer = duration
 
 func get_enemy_type() -> String:
 	return enemy_type

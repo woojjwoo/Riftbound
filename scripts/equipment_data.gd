@@ -3,7 +3,7 @@ extends Node
 ## Equipment system. Autoloaded as "Equipment".
 ## Manages equipment definitions, drop rates, upgrade success rates, and thrall sacrifice.
 
-enum Rarity { COMMON, UNCOMMON, RARE, EPIC }
+enum Rarity { COMMON, UNCOMMON, RARE, EPIC, LEGENDARY }
 enum Slot { GRIMOIRE, ROBES, AMULET, RING, BOOTS, CROWN }
 
 ## Equipment slot definitions — what each slot affects
@@ -22,6 +22,7 @@ const RARITY_INFO: Dictionary = {
 	Rarity.UNCOMMON: {"name": "Uncommon", "color": Color(0.3, 0.8, 0.3), "stat_mult": 1.3, "cost_mult": 1.5},
 	Rarity.RARE: {"name": "Rare", "color": Color(0.3, 0.5, 1.0), "stat_mult": 1.7, "cost_mult": 2.0},
 	Rarity.EPIC: {"name": "Epic", "color": Color(0.7, 0.3, 1.0), "stat_mult": 2.2, "cost_mult": 3.0},
+	Rarity.LEGENDARY: {"name": "Legendary", "color": Color(1.0, 0.65, 0.0), "stat_mult": 3.0, "cost_mult": 5.0},
 }
 
 ## Upgrade success rates by target level (+1 means upgrading from +0 to +1)
@@ -82,19 +83,50 @@ const DROP_RATES: Dictionary = {
 	"voidcaller": [0.06, 0.015, 0.0, 0.0],
 }
 
-## Boss guaranteed drops
-const BOSS_DROP_RATES: Array[float] = [0.0, 0.60, 0.30, 0.10]
+## Boss guaranteed drops [common, uncommon, rare, epic, legendary]
+const BOSS_DROP_RATES: Array[float] = [0.0, 0.50, 0.30, 0.15, 0.05]
+
+## Legendary proc effect definitions — each legendary item gets a random proc
+## Proc keys: "chain_lightning", "lifesteal", "thorns", "soul_explosion",
+##            "frost_slow", "burning"
+const LEGENDARY_PROCS: Array[Dictionary] = [
+	{"key": "chain_lightning", "name": "Chain Lightning",
+	 "desc": "15% chance on hit: arc lightning to 3 nearby enemies for 20 dmg",
+	 "chance": 0.15, "damage": 20.0, "targets": 3},
+	{"key": "lifesteal", "name": "Soul Drain",
+	 "desc": "On hit: heal 8% of damage dealt",
+	 "chance": 1.0, "percent": 0.08},
+	{"key": "thorns", "name": "Soul Thorns",
+	 "desc": "When hit: reflect 30% damage back to attacker",
+	 "chance": 1.0, "percent": 0.30},
+	{"key": "soul_explosion", "name": "Soul Explosion",
+	 "desc": "10% chance on kill: explode for 40 AOE damage",
+	 "chance": 0.10, "damage": 40.0, "radius": 80.0},
+	{"key": "frost_slow", "name": "Frozen Touch",
+	 "desc": "20% chance on hit: slow enemy by 50% for 2s",
+	 "chance": 0.20, "slow_amount": 0.5, "duration": 2.0},
+	{"key": "burning", "name": "Soulfire",
+	 "desc": "25% chance on hit: burn enemy for 5 dmg/sec for 3s",
+	 "chance": 0.25, "dps": 5.0, "duration": 3.0},
+]
 
 ## Create a new equipment item
 func create_equipment(slot_id: int, rarity: int) -> Dictionary:
 	var slot_data := SLOT_INFO[slot_id]
 	var rarity_data: Dictionary = RARITY_INFO[rarity]
-	return {
+	var item := {
 		"slot": slot_id,
 		"rarity": rarity,
 		"level": 0,
 		"name": _generate_name(slot_id, rarity),
 	}
+	# Legendary items get a proc effect
+	if rarity == Rarity.LEGENDARY:
+		var proc := LEGENDARY_PROCS[randi() % LEGENDARY_PROCS.size()]
+		item["proc"] = proc["key"]
+		item["proc_name"] = proc["name"]
+		item["proc_desc"] = proc["desc"]
+	return item
 
 ## Generate a thematic name based on slot and rarity
 func _generate_name(slot_id: int, rarity: int) -> String:
@@ -103,6 +135,7 @@ func _generate_name(slot_id: int, rarity: int) -> String:
 		Rarity.UNCOMMON: ["Sturdy", "Keen", "Dark", "Bound", "Carved"],
 		Rarity.RARE: ["Ancient", "Cursed", "Shadow", "Bone", "Spectral"],
 		Rarity.EPIC: ["Abyssal", "Dread", "Eternal", "Void-Touched", "Soul-Forged"],
+		Rarity.LEGENDARY: ["Godslayer's", "Riftborn", "Ascendant", "Primordial", "Mythic"],
 	}
 	var slot_names: Array[String] = ["Grimoire", "Robes", "Amulet", "Ring", "Boots", "Crown"]
 	var prefix_list: Array = prefixes[rarity]
@@ -153,22 +186,26 @@ func roll_enemy_drop(enemy_type: String, world_id: int) -> Dictionary:
 	# Later worlds increase drop rates
 	var world_bonus := 1.0 + world_id * 0.15
 
-	# World-gated rarity: Rare requires world 2+, Epic requires world 4+
+	# World-gated rarity: Rare requires world 2+, Epic requires world 4+, Legendary requires world 5
 	var max_rarity := Rarity.UNCOMMON
-	if world_id >= 4:
+	if world_id >= 5:
+		max_rarity = Rarity.LEGENDARY
+	elif world_id >= 4:
 		max_rarity = Rarity.EPIC
 	elif world_id >= 2:
 		max_rarity = Rarity.RARE
 
-	# Effective rates: inject rare/epic chances only when world-gated threshold is met
-	var effective_rates: Array[float] = [rates[0], rates[1], 0.0, 0.0]
+	# Effective rates: inject rare/epic/legendary chances only when world-gated threshold is met
+	var effective_rates: Array[float] = [rates[0], rates[1], 0.0, 0.0, 0.0]
 	if max_rarity >= Rarity.RARE:
 		effective_rates[Rarity.RARE] = 0.002 + world_id * 0.001
 	if max_rarity >= Rarity.EPIC:
 		effective_rates[Rarity.EPIC] = 0.001
+	if max_rarity >= Rarity.LEGENDARY:
+		effective_rates[Rarity.LEGENDARY] = 0.0003
 
-	# Roll from epic down to common (higher rarity checked first)
-	for rarity_idx in range(Rarity.EPIC, -1, -1):
+	# Roll from legendary down to common (higher rarity checked first)
+	for rarity_idx in range(Rarity.LEGENDARY, -1, -1):
 		var rate: float = effective_rates[rarity_idx] * world_bonus
 		if rate > 0.0 and randf() < rate:
 			var slot := randi() % SLOT_INFO.size()
@@ -180,10 +217,18 @@ func roll_enemy_drop(enemy_type: String, world_id: int) -> Dictionary:
 func roll_boss_drop(world_id: int) -> Dictionary:
 	var roll := randf()
 	var rarity := Rarity.UNCOMMON  # Default minimum
-	if roll < BOSS_DROP_RATES[Rarity.EPIC]:
-		rarity = Rarity.EPIC
-	elif roll < BOSS_DROP_RATES[Rarity.EPIC] + BOSS_DROP_RATES[Rarity.RARE]:
-		rarity = Rarity.RARE
+	var cumulative := 0.0
+	cumulative += BOSS_DROP_RATES[Rarity.LEGENDARY]
+	if roll < cumulative:
+		rarity = Rarity.LEGENDARY
+	else:
+		cumulative += BOSS_DROP_RATES[Rarity.EPIC]
+		if roll < cumulative:
+			rarity = Rarity.EPIC
+		else:
+			cumulative += BOSS_DROP_RATES[Rarity.RARE]
+			if roll < cumulative:
+				rarity = Rarity.RARE
 
 	# Enforce world-based minimum rarity floors
 	if world_id >= 5:
@@ -227,6 +272,11 @@ func get_set_bonuses(equipped_items: Array[Dictionary]) -> Dictionary:
 					bonuses["health_bonus"] += 40.0
 					bonuses["speed_mult"] += 0.10
 					bonuses["cdr"] += 0.10
+				Rarity.LEGENDARY:
+					bonuses["damage_mult"] += 0.40
+					bonuses["health_bonus"] += 60.0
+					bonuses["speed_mult"] += 0.15
+					bonuses["cdr"] += 0.15
 		if count >= 6:
 			# 6-piece bonus (stacks with 3-piece)
 			match rarity_id:
@@ -242,7 +292,26 @@ func get_set_bonuses(equipped_items: Array[Dictionary]) -> Dictionary:
 					bonuses["health_bonus"] += 60.0
 					bonuses["speed_mult"] += 0.15
 					bonuses["cdr"] += 0.15
+				Rarity.LEGENDARY:
+					bonuses["damage_mult"] += 0.60
+					bonuses["health_bonus"] += 100.0
+					bonuses["speed_mult"] += 0.20
+					bonuses["cdr"] += 0.20
 	return bonuses
+
+## Get all active proc effects from equipped items
+func get_equipped_procs(equipped_items: Array[Dictionary]) -> Array[Dictionary]:
+	var procs: Array[Dictionary] = []
+	for item in equipped_items:
+		if item.is_empty():
+			continue
+		if item.has("proc"):
+			var proc_key: String = item["proc"]
+			for proc_def in LEGENDARY_PROCS:
+				if proc_def["key"] == proc_key:
+					procs.append(proc_def)
+					break
+	return procs
 
 ## Get display color for a rarity
 func get_rarity_color(rarity: int) -> Color:
@@ -258,14 +327,25 @@ func get_slot_name(slot_id: int) -> String:
 
 ## Serialize equipment for save
 func equip_to_dict(equip: Dictionary) -> Dictionary:
-	return {"slot": equip["slot"], "rarity": equip["rarity"],
+	var d := {"slot": equip["slot"], "rarity": equip["rarity"],
 			"level": equip["level"], "name": equip.get("name", "")}
+	if equip.has("proc"):
+		d["proc"] = equip["proc"]
+		d["proc_name"] = equip.get("proc_name", "")
+		d["proc_desc"] = equip.get("proc_desc", "")
+	return d
 
 ## Deserialize equipment from save
 func dict_to_equip(data: Dictionary) -> Dictionary:
-	return {
+	var item := {
 		"slot": clampi(int(data.get("slot", 0)), 0, SLOT_INFO.size() - 1),
-		"rarity": clampi(int(data.get("rarity", 0)), 0, Rarity.EPIC),
+		"rarity": clampi(int(data.get("rarity", 0)), 0, Rarity.LEGENDARY),
 		"level": clampi(int(data.get("level", 0)), 0, MAX_LEVEL),
 		"name": str(data.get("name", "Unknown")),
 	}
+	# Restore proc fields for legendary items
+	if data.has("proc"):
+		item["proc"] = str(data["proc"])
+		item["proc_name"] = str(data.get("proc_name", ""))
+		item["proc_desc"] = str(data.get("proc_desc", ""))
+	return item
