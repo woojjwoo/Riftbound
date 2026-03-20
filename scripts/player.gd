@@ -43,6 +43,9 @@ const IFRAMES_DURATION: float = 0.4
 # Regen
 var regen_accumulator: float = 0.0
 
+# Prestige extra life tracking
+var _used_extra_life: bool = false
+
 # Command system
 var command_position: Vector2 = Vector2.ZERO
 var has_active_command: bool = false
@@ -267,6 +270,10 @@ func _try_shoot() -> void:
 	bolt_timer = bolt_cooldown * max(Game.upgrade_cooldown_mult, 0.2)
 
 	var dir := (get_global_mouse_position() - global_position).normalized()
+	# Apply auto-aim assist if enabled
+	var a11y_node := get_node_or_null("/root/A11y")
+	if a11y_node and a11y_node.has_method("apply_auto_aim"):
+		dir = a11y_node.apply_auto_aim(global_position, dir)
 	var scene := get_tree().current_scene
 	if scene == null:
 		return
@@ -425,7 +432,20 @@ func take_damage(amount: float, from_pos: Vector2 = Vector2.ZERO) -> void:
 	Game.request_shake(4.0)
 	Game.spawn_damage_number(reduced, global_position, Color(1.0, 0.3, 0.3))
 
+	# Notify milestones of damage taken (resets no-damage streak)
+	var milestones := get_node_or_null("/root/Milestones")
+	if milestones and milestones.has_method("on_player_damaged"):
+		milestones.on_player_damaged()
+
 	if current_health <= 0.0:
+		# Prestige: Undying Will — revive once per run at 30% HP
+		if Meta.has_prestige("prestige_extra_life") and not _used_extra_life:
+			_used_extra_life = true
+			current_health = max_health * 0.3
+			health_changed.emit(current_health, max_health)
+			Effects.spawn_level_up_burst(global_position)
+			Game.request_shake(6.0)
+			return
 		Game.trigger_game_over()
 
 func heal(amount: float) -> void:

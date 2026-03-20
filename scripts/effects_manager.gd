@@ -358,6 +358,212 @@ func spawn_particles(pos: Vector2, color: Color, count: int = 10, lifetime: floa
 	scene.add_child(particles)
 	_auto_free(particles, lifetime + 0.5)
 
+## World-specific ambient particle colors and styles
+const WORLD_PARTICLE_CONFIG: Dictionary = {
+	0: {"color": Color(0.6, 0.2, 0.8), "color2": Color(0.3, 0.1, 0.5), "name": "dark_wisps"},
+	1: {"color": Color(1.0, 0.6, 0.1), "color2": Color(0.9, 0.3, 0.0), "name": "ember_sparks"},
+	2: {"color": Color(0.5, 0.8, 1.0), "color2": Color(0.2, 0.4, 0.9), "name": "ice_crystals"},
+	3: {"color": Color(0.3, 0.9, 0.2), "color2": Color(0.5, 0.7, 0.1), "name": "toxic_bubbles"},
+	4: {"color": Color(0.7, 0.3, 1.0), "color2": Color(0.4, 0.0, 0.8), "name": "void_tears"},
+	5: {"color": Color(1.0, 0.95, 0.6), "color2": Color(1.0, 0.8, 0.3), "name": "holy_motes"},
+}
+
+## Spawn world-themed ambient particles around a position (e.g. player).
+func spawn_world_ambient(pos: Vector2, world_id: int) -> void:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	var config: Dictionary = WORLD_PARTICLE_CONFIG.get(world_id, WORLD_PARTICLE_CONFIG[0])
+	var c1: Color = config["color"]
+	var c2: Color = config["color2"]
+
+	var particles := CPUParticles2D.new()
+	particles.global_position = pos
+	particles.emitting = true
+	particles.one_shot = true
+	particles.explosiveness = 0.3
+	particles.amount = 6
+	particles.lifetime = 1.2
+	particles.speed_scale = 1.0
+
+	particles.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	particles.emission_sphere_radius = 40.0
+	particles.direction = Vector2(0, -1)
+	particles.spread = 90.0
+	particles.initial_velocity_min = 10.0
+	particles.initial_velocity_max = 40.0
+	particles.gravity = Vector2(0, -15.0) if world_id != 3 else Vector2(0, 10.0)
+	particles.damping_min = 10.0
+	particles.damping_max = 30.0
+
+	particles.scale_amount_min = 1.0
+	particles.scale_amount_max = 2.5
+	particles.scale_amount_curve = _create_fadeout_curve()
+
+	var gradient := Gradient.new()
+	gradient.set_color(0, Color(c1.r, c1.g, c1.b, 0.6))
+	gradient.set_color(1, Color(c2.r, c2.g, c2.b, 0.0))
+	gradient.add_point(0.4, Color(c1.r, c1.g, c1.b, 0.4))
+	particles.color_ramp = gradient
+
+	scene.add_child(particles)
+	_auto_free(particles, 1.8)
+
+## World-themed death explosion — replaces generic death for flavor.
+func spawn_world_death(pos: Vector2, world_id: int, enemy_type: String = "") -> void:
+	# Base death explosion
+	spawn_death_explosion(pos, enemy_type)
+
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	var config: Dictionary = WORLD_PARTICLE_CONFIG.get(world_id, WORLD_PARTICLE_CONFIG[0])
+	var c1: Color = config["color"]
+
+	# Extra world-flavored particles on death
+	var extra := CPUParticles2D.new()
+	extra.global_position = pos
+	extra.emitting = true
+	extra.one_shot = true
+	extra.explosiveness = 0.9
+	extra.lifetime = 0.5
+
+	match world_id:
+		1:  # Desert — upward ember shower
+			extra.amount = 10
+			extra.direction = Vector2(0, -1)
+			extra.spread = 40.0
+			extra.initial_velocity_min = 60.0
+			extra.initial_velocity_max = 140.0
+			extra.gravity = Vector2(0, -20.0)
+		2:  # Ice — outward ice shard burst
+			extra.amount = 8
+			extra.direction = Vector2.ZERO
+			extra.spread = 180.0
+			extra.initial_velocity_min = 80.0
+			extra.initial_velocity_max = 200.0
+			extra.gravity = Vector2(0, 60.0)
+		3:  # Swamp — slow rising poison cloud
+			extra.amount = 12
+			extra.direction = Vector2(0, -1)
+			extra.spread = 60.0
+			extra.initial_velocity_min = 20.0
+			extra.initial_velocity_max = 50.0
+			extra.gravity = Vector2(0, -10.0)
+			extra.lifetime = 0.8
+		4:  # Void — imploding particles
+			extra.amount = 10
+			extra.direction = Vector2.ZERO
+			extra.spread = 180.0
+			extra.initial_velocity_min = -60.0
+			extra.initial_velocity_max = -20.0
+			extra.gravity = Vector2.ZERO
+		5:  # Celestial — golden sparkle burst
+			extra.amount = 14
+			extra.direction = Vector2(0, -1)
+			extra.spread = 90.0
+			extra.initial_velocity_min = 50.0
+			extra.initial_velocity_max = 120.0
+			extra.gravity = Vector2(0, -30.0)
+		_:  # Dark realm — default dark wisps
+			extra.amount = 8
+			extra.direction = Vector2(0, -1)
+			extra.spread = 120.0
+			extra.initial_velocity_min = 30.0
+			extra.initial_velocity_max = 80.0
+			extra.gravity = Vector2.ZERO
+
+	extra.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	extra.emission_sphere_radius = 8.0
+	extra.damping_min = 40.0
+	extra.damping_max = 80.0
+	extra.scale_amount_min = 1.5
+	extra.scale_amount_max = 3.5
+	extra.scale_amount_curve = _create_fadeout_curve()
+
+	var gradient := Gradient.new()
+	gradient.set_color(0, Color(c1.r, c1.g, c1.b, 0.9))
+	gradient.set_color(1, Color(c1.r * 0.5, c1.g * 0.5, c1.b * 0.5, 0.0))
+	extra.color_ramp = gradient
+
+	scene.add_child(extra)
+	_auto_free(extra, 1.2)
+
+## Spawn extraction VFX — soul rising from corpse to player
+func spawn_extraction_vfx(from_pos: Vector2, to_pos: Vector2) -> void:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	var dir := (to_pos - from_pos).normalized()
+	var particles := CPUParticles2D.new()
+	particles.global_position = from_pos
+	particles.emitting = true
+	particles.one_shot = true
+	particles.explosiveness = 0.5
+	particles.amount = 10
+	particles.lifetime = 0.6
+
+	particles.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	particles.emission_sphere_radius = 6.0
+	particles.direction = dir
+	particles.spread = 25.0
+	particles.initial_velocity_min = 80.0
+	particles.initial_velocity_max = 150.0
+	particles.gravity = Vector2(0, -40.0)
+	particles.damping_min = 50.0
+	particles.damping_max = 100.0
+
+	particles.scale_amount_min = 2.0
+	particles.scale_amount_max = 4.0
+	particles.scale_amount_curve = _create_fadeout_curve()
+
+	var gradient := Gradient.new()
+	gradient.set_color(0, Color(0.3, 1.0, 0.5, 1.0))
+	gradient.set_color(1, Color(0.1, 0.6, 0.3, 0.0))
+	particles.color_ramp = gradient
+
+	scene.add_child(particles)
+	_auto_free(particles, 1.0)
+
+## Spawn rift closing VFX — swirling vortex effect
+func spawn_rift_close_vfx(pos: Vector2) -> void:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+
+	# Implosion ring
+	var implode := CPUParticles2D.new()
+	implode.global_position = pos
+	implode.emitting = true
+	implode.one_shot = true
+	implode.explosiveness = 0.6
+	implode.amount = 20
+	implode.lifetime = 0.7
+
+	implode.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	implode.emission_sphere_radius = 50.0
+	implode.direction = Vector2.ZERO
+	implode.spread = 180.0
+	implode.initial_velocity_min = -100.0
+	implode.initial_velocity_max = -30.0
+	implode.gravity = Vector2.ZERO
+	implode.damping_min = 20.0
+	implode.damping_max = 40.0
+
+	implode.scale_amount_min = 2.0
+	implode.scale_amount_max = 5.0
+	implode.scale_amount_curve = _create_fadeout_curve()
+
+	var gradient := Gradient.new()
+	gradient.set_color(0, Color(0.8, 0.3, 1.0, 1.0))
+	gradient.set_color(1, Color(0.2, 0.0, 0.4, 0.0))
+	gradient.add_point(0.5, Color(0.6, 0.2, 0.9, 0.7))
+	implode.color_ramp = gradient
+
+	scene.add_child(implode)
+	_auto_free(implode, 1.2)
+	Game.request_shake(6.0)
+
 ## Create a curve that fades from 1 -> 0 (used for scale_amount_curve).
 func _create_fadeout_curve() -> Curve:
 	var curve := Curve.new()

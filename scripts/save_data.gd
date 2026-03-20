@@ -117,6 +117,18 @@ var audio_master_volume: float = 0.8
 var audio_sfx_volume: float = 0.8
 var audio_music_volume: float = 0.6
 
+# Gameplay settings
+var screen_shake_enabled: bool = true
+var damage_numbers_enabled: bool = true
+var minimap_size: float = 1.0         # 0.5 = small, 1.0 = normal, 1.5 = large
+var hud_opacity: float = 1.0          # 0.3–1.0
+
+# Accessibility settings
+var colorblind_mode: int = 0          # 0=off, 1=deuteranopia, 2=protanopia, 3=tritanopia
+var font_size_scale: float = 1.0      # 0.8–1.5
+var auto_aim_enabled: bool = false
+var auto_aim_strength: float = 0.5    # 0.0–1.0, how aggressively auto-aim tracks
+
 # Shop upgrade definitions — cost scales with level
 const SHOP_UPGRADES: Array[Dictionary] = [
 	{"key": "perm_max_health", "name": "Vitality", "desc": "+20 Max HP", "value": 20.0,
@@ -317,6 +329,14 @@ func save_game() -> void:
 		"bestiary": bestiary,
 		"run_history": run_history,
 		"active_challenges": active_challenges,
+		"screen_shake_enabled": screen_shake_enabled,
+		"damage_numbers_enabled": damage_numbers_enabled,
+		"minimap_size": minimap_size,
+		"hud_opacity": hud_opacity,
+		"colorblind_mode": colorblind_mode,
+		"font_size_scale": font_size_scale,
+		"auto_aim_enabled": auto_aim_enabled,
+		"auto_aim_strength": auto_aim_strength,
 	}
 	var json_string := JSON.stringify(data)
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -419,6 +439,16 @@ func load_game() -> void:
 		for c in saved_challenges:
 			if c is String:
 				active_challenges.append(c)
+	# Gameplay settings
+	screen_shake_enabled = bool(data.get("screen_shake_enabled", true))
+	damage_numbers_enabled = bool(data.get("damage_numbers_enabled", true))
+	minimap_size = clampf(float(data.get("minimap_size", 1.0)), 0.5, 1.5)
+	hud_opacity = clampf(float(data.get("hud_opacity", 1.0)), 0.3, 1.0)
+	# Accessibility settings
+	colorblind_mode = clampi(int(data.get("colorblind_mode", 0)), 0, 3)
+	font_size_scale = clampf(float(data.get("font_size_scale", 1.0)), 0.8, 1.5)
+	auto_aim_enabled = bool(data.get("auto_aim_enabled", false))
+	auto_aim_strength = clampf(float(data.get("auto_aim_strength", 0.5)), 0.0, 1.0)
 	# Achievements — stored for AchievementManager to load on its own _ready
 	var saved_achievements = data.get("achievements", {})
 	if saved_achievements is Dictionary:
@@ -511,6 +541,14 @@ func reset_save() -> void:
 	bestiary = {}
 	run_history = []
 	active_challenges = []
+	screen_shake_enabled = true
+	damage_numbers_enabled = true
+	minimap_size = 1.0
+	hud_opacity = 1.0
+	colorblind_mode = 0
+	font_size_scale = 1.0
+	auto_aim_enabled = false
+	auto_aim_strength = 0.5
 	var ach_node := get_node_or_null("/root/Achievements")
 	if ach_node:
 		ach_node.unlocked = {}

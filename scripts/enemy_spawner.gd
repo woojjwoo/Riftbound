@@ -38,6 +38,15 @@ var _hazard_timer: float = 10.0
 var _hazard_interval: float = 12.0
 const MAX_HAZARDS: int = 8
 
+# Dynamic difficulty adjustment
+var _dd_eval_timer: float = 15.0  # Evaluate every 15 seconds
+const DD_EVAL_INTERVAL: float = 15.0
+var _dd_spawn_mult: float = 1.0   # Multiplier on spawn rate (0.5 = half, 2.0 = double)
+var _dd_recent_kills: int = 0
+var _dd_recent_damage_taken: float = 0.0
+var _dd_last_kill_count: int = 0
+var _dd_last_player_hp: float = -1.0
+
 ## World-specific enemy pools. Each world introduces new enemy types.
 ## Structure: Array of {scene, weight} dicts per world.
 var _world_pools: Array[Array] = []
@@ -76,9 +85,16 @@ func _process(delta: float) -> void:
 			_spawn_world_hazard()
 			_hazard_timer = _hazard_interval
 
+	# Dynamic difficulty evaluation
+	_dd_eval_timer -= delta
+	if _dd_eval_timer <= 0.0:
+		_evaluate_dynamic_difficulty()
+		_dd_eval_timer = DD_EVAL_INTERVAL
+
 func try_spawn() -> void:
+	var effective_max := int(max_enemies * _dd_spawn_mult)
 	var current_enemies := get_tree().get_nodes_in_group("enemies").size()
-	if current_enemies >= max_enemies:
+	if current_enemies >= effective_max:
 		return
 
 	var scene := _pick_enemy_scene()
@@ -284,3 +300,42 @@ func get_spawn_position() -> Vector2:
 	# Fallback
 	var angle := randf() * TAU
 	return player.global_position + Vector2(cos(angle), sin(angle)) * spawn_radius
+
+## Evaluate player performance and adjust spawn difficulty.
+## Criteria: kill rate (kills per evaluation window) and HP percentage.
+func _evaluate_dynamic_difficulty() -> void:
+	# Calculate kills in this window
+	_dd_recent_kills = Game.kill_count - _dd_last_kill_count
+	_dd_last_kill_count = Game.kill_count
+
+	# Track player HP
+	var players := get_tree().get_nodes_in_group("player")
+	var hp_ratio := 1.0
+	if players.size() > 0:
+		var p = players[0]
+		hp_ratio = p.current_health / max(p.max_health, 1.0)
+
+	# High kill rate + high HP = player dominating -> increase difficulty
+	# Low kill rate + low HP = player struggling -> ease off
+	var kill_score := clampf(float(_dd_recent_kills) / 8.0, 0.0, 2.0)  # 8 kills/window = 1.0
+	var hp_score := hp_ratio  # 1.0 = full, 0.0 = dead
+
+	# Combined performance (0.0 = struggling, 2.0+ = dominating)
+	var performance := kill_score * 0.6 + hp_score * 0.4
+
+	# Adjust spawn multiplier toward performance target
+	if performance > 1.2:
+		# Player is dominating — ramp up (max 1.8x)
+		_dd_spawn_mult = minf(_dd_spawn_mult + 0.1, 1.8)
+	elif performance > 0.8:
+		# Balanced — drift toward 1.0
+		_dd_spawn_mult = move_toward(_dd_spawn_mult, 1.0, 0.05)
+	elif performance > 0.4:
+		# Struggling slightly — ease off
+		_dd_spawn_mult = maxf(_dd_spawn_mult - 0.1, 0.6)
+	else:
+		# Severely struggling — significant relief
+		_dd_spawn_mult = maxf(_dd_spawn_mult - 0.15, 0.5)
+
+	# Also adjust spawn interval (faster when dominating)
+	spawn_interval = max(0.5, 2.0 / _dd_spawn_mult - 0.01 * Game.kill_count)

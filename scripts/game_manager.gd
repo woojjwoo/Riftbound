@@ -575,7 +575,8 @@ func get_process_name() -> String:
 	return ""
 
 func request_shake(intensity: float) -> void:
-	shake_camera.emit(intensity)
+	if SaveData.screen_shake_enabled:
+		shake_camera.emit(intensity)
 
 func hit_freeze(duration: float = 0.05) -> void:
 	if _freeze_timer <= 0.0:
@@ -584,6 +585,8 @@ func hit_freeze(duration: float = 0.05) -> void:
 	_freeze_timer = duration
 
 func spawn_damage_number(amount: float, pos: Vector2, color: Color = Color.WHITE) -> void:
+	if not SaveData.damage_numbers_enabled:
+		return
 	var scene := get_tree().current_scene
 	if scene == null:
 		return

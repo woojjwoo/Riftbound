@@ -384,87 +384,156 @@ func _draw_comparison(vp: Vector2, font: Font) -> void:
 	if item.is_empty():
 		return
 
+	var slot_id: int = item["slot"]
+	var slot_info := Equipment.SLOT_INFO[slot_id]
+	var rc := Equipment.get_rarity_color(item["rarity"])
+	var item_bonus := Equipment.get_stat_bonus(item)
+	var current := SaveData.equipped[slot_id]
+
 	var panel_x := vp.x * 0.44
 	var panel_w := vp.x * 0.53
-	var has_proc := item.has("proc_name")
-	var panel_h := 130.0 if has_proc else 115.0
-	var panel_y := vp.y - panel_h - 55.0
+	var panel_h := 170.0
+	var panel_y := vp.y - panel_h - 40.0
 
 	# Panel background
 	draw_rect(Rect2(panel_x, panel_y, panel_w, panel_h), Color(0.08, 0.06, 0.14, 0.95))
 	draw_rect(Rect2(panel_x, panel_y, panel_w, panel_h), Color(0.4, 0.3, 0.6, 0.4), false, 1.0)
 
-	var slot_id: int = item["slot"]
-	var slot_info := Equipment.SLOT_INFO[slot_id]
-	var rc := Equipment.get_rarity_color(item["rarity"])
-	var item_bonus := Equipment.get_stat_bonus(item)
+	# Side-by-side comparison header
+	var half_w := (panel_w - 20) / 2.0
+	var left_x := panel_x + 10
+	var right_x := panel_x + 10 + half_w + 10
+	var y_offset := panel_y + 16.0
 
-	# Item header
-	var name_str: String = item.get("name", "Unknown")
+	# Divider between sides
+	var div_cx := panel_x + panel_w / 2.0
+	draw_line(Vector2(div_cx, panel_y + 30), Vector2(div_cx, panel_y + panel_h - 30),
+		Color(0.3, 0.25, 0.45, 0.5), 1.0)
+
+	# --- LEFT SIDE: Inventory Item (New) ---
+	draw_string(font, Vector2(left_x, y_offset), "NEW ITEM",
+		HORIZONTAL_ALIGNMENT_LEFT, int(half_w), 10, Color(0.5, 0.8, 1.0))
+	y_offset += 16.0
+
+	var item_name: String = item.get("name", "Unknown")
 	if item["level"] > 0:
-		name_str += " +%d" % item["level"]
-	draw_string(font, Vector2(panel_x + 10, panel_y + 18), name_str,
-		HORIZONTAL_ALIGNMENT_LEFT, int(panel_w - 20), 13, rc)
+		item_name += " +%d" % item["level"]
+	draw_string(font, Vector2(left_x, y_offset), item_name,
+		HORIZONTAL_ALIGNMENT_LEFT, int(half_w), 12, rc)
+	y_offset += 16.0
 
-	draw_string(font, Vector2(panel_x + 10, panel_y + 34),
+	draw_string(font, Vector2(left_x, y_offset),
 		"%s %s" % [Equipment.get_rarity_name(item["rarity"]), slot_info["name"]],
-		HORIZONTAL_ALIGNMENT_LEFT, 200, 10, Color(rc.r * 0.7, rc.g * 0.7, rc.b * 0.7))
+		HORIZONTAL_ALIGNMENT_LEFT, int(half_w), 9,
+		Color(rc.r * 0.7, rc.g * 0.7, rc.b * 0.7))
+	y_offset += 14.0
 
-	# Item stat
-	var item_stat := _format_stat(slot_info, item_bonus)
-	draw_string(font, Vector2(panel_x + 10, panel_y + 52), item_stat,
-		HORIZONTAL_ALIGNMENT_LEFT, 200, 11, Color(0.5, 0.8, 0.5))
+	draw_string(font, Vector2(left_x, y_offset), _format_stat(slot_info, item_bonus),
+		HORIZONTAL_ALIGNMENT_LEFT, int(half_w), 11, Color(0.5, 0.8, 0.5))
+	y_offset += 14.0
 
-	# Compare with equipped
-	var current := SaveData.equipped[slot_id]
+	if item.has("proc_name"):
+		var proc_color := Equipment.get_rarity_color(Equipment.Rarity.LEGENDARY)
+		draw_string(font, Vector2(left_x, y_offset),
+			"[%s]" % item.get("proc_name", ""),
+			HORIZONTAL_ALIGNMENT_LEFT, int(half_w), 9,
+			Color(proc_color.r, proc_color.g, proc_color.b, 0.9))
+		y_offset += 12.0
+		draw_string(font, Vector2(left_x, y_offset),
+			item.get("proc_desc", ""),
+			HORIZONTAL_ALIGNMENT_LEFT, int(half_w), 8,
+			Color(proc_color.r * 0.8, proc_color.g * 0.8, proc_color.b * 0.8, 0.7))
+
+	# Rune sockets on new item
+	if item.has("rune_sockets"):
+		y_offset += 13.0
+		var sockets: int = item.get("rune_sockets", 0)
+		draw_string(font, Vector2(left_x, y_offset),
+			"Sockets: %d" % sockets,
+			HORIZONTAL_ALIGNMENT_LEFT, int(half_w), 9, Color(0.6, 0.5, 0.8))
+
+	# --- RIGHT SIDE: Currently Equipped ---
+	var ry := panel_y + 16.0
+	draw_string(font, Vector2(right_x, ry), "EQUIPPED",
+		HORIZONTAL_ALIGNMENT_LEFT, int(half_w), 10, Color(0.8, 0.7, 0.5))
+	ry += 16.0
+
 	if current.is_empty():
-		draw_string(font, Vector2(panel_x + 10, panel_y + 72),
-			"Slot empty — equip to gain bonus",
-			HORIZONTAL_ALIGNMENT_LEFT, int(panel_w - 20), 10, Color(0.4, 0.8, 0.4))
+		draw_string(font, Vector2(right_x, ry), "-- Empty --",
+			HORIZONTAL_ALIGNMENT_LEFT, int(half_w), 12, Color(0.4, 0.4, 0.5))
+		ry += 16.0
+		draw_string(font, Vector2(right_x, ry), "No stat bonus",
+			HORIZONTAL_ALIGNMENT_LEFT, int(half_w), 10, Color(0.4, 0.4, 0.5))
 	else:
+		var current_rc := Equipment.get_rarity_color(current["rarity"])
 		var current_bonus := Equipment.get_stat_bonus(current)
-		var diff := item_bonus - current_bonus
 		var current_name: String = current.get("name", "Unknown")
 		if current["level"] > 0:
 			current_name += " +%d" % current["level"]
-		var current_rc := Equipment.get_rarity_color(current["rarity"])
+		draw_string(font, Vector2(right_x, ry), current_name,
+			HORIZONTAL_ALIGNMENT_LEFT, int(half_w), 12, current_rc)
+		ry += 16.0
 
-		draw_string(font, Vector2(panel_x + 10, panel_y + 72),
-			"Equipped: %s (%s)" % [current_name, _format_stat(slot_info, current_bonus)],
-			HORIZONTAL_ALIGNMENT_LEFT, int(panel_w - 20), 10, current_rc)
+		draw_string(font, Vector2(right_x, ry),
+			"%s %s" % [Equipment.get_rarity_name(current["rarity"]), slot_info["name"]],
+			HORIZONTAL_ALIGNMENT_LEFT, int(half_w), 9,
+			Color(current_rc.r * 0.7, current_rc.g * 0.7, current_rc.b * 0.7))
+		ry += 14.0
 
-		# Diff line
+		draw_string(font, Vector2(right_x, ry), _format_stat(slot_info, current_bonus),
+			HORIZONTAL_ALIGNMENT_LEFT, int(half_w), 11, Color(0.5, 0.8, 0.5))
+		ry += 14.0
+
+		if current.has("proc_name"):
+			var proc_color := Equipment.get_rarity_color(Equipment.Rarity.LEGENDARY)
+			draw_string(font, Vector2(right_x, ry),
+				"[%s]" % current.get("proc_name", ""),
+				HORIZONTAL_ALIGNMENT_LEFT, int(half_w), 9,
+				Color(proc_color.r, proc_color.g, proc_color.b, 0.9))
+
+		if current.has("rune_sockets"):
+			ry += 13.0
+			draw_string(font, Vector2(right_x, ry),
+				"Sockets: %d" % current.get("rune_sockets", 0),
+				HORIZONTAL_ALIGNMENT_LEFT, int(half_w), 9, Color(0.6, 0.5, 0.8))
+
+	# --- BOTTOM: Stat diff summary ---
+	var diff_y := panel_y + panel_h - 32.0
+	if not current.is_empty():
+		var current_bonus := Equipment.get_stat_bonus(current)
+		var diff := item_bonus - current_bonus
 		var diff_text: String
 		var diff_color: Color
 		if abs(diff) < 0.001:
-			diff_text = "No change"
+			diff_text = "= No Change"
 			diff_color = Color(0.6, 0.6, 0.6)
 		elif diff > 0:
+			var arrow := "^"
 			if slot_info["per_level"] < 1.0:
-				diff_text = "Upgrade: +%d%%" % int(diff * 100)
+				diff_text = "%s UPGRADE: +%d%% %s" % [arrow, int(diff * 100), slot_info["stat"]]
 			else:
-				diff_text = "Upgrade: +%.1f" % diff
+				diff_text = "%s UPGRADE: +%.1f %s" % [arrow, diff, slot_info["stat"]]
 			diff_color = Color(0.3, 1.0, 0.4)
 		else:
+			var arrow := "v"
 			if slot_info["per_level"] < 1.0:
-				diff_text = "Downgrade: %d%%" % int(diff * 100)
+				diff_text = "%s DOWNGRADE: %d%% %s" % [arrow, int(diff * 100), slot_info["stat"]]
 			else:
-				diff_text = "Downgrade: %.1f" % diff
+				diff_text = "%s DOWNGRADE: %.1f %s" % [arrow, diff, slot_info["stat"]]
 			diff_color = Color(1.0, 0.3, 0.3)
 
-		draw_string(font, Vector2(panel_x + 10, panel_y + 90), diff_text,
-			HORIZONTAL_ALIGNMENT_LEFT, int(panel_w - 20), 11, diff_color)
+		# Diff bar background
+		draw_rect(Rect2(panel_x + 10, diff_y - 2, panel_w - 20, 18), Color(0.1, 0.08, 0.15, 0.8))
+		draw_string(font, Vector2(panel_x + panel_w / 2.0 - 100, diff_y + 10), diff_text,
+			HORIZONTAL_ALIGNMENT_CENTER, 200, 11, diff_color)
+	else:
+		draw_rect(Rect2(panel_x + 10, diff_y - 2, panel_w - 20, 18), Color(0.1, 0.08, 0.15, 0.8))
+		draw_string(font, Vector2(panel_x + panel_w / 2.0 - 80, diff_y + 10),
+			"^ EQUIP for bonus",
+			HORIZONTAL_ALIGNMENT_CENTER, 160, 11, Color(0.4, 0.8, 0.4))
 
-	# Legendary proc description
-	if item.has("proc_name"):
-		var proc_y := panel_y + 90 if current.is_empty() else panel_y + 100
-		var proc_color := Equipment.get_rarity_color(Equipment.Rarity.LEGENDARY)
-		draw_string(font, Vector2(panel_x + 10, proc_y),
-			"[%s] %s" % [item.get("proc_name", ""), item.get("proc_desc", "")],
-			HORIZONTAL_ALIGNMENT_LEFT, int(panel_w - 20), 9, Color(proc_color.r, proc_color.g, proc_color.b, 0.9))
-
-	# Equip hint
-	draw_string(font, Vector2(panel_x + panel_w - 140, panel_y + 112),
+	# Controls hint at bottom
+	draw_string(font, Vector2(panel_x + panel_w - 140, panel_y + panel_h - 12),
 		"Enter: Equip  |  X: Scrap",
 		HORIZONTAL_ALIGNMENT_RIGHT, 130, 9, Color(0.5, 0.45, 0.6))
 
