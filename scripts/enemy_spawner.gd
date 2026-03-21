@@ -188,7 +188,7 @@ func _pick_enemy_scene() -> PackedScene:
 	for i in range(available_count):
 		total_weight += pool[i]["weight"]
 
-	var roll := randi() % max(total_weight, 1)
+	var roll: int = randi() % max(total_weight, 1)
 	var cumulative: int = 0
 	for i in range(available_count):
 		cumulative += pool[i]["weight"]

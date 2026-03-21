@@ -65,12 +65,16 @@ func spawn_hit_sparks(pos: Vector2, color: Color = Color.WHITE) -> void:
 
 ## Spawn death explosion particles at a position (when an enemy dies).
 ## Color-coded by enemy type.
-func spawn_death_explosion(pos: Vector2, enemy_type: String = "") -> void:
+func spawn_death_explosion(pos: Vector2, enemy_type_or_color = "") -> void:
 	var scene := get_tree().current_scene
 	if scene == null:
 		return
 
-	var color: Color = ENEMY_COLORS.get(enemy_type, DEFAULT_COLOR)
+	var color: Color
+	if enemy_type_or_color is Color:
+		color = enemy_type_or_color
+	else:
+		color = ENEMY_COLORS.get(enemy_type_or_color, DEFAULT_COLOR)
 
 	# Outer burst particles
 	var burst := CPUParticles2D.new()

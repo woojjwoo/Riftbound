@@ -121,7 +121,7 @@ func _scrap_selected() -> void:
 		return
 	var item := SaveData.inventory[inv_cursor]
 	# Scrap value: base 5 coins + 5 per rarity tier + 3 per upgrade level
-	var scrap_value := 5 + item["rarity"] * 5 + item["level"] * 3
+	var scrap_value: int = 5 + item["rarity"] * 5 + item["level"] * 3
 	SaveData.inventory.remove_at(inv_cursor)
 	SaveData.add_coins(scrap_value)
 	SaveData.equipment_changed.emit()

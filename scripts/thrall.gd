@@ -409,7 +409,7 @@ func _taunt() -> void:
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		if global_position.distance_to(enemy.global_position) < taunt_radius:
 			if not enemy.get("is_dying") and enemy.has_method("take_damage"):
-				var pull_dir := enemy.global_position.direction_to(global_position)
+				var pull_dir: Vector2 = enemy.global_position.direction_to(global_position)
 				enemy.knockback_velocity = pull_dir * 80.0
 	sprite.modulate = Color(1.0, 0.8, 0.3)
 	var tween := create_tween()

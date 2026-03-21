@@ -235,7 +235,7 @@ func _spawn_boss() -> void:
 	var boss_scene := load("res://scenes/boss.tscn")
 	var angle := randf() * TAU
 	var pos := global_position + Vector2(cos(angle), sin(angle)) * 80.0
-	var boss := boss_scene.instantiate()
+	var boss: Node = boss_scene.instantiate()
 	boss.global_position = pos
 	get_tree().current_scene.add_child(boss)
 	Game.on_boss_spawned()

@@ -275,7 +275,7 @@ func _start_next_pattern() -> void:
 			patterns.append(BossState.CHARGE_WINDUP)
 
 	# Cycle through patterns with some randomness
-	var chosen := patterns[pattern_index % patterns.size()]
+	var chosen: int = patterns[pattern_index % patterns.size()]
 	state = chosen
 
 	match chosen:
@@ -513,7 +513,7 @@ func _do_world_phase_mechanic(phase: int) -> void:
 				)
 		4:  # Void Sovereign: teleport behind player + AoE burst
 			if player and is_instance_valid(player):
-				var behind := player.global_position + player.velocity.normalized() * -60.0
+				var behind: Vector2 = player.global_position + player.velocity.normalized() * -60.0
 				Effects.spawn_particles(global_position, Color(0.6, 0.1, 0.9), 12, 0.4)
 				global_position = behind
 				Effects.spawn_particles(global_position, Color(0.8, 0.2, 1.0), 16, 0.4)
@@ -597,7 +597,7 @@ func _boss_frost_ring() -> void:
 	var radius = 140.0 if not enraged else 200.0
 	if player and global_position.distance_to(player.global_position) < radius:
 		# Slow the player temporarily
-		var original_speed := player.move_speed
+		var original_speed: float = player.move_speed
 		player.move_speed *= 0.5
 		player.sprite.modulate = Color(0.5, 0.7, 1.0)
 		get_tree().create_timer(2.0).timeout.connect(func():
@@ -726,7 +726,7 @@ func _draw() -> void:
 		for i in range(7):
 			var seed_val := float(i) * 73.1
 			var fx := sin(_draw_timer * 6.0 + seed_val) * 14.0
-			var fy := -10.0 - abs(sin(_draw_timer * 8.0 + seed_val * 0.5)) * 12.0
+			var fy: float = -10.0 - abs(sin(_draw_timer * 8.0 + seed_val * 0.5)) * 12.0
 			var flame_size := 2.0 + sin(_draw_timer * 10.0 + seed_val) * 0.8
 			var flame_color := Color(1.0, 0.4 + 0.3 * sin(_draw_timer * 7.0 + seed_val), 0.1, 0.6 * burn_alpha)
 			draw_circle(Vector2(fx, fy), flame_size, flame_color)

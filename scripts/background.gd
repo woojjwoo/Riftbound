@@ -107,9 +107,9 @@ func _draw() -> void:
 	_draw_atmosphere(cam_pos, viewport_size)
 
 	# Grid lines
-	var start_x := snapped(cam_pos.x - viewport_size.x, grid_size) - grid_size * padding
+	var start_x: float = snapped(cam_pos.x - viewport_size.x, grid_size) - grid_size * padding
 	var end_x := cam_pos.x + viewport_size.x + grid_size * padding
-	var start_y := snapped(cam_pos.y - viewport_size.y, grid_size) - grid_size * padding
+	var start_y: float = snapped(cam_pos.y - viewport_size.y, grid_size) - grid_size * padding
 	var end_y := cam_pos.y + viewport_size.y + grid_size * padding
 
 	# Vertical lines

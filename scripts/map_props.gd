@@ -110,7 +110,7 @@ func _gen_corridors(templates: Array, count: int) -> void:
 		for i in range(per_corridor):
 			var along := (float(i) - per_corridor / 2.0) * 50.0
 			var sign_val = 1.0 if i % 2 == 0 else -1.0
-			var pos := perp * along + side * (gap * sign_val)
+			var pos: Vector2 = perp * along + side * (gap * sign_val)
 			if pos.length() < PLAYER_SAFE_ZONE:
 				continue
 			var tmpl: Dictionary = templates[randi() % templates.size()]
@@ -250,8 +250,8 @@ func get_push_out(pos: Vector2, radius: float = 8.0) -> Vector2:
 		var dy := pos.y - ppos.y
 		if abs(dx) < half_w and abs(dy) < half_h:
 			# Push out along shortest axis
-			var overlap_x := half_w - abs(dx)
-			var overlap_y := half_h - abs(dy)
+			var overlap_x: float = half_w - abs(dx)
+			var overlap_y: float = half_h - abs(dy)
 			if overlap_x < overlap_y:
 				push.x += sign(dx) * overlap_x
 			else:

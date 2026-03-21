@@ -60,7 +60,7 @@ func _apply_effects() -> void:
 					if p.has_method("take_damage"):
 						p.take_damage(damage * 0.5, Vector2.ZERO)
 				HazardType.GRAVITY_WELL:
-					var pull_dir := p.global_position.direction_to(global_position)
+					var pull_dir: Vector2 = p.global_position.direction_to(global_position)
 					if "knockback_velocity" in p:
 						p.knockback_velocity += pull_dir * 80.0
 				HazardType.LIGHT_BEAM:

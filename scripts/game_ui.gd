@@ -412,7 +412,7 @@ func _open_inventory() -> void:
 		inventory_open = false
 		get_tree().paused = false
 		return
-	var inv_instance := inv_scene.instantiate()
+	var inv_instance: Node = inv_scene.instantiate()
 	inv_instance.tree_exited.connect(_on_inventory_closed)
 	var scene := get_tree().current_scene
 	if scene:

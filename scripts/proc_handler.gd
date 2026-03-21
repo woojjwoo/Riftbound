@@ -65,7 +65,7 @@ func on_hit(enemy: Node2D, damage_dealt: float) -> void:
 func on_hit_taken(damage: float, attacker: Node2D) -> void:
 	for proc in active_procs:
 		if proc["key"] == "thorns" and attacker != null and is_instance_valid(attacker):
-			var reflect := damage * proc["percent"]
+			var reflect: float = damage * proc["percent"]
 			if attacker.has_method("take_damage"):
 				attacker.take_damage(reflect)
 				Effects.spawn_hit_sparks(attacker.global_position, Color(0.8, 0.4, 1.0))
@@ -111,7 +111,7 @@ func _proc_chain_lightning(source_enemy: Node2D, proc: Dictionary) -> void:
 func _proc_lifesteal(damage_dealt: float, proc: Dictionary) -> void:
 	if player == null or not is_instance_valid(player):
 		return
-	var heal_amount := damage_dealt * proc["percent"]
+	var heal_amount: float = damage_dealt * proc["percent"]
 	if heal_amount >= 1.0:
 		player.heal(heal_amount)
 		Audio.play_proc_lifesteal()
@@ -199,9 +199,9 @@ func _proc_void_rift(enemy: Node2D, proc: Dictionary) -> void:
 			for e in get_tree().get_nodes_in_group("enemies"):
 				if not is_instance_valid(e) or e.get("is_dying"):
 					continue
-				var dist := e.global_position.distance_to(pos)
+				var dist: float = e.global_position.distance_to(pos)
 				if dist < 150.0 and dist > 10.0:
-					var dir := e.global_position.direction_to(pos)
+					var dir: Vector2 = e.global_position.direction_to(pos)
 					e.knockback_velocity += dir * pull_strength * 0.1
 		)
 	Effects.spawn_particles(pos, Color(0.6, 0.1, 0.9), 16, 0.6)

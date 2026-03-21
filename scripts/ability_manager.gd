@@ -208,7 +208,7 @@ func _do_shield_bash(stats: Dictionary) -> void:
 				enemy.take_damage(damage)
 			# Knockback via tween
 			var dir := player.global_position.direction_to(enemy.global_position)
-			var target_pos := enemy.global_position + dir * knockback
+			var target_pos: Vector2 = enemy.global_position + dir * knockback
 			var tween := create_tween()
 			tween.tween_property(enemy, "global_position", target_pos, 0.2)
 
