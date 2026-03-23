@@ -94,6 +94,10 @@ var _retreat_active: bool = false
 var _flank_offset: Vector2 = Vector2.ZERO
 var _pack_bonus_applied: bool = false
 
+# Hitstun
+var _hitstun_timer: float = 0.0
+const HITSTUN_DURATION: float = 0.12
+
 # Draw helpers
 var _draw_timer: float = 0.0
 
@@ -174,6 +178,15 @@ func _physics_process(delta: float) -> void:
 	retarget_timer -= delta
 	_draw_timer += delta
 
+	# Hitstun — briefly freeze enemy movement on hit
+	if _hitstun_timer > 0.0:
+		_hitstun_timer -= delta
+		knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
+		velocity = knockback_velocity
+		move_and_slide()
+		queue_redraw()
+		return
+
 	# Retarget periodically
 	if retarget_timer <= 0.0:
 		_retarget()
@@ -204,13 +217,23 @@ func _physics_process(delta: float) -> void:
 				_shoot_at(chase_target)
 				ranged_timer = ranged_cooldown
 		"flying":
+			# Swooping attack pattern — circle then dive in
 			dir = dir.rotated(sin(fly_time * 3.0) * 0.5)
+			if dist <= attack_range * 0.6:
+				# Strafe sideways when close
+				dir = dir.rotated(PI / 2.0 * sign(sin(fly_time * 2.0)))
 			if dist <= attack_range and ranged_timer <= 0.0:
 				_shoot_at(chase_target)
 				ranged_timer = ranged_cooldown
 			sprite.position.y = sin(fly_time * 4.0) * fly_amplitude * 0.3
 		"exploder":
-			dir = dir * 1.5
+			# Rush toward target, but back off briefly after getting close then re-approach
+			if dist < explode_radius * 0.8:
+				dir = dir * 2.0  # Final rush
+			elif dist < explode_radius * 2.0:
+				dir = dir * 1.5  # Aggressive approach
+			else:
+				dir = dir * 1.2
 		"charger":
 			_process_charger(delta, dir, dist)
 			# charger handles its own velocity
@@ -272,8 +295,25 @@ func _physics_process(delta: float) -> void:
 		dir = -dir  # Run away
 		effective_speed *= 1.2
 
+	# AI: Tank positioning — tanks try to stay between player and weaker allies
+	if enemy_type == "tank" and not _retreat_active:
+		var weakest_ally: Node2D = null
+		var weakest_hp := 999999.0
+		for enemy in get_tree().get_nodes_in_group("enemies"):
+			if enemy == self or enemy.get("is_dying") or enemy.get("enemy_type") == "tank":
+				continue
+			if global_position.distance_to(enemy.global_position) < 100.0:
+				var hp: float = enemy.get("current_health") if enemy.get("current_health") != null else 999999.0
+				if hp < weakest_hp:
+					weakest_hp = hp
+					weakest_ally = enemy
+		if weakest_ally:
+			# Position between player and weak ally
+			var midpoint: Vector2 = (chase_target.global_position + weakest_ally.global_position) * 0.5
+			dir = global_position.direction_to(midpoint)
+
 	# AI: Flanking — melee/charger enemies try to approach from the side
-	if enemy_type in ["melee", "charger", "tank"] and not _retreat_active:
+	if enemy_type in ["melee", "charger"] and not _retreat_active:
 		if _flank_offset == Vector2.ZERO:
 			# Pick a flank side based on instance ID for consistency
 			var side = 1.0 if get_instance_id() % 2 == 0 else -1.0
@@ -301,6 +341,18 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 	_animate_sprite()
+
+	# Shielded enemy — position in front of nearby allies to bodyblock
+	if enemy_type == "shielded" and has_shield and not _retreat_active:
+		for ally in get_tree().get_nodes_in_group("enemies"):
+			if ally == self or ally.get("is_dying"):
+				continue
+			if ally.get("enemy_type") in ["summoner", "ranged", "poisoner"]:
+				if global_position.distance_to(ally.global_position) < 80.0:
+					# Move between ally and player
+					var block_pos: Vector2 = (ally.global_position + chase_target.global_position) * 0.5
+					dir = global_position.direction_to(block_pos)
+					break
 
 	if enemy_type == "exploder" and dist < explode_radius * 2:
 		var pulse := 0.5 + 0.5 * sin(fly_time * 10.0)
@@ -476,15 +528,22 @@ func _drop_poison() -> void:
 func _do_teleport() -> void:
 	if player == null:
 		return
-	var angle := randf() * TAU
-	var offset := Vector2(cos(angle), sin(angle)) * randf_range(50.0, teleport_range)
-	var target_pos := player.global_position + offset
+	# Teleport behind the player's movement direction for ambush attacks
+	var behind_dir: Vector2
+	if player.velocity.length() > 10.0:
+		behind_dir = -player.velocity.normalized()
+	else:
+		behind_dir = player.global_position.direction_to(global_position)
+	var target_pos := player.global_position + behind_dir * randf_range(40.0, 80.0)
+	# VFX at departure
+	Effects.spawn_hit_sparks(global_position, Color(0.6, 0.2, 1.0))
 	var tween := create_tween()
-	tween.tween_property(sprite, "modulate:a", 0.0, 0.15)
+	tween.tween_property(sprite, "modulate:a", 0.0, 0.12)
 	tween.tween_callback(func():
 		global_position = target_pos
+		Effects.spawn_hit_sparks(global_position, Color(0.6, 0.2, 1.0))
 	)
-	tween.tween_property(sprite, "modulate:a", 1.0, 0.15)
+	tween.tween_property(sprite, "modulate:a", 1.0, 0.12)
 
 func _split() -> void:
 	if split_scene == null:
@@ -545,9 +604,18 @@ func take_damage(amount: float) -> void:
 
 	current_health -= amount
 
+	# Hitstun — enemy staggers briefly on each hit
+	_hitstun_timer = HITSTUN_DURATION
+
 	if player:
 		var kb_dir := player.global_position.direction_to(global_position)
-		knockback_velocity = kb_dir * 150.0
+		# Scale knockback by enemy type — lighter enemies fly further
+		var kb_mult := 1.0
+		match enemy_type:
+			"tank", "shielded": kb_mult = 0.5
+			"exploder", "flying": kb_mult = 1.5
+			"charger": kb_mult = 0.7
+		knockback_velocity = kb_dir * 150.0 * kb_mult
 
 	sprite.modulate = Color(3, 3, 3)
 	var tween := create_tween()

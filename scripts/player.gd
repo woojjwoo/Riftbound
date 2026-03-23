@@ -25,6 +25,13 @@ var bolt_timer: float = 0.0
 var facing: String = "side"
 var facing_right: bool = true
 var knockback_velocity: Vector2 = Vector2.ZERO
+var current_velocity: Vector2 = Vector2.ZERO  # For acceleration smoothing
+const ACCEL: float = 1800.0
+const DECEL: float = 2400.0
+
+# Attack animation
+var _attack_anim_timer: float = 0.0
+const ATTACK_ANIM_DURATION: float = 0.25
 
 # Dash
 var dash_speed: float = 600.0
@@ -225,11 +232,16 @@ func _physics_process(delta: float) -> void:
 			sprite.frame = int(Time.get_ticks_msec() / 100) % 6
 			return
 
-	# Normal movement
+	# Normal movement with acceleration/deceleration
 	knockback_velocity = knockback_velocity.lerp(Vector2.ZERO, 10.0 * delta)
 	var ability_speed: float = ability_manager.get_speed_multiplier() if ability_manager else 1.0
 	var effective_speed: float = move_speed * Game.upgrade_speed_mult * ability_speed
-	velocity = input.normalized() * effective_speed + knockback_velocity
+	var target_velocity := input.normalized() * effective_speed
+	if input.length() > 0.1:
+		current_velocity = current_velocity.move_toward(target_velocity, ACCEL * delta)
+	else:
+		current_velocity = current_velocity.move_toward(Vector2.ZERO, DECEL * delta)
+	velocity = current_velocity + knockback_velocity
 	move_and_slide()
 
 	# Face toward mouse cursor
@@ -242,7 +254,11 @@ func _physics_process(delta: float) -> void:
 	else:
 		facing = "up"
 
-	if input.length() > 0.1:
+	# Attack animation timer
+	if _attack_anim_timer > 0.0:
+		_attack_anim_timer -= delta
+		_set_animation("attack")
+	elif input.length() > 0.1:
 		_set_animation("run")
 	else:
 		_set_animation("idle")
@@ -282,7 +298,12 @@ func _try_shoot() -> void:
 	proj.setup(dir, bolt_damage * Game.upgrade_attack_mult, "enemies")
 	scene.add_child(proj)
 	Audio.play_shoot()
+	_attack_anim_timer = ATTACK_ANIM_DURATION
 	_set_animation("attack")
+	# Attack recoil — brief squash for impact feel
+	sprite.scale = Vector2(0.85, 1.15)
+	var recoil_tween := create_tween()
+	recoil_tween.tween_property(sprite, "scale", Vector2(1.0, 1.0), 0.1).set_ease(Tween.EASE_OUT)
 
 # --- Thrall Commands ---
 
@@ -330,6 +351,7 @@ func _start_dash(dir: Vector2) -> void:
 	dash_timer = dash_duration
 	dash_cooldown_timer = dash_cooldown
 	sprite.modulate = Color(1.5, 1.5, 2.0, 0.7)
+	Game.request_shake(5.0)
 	Audio.play_dash()
 
 func _end_dash() -> void:
@@ -337,6 +359,11 @@ func _end_dash() -> void:
 	if iframes_timer <= 0.0:
 		is_invincible = false
 	sprite.modulate = Color.WHITE
+	# Landing impact — brief squash + small shake
+	Game.request_shake(3.0)
+	sprite.scale = Vector2(1.2, 0.8)
+	var land_tween := create_tween()
+	land_tween.tween_property(sprite, "scale", Vector2(1.0, 1.0), 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
 
 func _spawn_afterimage() -> void:
 	var ghost := Sprite2D.new()
@@ -345,7 +372,7 @@ func _spawn_afterimage() -> void:
 	ghost.frame = sprite.frame
 	ghost.flip_h = sprite.flip_h
 	ghost.global_position = global_position
-	ghost.modulate = Color(0.3, 0.5, 1.0, 0.5)
+	ghost.modulate = Color(0.5, 0.7, 1.5, 0.7)
 	ghost.z_index = -1
 	var scene := get_tree().current_scene
 	if scene == null:
@@ -445,8 +472,23 @@ func take_damage(amount: float, from_pos: Vector2 = Vector2.ZERO) -> void:
 			health_changed.emit(current_health, max_health)
 			Effects.spawn_level_up_burst(global_position)
 			Game.request_shake(6.0)
+			# Revive ceremony — flash + invincibility pulse
+			Game.hit_freeze(0.1)
+			is_invincible = true
+			iframes_timer = 1.0
 			return
-		Game.trigger_game_over()
+		# Death sequence — dramatic freeze + visual
+		Game.hit_freeze(0.2)
+		Game.request_shake(12.0)
+		Effects.spawn_death_explosion(global_position, "tank")
+		_set_animation("idle")
+		sprite.modulate = Color(2.0, 0.3, 0.3)
+		var death_tween := create_tween()
+		death_tween.set_parallel(true)
+		death_tween.tween_property(sprite, "modulate:a", 0.0, 0.8)
+		death_tween.tween_property(sprite, "scale", Vector2(1.5, 1.5), 0.8).set_ease(Tween.EASE_OUT)
+		death_tween.tween_property(sprite, "rotation", randf_range(-0.5, 0.5), 0.8)
+		death_tween.chain().tween_callback(func(): Game.trigger_game_over())
 
 func heal(amount: float) -> void:
 	current_health = min(current_health + amount, max_health)

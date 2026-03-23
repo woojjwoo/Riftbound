@@ -54,6 +54,8 @@ func _on_body_entered(body: Node2D) -> void:
 			body.take_damage(damage, global_position)
 		else:
 			body.take_damage(damage)
+			# Hit freeze on enemy impact — brief pause sells the hit
+			Game.hit_freeze(0.04)
 			# Trigger legendary proc effects on enemy hit (player bolts only)
 			if target_group == "enemies":
 				_trigger_procs(body)

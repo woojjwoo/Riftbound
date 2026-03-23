@@ -22,11 +22,26 @@ func setup(amount: float, col: Color = Color.WHITE) -> void:
 	# Wider horizontal random offset to prevent vertical stacking
 	drift_x = randf_range(-25, 25)
 	position += Vector2(randf_range(-8, 8), -12)
-	if amount >= 20:
+	# Scale size and punch by damage amount for visceral feedback
+	if amount >= 50:
+		font_size = 18
+		base_scale = 1.6
+		punch_scale = 2.2
+		rise_speed = 55.0
+		lifetime = 0.9
+	elif amount >= 20:
 		font_size = 14
-		base_scale = 1.2
+		base_scale = 1.3
+		punch_scale = 1.8
+		rise_speed = 45.0
+		lifetime = 0.8
+	elif amount >= 10:
+		font_size = 12
+		base_scale = 1.1
+		punch_scale = 1.6
+	else:
+		punch_scale = 1.4
 	# Spawn punch: scale up then back down
-	punch_scale = 1.6
 	var tween := create_tween()
 	tween.tween_property(self, "punch_scale", 1.0, 0.2).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
 
