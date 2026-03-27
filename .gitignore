@@ -7,3 +7,5 @@ export_presets.cfg
 .DS_Store
 Thumbs.db
 desktop.ini
+# Claude Code (keep hooks and settings)
+.claude/worktrees/

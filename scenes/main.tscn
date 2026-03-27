@@ -1,29 +1,30 @@
-[gd_scene load_steps=9 format=3 uid="uid://main001"]
+[gd_scene load_steps=8 format=3 uid="uid://main001"]
 
 [ext_resource type="PackedScene" uid="uid://player001" path="res://scenes/player.tscn" id="1"]
-[ext_resource type="PackedScene" uid="uid://enemy_melee001" path="res://scenes/enemy_melee.tscn" id="2"]
-[ext_resource type="PackedScene" uid="uid://enemy_ranged001" path="res://scenes/enemy_ranged.tscn" id="3"]
-[ext_resource type="PackedScene" uid="uid://enemy_tank001" path="res://scenes/enemy_tank.tscn" id="4"]
-[ext_resource type="PackedScene" uid="uid://boss001" path="res://scenes/boss.tscn" id="5"]
 [ext_resource type="PackedScene" uid="uid://thrall001" path="res://scenes/thrall.tscn" id="6"]
 [ext_resource type="PackedScene" uid="uid://arise001" path="res://scenes/arise_vfx.tscn" id="7"]
 [ext_resource type="PackedScene" uid="uid://gameui001" path="res://scenes/game_ui.tscn" id="8"]
-[ext_resource type="Script" path="res://scripts/enemy_spawner.gd" id="9"]
+[ext_resource type="Script" path="res://scripts/camera_controller.gd" id="10"]
+[ext_resource type="Script" path="res://scripts/background.gd" id="13"]
+[ext_resource type="Script" path="res://scripts/rift_manager.gd" id="14"]
 
 [node name="Main" type="Node2D"]
+
+[node name="Background" type="Node2D" parent="."]
+z_index = -10
+script = ExtResource("13")
 
 [node name="Player" parent="." instance=ExtResource("1")]
 thrall_scene = ExtResource("6")
 arise_vfx_scene = ExtResource("7")
 
 [node name="Camera2D" type="Camera2D" parent="Player"]
-zoom = Vector2(1.5, 1.5)
+zoom = Vector2(1.2, 1.2)
+position_smoothing_enabled = true
+position_smoothing_speed = 8.0
+script = ExtResource("10")
 
-[node name="EnemySpawner" type="Node2D" parent="."]
-script = ExtResource("9")
-enemy_melee_scene = ExtResource("2")
-enemy_ranged_scene = ExtResource("3")
-enemy_tank_scene = ExtResource("4")
-boss_scene = ExtResource("5")
+[node name="RiftManager" type="Node2D" parent="."]
+script = ExtResource("14")
 
 [node name="GameUI" parent="." instance=ExtResource("8")]

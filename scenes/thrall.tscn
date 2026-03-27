@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://thrall001"]
+[gd_scene load_steps=5 format=3 uid="uid://thrall001"]
 
 [ext_resource type="Script" path="res://scripts/thrall.gd" id="1"]
 [ext_resource type="Texture2D" path="res://sprites/skeleton/Idle-Sheet.png" id="2"]
+[ext_resource type="PackedScene" uid="uid://proj001" path="res://scenes/projectile.tscn" id="3"]
 
 [sub_resource type="CircleShape2D" id="1"]
 radius = 10.0
@@ -10,6 +11,7 @@ radius = 10.0
 collision_layer = 4
 collision_mask = 2
 script = ExtResource("1")
+projectile_scene = ExtResource("3")
 
 [node name="Sprite" type="Sprite2D" parent="."]
 texture = ExtResource("2")

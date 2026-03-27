@@ -1,8 +1,10 @@
-[gd_scene load_steps=2 format=3 uid="uid://gameui001"]
+[gd_scene load_steps=3 format=3 uid="uid://gameui001"]
 
 [ext_resource type="Script" path="res://scripts/game_ui.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/offscreen_indicator.gd" id="2"]
 
 [node name="GameUI" type="CanvasLayer"]
+process_mode = 3
 script = ExtResource("1")
 
 [node name="HealthBar" type="ProgressBar" parent="."]
@@ -10,8 +12,8 @@ offset_left = 20.0
 offset_top = 20.0
 offset_right = 220.0
 offset_bottom = 40.0
-max_value = 100.0
-value = 100.0
+max_value = 120.0
+value = 120.0
 show_percentage = false
 
 [node name="ThrallLabel" type="Label" parent="."]
@@ -21,12 +23,45 @@ offset_right = 220.0
 offset_bottom = 70.0
 text = "Thralls: 0"
 
-[node name="KillLabel" type="Label" parent="."]
+[node name="RiftLabel" type="Label" parent="."]
 offset_left = 20.0
 offset_top = 75.0
 offset_right = 220.0
 offset_bottom = 95.0
-text = "Kills: 0"
+text = "Rifts: 0 / 5"
+
+[node name="ProcessLabel" type="Label" parent="."]
+offset_left = 20.0
+offset_top = 100.0
+offset_right = 300.0
+offset_bottom = 120.0
+text = "The Rift Opens"
+
+[node name="ActiveUpgradesLabel" type="Label" parent="."]
+visible = false
+offset_left = 20.0
+offset_top = 125.0
+offset_right = 500.0
+offset_bottom = 145.0
+text = ""
+
+[node name="CommandHint" type="Label" parent="."]
+offset_left = 20.0
+offset_top = 690.0
+offset_right = 500.0
+offset_bottom = 710.0
+text = "Kill enemies nearby to extract thralls"
+
+[node name="ControlsLabel" type="Label" parent="."]
+offset_left = 440.0
+offset_top = 20.0
+offset_right = 840.0
+offset_bottom = 100.0
+horizontal_alignment = 1
+text = "WASD: Move   |   LMB: Soul Bolt
+RMB: Command Thralls   |   R: Recall
+SPACE: Dash   |   ESC: Pause
+Stay near kills to extract thralls"
 
 [node name="AriseLabel" type="Label" parent="."]
 offset_left = 490.0
@@ -43,7 +78,7 @@ visible = false
 offset_left = 340.0
 offset_top = 200.0
 offset_right = 940.0
-offset_bottom = 500.0
+offset_bottom = 520.0
 
 [node name="TitleLabel" type="Label" parent="GameOverPanel"]
 offset_left = 200.0
@@ -51,20 +86,185 @@ offset_top = 30.0
 offset_right = 400.0
 offset_bottom = 60.0
 horizontal_alignment = 1
-text = "YOU HAVE FALLEN"
+text = "THE NECROMANCER FALLS"
 
 [node name="StatsLabel" type="Label" parent="GameOverPanel"]
-offset_left = 150.0
+offset_left = 100.0
 offset_top = 80.0
-offset_right = 450.0
-offset_bottom = 160.0
+offset_right = 500.0
+offset_bottom = 180.0
 horizontal_alignment = 1
-text = "Enemies Slain: 0
-Thralls Bound: 0"
+text = "Stats"
 
 [node name="RestartButton" type="Button" parent="GameOverPanel"]
 offset_left = 220.0
-offset_top = 200.0
+offset_top = 220.0
 offset_right = 380.0
-offset_bottom = 240.0
+offset_bottom = 260.0
 text = "Rise Again"
+
+[node name="BossHealthBar" type="ProgressBar" parent="."]
+visible = false
+offset_left = 340.0
+offset_top = 45.0
+offset_right = 940.0
+offset_bottom = 62.0
+max_value = 300.0
+value = 300.0
+show_percentage = false
+
+[node name="BossNameLabel" type="Label" parent="."]
+visible = false
+offset_left = 340.0
+offset_top = 24.0
+offset_right = 940.0
+offset_bottom = 44.0
+horizontal_alignment = 1
+text = "Rift Guardian"
+
+[node name="DamageVignette" type="ColorRect" parent="."]
+offset_right = 1280.0
+offset_bottom = 720.0
+mouse_filter = 2
+color = Color(0.8, 0.0, 0.0, 0)
+
+[node name="PhaseFlash" type="ColorRect" parent="."]
+offset_right = 1280.0
+offset_bottom = 720.0
+mouse_filter = 2
+color = Color(1, 1, 1, 0)
+
+[node name="UpgradePanel" type="Panel" parent="."]
+visible = false
+offset_left = 240.0
+offset_top = 180.0
+offset_right = 1040.0
+offset_bottom = 520.0
+
+[node name="UpgradeTitle" type="Label" parent="UpgradePanel"]
+offset_left = 150.0
+offset_top = 20.0
+offset_right = 650.0
+offset_bottom = 50.0
+horizontal_alignment = 1
+text = "RIFT SEALED — CHOOSE AN UPGRADE"
+
+[node name="UpgradeBtn1" type="Button" parent="UpgradePanel"]
+offset_left = 30.0
+offset_top = 80.0
+offset_right = 260.0
+offset_bottom = 300.0
+text = "Upgrade 1"
+
+[node name="UpgradeBtn2" type="Button" parent="UpgradePanel"]
+offset_left = 285.0
+offset_top = 80.0
+offset_right = 515.0
+offset_bottom = 300.0
+text = "Upgrade 2"
+
+[node name="UpgradeBtn3" type="Button" parent="UpgradePanel"]
+offset_left = 540.0
+offset_top = 80.0
+offset_right = 770.0
+offset_bottom = 300.0
+text = "Upgrade 3"
+
+[node name="VictoryPanel" type="Panel" parent="."]
+visible = false
+offset_left = 340.0
+offset_top = 180.0
+offset_right = 940.0
+offset_bottom = 520.0
+
+[node name="VictoryTitle" type="Label" parent="VictoryPanel"]
+offset_left = 150.0
+offset_top = 30.0
+offset_right = 450.0
+offset_bottom = 60.0
+horizontal_alignment = 1
+text = "ALL RIFTS SEALED!"
+
+[node name="VictoryStats" type="Label" parent="VictoryPanel"]
+offset_left = 150.0
+offset_top = 80.0
+offset_right = 450.0
+offset_bottom = 180.0
+horizontal_alignment = 1
+text = "Stats"
+
+[node name="VictoryRestart" type="Button" parent="VictoryPanel"]
+offset_left = 220.0
+offset_top = 240.0
+offset_right = 380.0
+offset_bottom = 280.0
+text = "Play Again"
+
+[node name="PausePanel" type="Panel" parent="."]
+visible = false
+offset_left = 440.0
+offset_top = 200.0
+offset_right = 840.0
+offset_bottom = 500.0
+
+[node name="PauseTitle" type="Label" parent="PausePanel"]
+offset_left = 120.0
+offset_top = 30.0
+offset_right = 280.0
+offset_bottom = 60.0
+horizontal_alignment = 1
+text = "PAUSED"
+
+[node name="ResumeButton" type="Button" parent="PausePanel"]
+offset_left = 120.0
+offset_top = 90.0
+offset_right = 280.0
+offset_bottom = 130.0
+text = "Resume"
+
+[node name="PauseSettingsButton" type="Button" parent="PausePanel"]
+offset_left = 120.0
+offset_top = 150.0
+offset_right = 280.0
+offset_bottom = 190.0
+text = "Settings"
+
+[node name="PauseRestartButton" type="Button" parent="PausePanel"]
+offset_left = 120.0
+offset_top = 210.0
+offset_right = 280.0
+offset_bottom = 250.0
+text = "Restart"
+
+[node name="CoinLabel" type="Label" parent="."]
+offset_left = 1060.0
+offset_top = 20.0
+offset_right = 1260.0
+offset_bottom = 40.0
+horizontal_alignment = 2
+text = "Coins: 0"
+
+[node name="ExpLabel" type="Label" parent="."]
+offset_left = 1060.0
+offset_top = 45.0
+offset_right = 1260.0
+offset_bottom = 65.0
+horizontal_alignment = 2
+text = "Lv.1  EXP: 0/100"
+
+[node name="WorldLabel" type="Label" parent="."]
+offset_left = 1060.0
+offset_top = 70.0
+offset_right = 1260.0
+offset_bottom = 90.0
+horizontal_alignment = 2
+text = "World 1: The Dark Realm"
+
+[node name="OffscreenIndicator" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2")

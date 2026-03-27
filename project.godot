@@ -15,12 +15,27 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="Riftbound"
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/title_screen.tscn"
 config/features=PackedStringArray("4.6")
 
 [autoload]
 
 Game="*res://scripts/game_manager.gd"
+Audio="*res://scripts/audio_manager.gd"
+WorldData="*res://scripts/world_data.gd"
+SaveData="*res://scripts/save_data.gd"
+Equipment="*res://scripts/equipment_data.gd"
+Effects="*res://scripts/effects_manager.gd"
+Meta="*res://scripts/meta_progression.gd"
+Achievements="*res://scripts/achievement_manager.gd"
+Challenges="*res://scripts/challenge_modifiers.gd"
+SkillTree="*res://scripts/skill_tree.gd"
+Runes="*res://scripts/rune_data.gd"
+Codex="*res://scripts/codex_data.gd"
+Leaderboard="*res://scripts/leaderboard.gd"
+Milestones="*res://scripts/run_milestones.gd"
+Pool="*res://scripts/object_pool.gd"
+A11y="*res://scripts/accessibility.gd"
 
 [display]
 
@@ -48,6 +63,21 @@ move_left={
 move_right={
 "deadzone": 0.5,
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":68,"physical_keycode":0,"key_label":0,"unicode":100,"location":0,"echo":false,"script":null)
+]
+}
+dash={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":32,"physical_keycode":0,"key_label":0,"unicode":32,"location":0,"echo":false,"script":null)
+]
+}
+recall={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":82,"physical_keycode":0,"key_label":0,"unicode":114,"location":0,"echo":false,"script":null)
+]
+}
+pause={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":4194305,"physical_keycode":0,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
 ]
 }
 
